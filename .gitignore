@@ -22,3 +22,6 @@ vendor/
 # Test
 coverage.out
 *.prof
+
+.opencode/
+openspec/
