@@ -257,8 +257,12 @@ go build -tags memory ./...
 
 ### 快速开始
 - [嵌入指南](docs/guides/embedder-guide.md) — 将 basework 嵌入 Go 应用
+- [CLI 使用指南](docs/guides/cli-guide.md) — CLI 完整命令参考
 - [Provider 配置](docs/guides/provider-guide.md) — Provider 配置、模型选择、故障排查
 - [配置参考](docs/guides/configuration.md) — 配置文件、环境变量
+
+### 常见问题
+- [FAQ](docs/FAQ.md) — 常见问题解答
 
 ### 架构与设计
 - [架构概览](ARCHITECTURE.md) — 系统架构、模块依赖、API 兼容性
@@ -275,6 +279,7 @@ go build -tags memory ./...
 - [路线图](ROADMAP.md) — 高层路线图
 - [变更日志](CHANGELOG.md) — 版本变更记录
 - [安全策略](SECURITY.md) — 漏洞报告、安全更新
+- [行为准则](CODE_OF_CONDUCT.md) — 社区行为准则
 
 ## 许可证
 
