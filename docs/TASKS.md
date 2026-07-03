@@ -1,10 +1,14 @@
 # Basework 任务清单
 
-> 分阶段实施计划，每个任务包含详情、依赖、验收标准
+> 从可嵌入框架到独立终端产品的完整实施计划
+> 
+> Phase 1-12：核心框架（已完成 ✅）| Phase 13-25：终端产品化（待完成 🔲）
 
 ---
 
 ## 依赖关系总览
+
+### Phase 1-12：核心框架（已完成 ✅）
 
 ```
 Phase 1: pkg/llm/          ← 无依赖，最先做
@@ -34,6 +38,34 @@ Phase 1: pkg/llm/          ← 无依赖，最先做
 ```
 
 Phase 2/3/4 可并行。Phase 6/7/8 可并行（均依赖 Phase 1-4）。
+
+### Phase 13-25：终端产品化（待完成 🔲）
+
+```
+Phase 12 完成后
+    │
+    ├──→ Phase 13: internal/compaction/  ← 上下文压缩（依赖 pkg/agent）
+    ├──→ Phase 14: internal/retry/       ← 重试机制（依赖 pkg/llm, pkg/provider）
+    ├──→ Phase 15: internal/permission/  ← 权限系统（依赖 pkg/tool, pkg/agent）
+    │         │
+    │         ↓
+    │    Phase 16: internal/subagent/    ← 子代理（依赖 permission）
+    │
+    ├──→ Phase 17: internal/tools/       ← 增强工具（依赖 pkg/tool）
+    │
+    ├──→ Phase 19: pkg/session/ (SQLite) ← 会话增强（依赖 pkg/session）
+    ├──→ Phase 20: pkg/provider/ (扩展)  ← Provider 扩展（依赖 pkg/provider）
+    │
+    ├──→ Phase 21: internal/observability/ ← 可观测性（独立）
+    ├──→ Phase 22: internal/loopdetect/  ← 循环检测（依赖 pkg/agent）
+    ├──→ Phase 23: internal/cache/       ← Prompt 缓存（依赖 pkg/llm）
+    ├──→ Phase 24: pkg/mcp/ (增强)       ← MCP 增强（依赖 pkg/mcp）
+    ├──→ Phase 25: internal/oauth/       ← OAuth 认证（独立）
+    │
+    └──→ Phase 18: internal/tui/         ← 终端 UI（依赖 Phase 13-17）
+```
+
+Phase 13-17, 19-25 可并行开发。Phase 18 (TUI) 依赖 Phase 13-17 完成。
 
 ---
 
@@ -871,7 +903,7 @@ finalize:
 
 ---
 
-## 任务统计
+## 任务统计（Phase 1-12：已完成）
 
 | Phase | 预计行数 | 任务数 | 依赖 |
 |-------|---------|--------|------|
@@ -889,17 +921,933 @@ finalize:
 | Phase 12: 测试 + 文档 | ~500 | 2 | Phase 11 |
 | **合计** | **~4800** | **42** | |
 
-**预计核心代码量**：~4800 行（对比 openwork 当前 ~15000+ 行，减 ~68%）
+---
+
+## 任务统计（Phase 13-25：终端产品化）
+
+| Phase | 预计行数 | 任务数 | 依赖 | 优先级 |
+|-------|---------|--------|------|--------|
+| Phase 13: 上下文压缩 | ~600 | 5 | Phase 5 | P0 |
+| Phase 14: 重试机制 | ~400 | 4 | Phase 1, 6 | P0 |
+| Phase 15: 权限系统 | ~500 | 5 | Phase 4, 5 | P0 |
+| Phase 16: 子代理 | ~500 | 4 | Phase 5, 15 | P0 |
+| Phase 17: 增强工具 | ~600 | 5 | Phase 4, 5 | P0-P1 |
+| Phase 18: 终端 UI | ~1200 | 6 | Phase 13-17 | P0 |
+| Phase 19: 会话增强 | ~500 | 4 | Phase 3 | P0-P2 |
+| Phase 20: Provider 扩展 | ~800 | 5 | Phase 6 | P0-P2 |
+| Phase 21: 可观测性 | ~300 | 3 | Phase 5 | P0-P2 |
+| Phase 22: 循环检测 | ~200 | 2 | Phase 5 | P1 |
+| Phase 23: Prompt 缓存 | ~200 | 2 | Phase 1, 6 | P1 |
+| Phase 24: MCP 增强 | ~400 | 4 | Phase 8 | P1-P2 |
+| Phase 25: OAuth 认证 | ~400 | 3 | Phase 6 | P2 |
+| **合计** | **~6600** | **52** | | |
+
+---
+
+## 总任务统计
+
+| 阶段 | 行数 | 任务数 |
+|------|------|--------|
+| Phase 1-12（已完成） | ~4800 | 42 |
+| Phase 13-25（待完成） | ~6600 | 52 |
+| **总计** | **~11400** | **94** |
 
 ---
 
 ## 执行顺序建议
 
 ```
-Week 1: Phase 1 (llm) + Phase 2 (hook) + Phase 3 (session) — 并行
-Week 2: Phase 4 (tool) + Phase 6 (provider) — 并行
-Week 3: Phase 5 (agent 核心 + streaming + steering + compaction) — 串行
-Week 4: Phase 7 (lsp) + Phase 8 (mcp) — 并行
-Week 5: Phase 9 (memory) + Phase 10 (config+skill) — 并行
-Week 6: Phase 11 (CLI) + Phase 12 (测试+文档)
+Week 1-2: Phase 13 (压缩) + Phase 14 (重试) — 可并行
+Week 3:   Phase 15 (权限) + Phase 22 (循环检测) — 可并行
+Week 4:   Phase 16 (子代理) + Phase 17 (增强工具) — 可并行
+Week 5:   Phase 19 (会话 SQLite) + Phase 20 (Provider 扩展) — 可并行
+Week 6-8: Phase 18 (TUI) — 依赖 Phase 13-17
+Week 9:   Phase 21 (可观测性) + Phase 23 (缓存) — 可并行
+Week 10:  Phase 24 (MCP 增强) + Phase 25 (OAuth) — 可并行
 ```
+
+---
+
+## Phase 13: 上下文压缩 (`internal/compaction/`)
+
+**目标**：当上下文窗口接近满时，自动压缩历史消息，保持 Agent 持续工作。
+
+**预计行数**：~600 行
+
+### Task 13.1: Token 估算器 (`internal/compaction/token.go`)
+
+**文件**：`internal/compaction/token.go`
+
+**内容**：
+- `Estimate(messages []llm.ChatMessage) int` — 基于字符数/token 比的粗略估算
+- `EstimateToolResult(content string) int` — 工具输出 token 估算
+- `ContextWindowSize(modelID string) int` — 从 provider 元数据获取窗口大小
+- 支持手动覆盖
+
+**验收标准**：
+- [ ] 估算误差 < 20%（与 tiktoken 对比）
+- [ ] 覆盖常见模型的窗口大小
+- [ ] 有单元测试
+
+### Task 13.2: 压缩策略接口 (`internal/compaction/strategy.go`)
+
+**文件**：`internal/compaction/strategy.go`
+
+**内容**：
+- `Strategy` 接口：`Compact(ctx, messages, budget) ([]llm.ChatMessage, error)`
+- `TruncateStrategy` — 截断最早的消息，保留最近 N 轮
+- `PruneToolOutputStrategy` — 修剪大型工具输出，替换为摘要
+- `SummarizeStrategy` — 调用 LLM 生成历史摘要
+- `CombinedStrategy` — 按顺序应用多个策略
+
+**验收标准**：
+- [ ] 策略接口清晰
+- [ ] 3 种内置策略实现
+- [ ] 组合策略支持链式调用
+
+### Task 13.3: 自动压缩引擎 (`internal/compaction/engine.go`)
+
+**文件**：`internal/compaction/engine.go`
+
+**内容**：
+- `Engine` 结构体 — 管理压缩流程
+- `ShouldCompact(messages, modelID) bool` — 判断是否需要压缩
+- `Compact(ctx, messages, modelID) ([]llm.ChatMessage, error)` — 执行压缩
+- 配置：触发阈值（默认 80% 窗口）、保留最近轮次数（默认 2）
+- 修剪保护：skill 工具输出不修剪
+
+**验收标准**：
+- [ ] 80% 阈值触发压缩
+- [ ] 保留最近 2 轮对话
+- [ ] 保护 skill 输出
+- [ ] 有单元测试
+
+### Task 13.4: 摘要提示模板 (`internal/compaction/prompt.go`)
+
+**文件**：`internal/compaction/prompt.go`
+
+**内容**：
+- `BuildSummaryPrompt(messages) string` — 构建摘要请求
+- 结构化模板：目标、约束、进度、关键决策、下一步、相关文件
+- 支持多语言（中文/英文）
+
+**验收标准**：
+- [ ] 模板输出结构化摘要
+- [ ] 有单元测试验证格式
+
+### Task 13.5: Agent 集成 (`internal/compaction/hook.go`)
+
+**文件**：`internal/compaction/hook.go`
+
+**内容**：
+- `CompactionHook` — 实现 `hook.Hook` 接口
+- 在 `PreStep` 中检查上下文使用率
+- 超阈值时自动压缩
+- 压缩后注入摘要消息
+
+**验收标准**：
+- [ ] 自动触发压缩
+- [ ] 压缩后 Agent 继续正常工作
+- [ ] 集成测试验证
+
+---
+
+## Phase 14: 重试机制 (`internal/retry/`)
+
+**目标**：Provider 请求失败时自动重试，处理速率限制和临时错误。
+
+**预计行数**：~400 行
+
+### Task 14.1: 错误分类 (`internal/retry/classify.go`)
+
+**文件**：`internal/retry/classify.go`
+
+**内容**：
+- `ClassifyError(err) RetryDecision` — 分类错误为可重试/不可重试
+- 可重试：5xx、速率限制、超时、连接错误
+- 不可重试：401 认证、400 无效请求、上下文溢出、内容策略
+- 利用 `pkg/llm` 已有的错误类型
+
+**验收标准**：
+- [ ] 正确分类各类错误
+- [ ] 有单元测试
+
+### Task 14.2: 指数退避调度器 (`internal/retry/backoff.go`)
+
+**文件**：`internal/retry/backoff.go`
+
+**内容**：
+- `Backoff` 结构体 — 管理退避状态
+- `NextDelay() time.Duration` — 计算下次延迟
+- 初始延迟 2s、因子 2x、最大 30s
+- 解析 `Retry-After` 头部（秒数 / HTTP 日期）
+- 解析 `Retry-After-Ms` 头部
+- 抖动（jitter）避免惊群
+
+**验收标准**：
+- [ ] 退避序列正确：2s, 4s, 8s, 16s, 30s, 30s...
+- [ ] 正确解析 Retry-After
+- [ ] 有单元测试
+
+### Task 14.3: 重试包装器 (`internal/retry/wrapper.go`)
+
+**文件**：`internal/retry/wrapper.go`
+
+**内容**：
+- `RetryModel` — 包装 `llm.Model` 接口
+- `Generate(ctx, req) -> 自动重试`
+- `Stream(ctx, req) -> 自动重试（流中断恢复）`
+- 最大重试次数可配置（默认 5）
+- 进度回调通知
+
+**验收标准**：
+- [ ] 包装后透明重试
+- [ ] 流中断可恢复
+- [ ] 超过最大次数返回错误
+- [ ] 有单元测试
+
+### Task 14.4: Provider 集成 (`internal/retry/integration.go`)
+
+**文件**：`internal/retry/integration.go`
+
+**内容**：
+- `WrapProvider(model llm.Model, cfg Config) llm.Model` — 便捷函数
+- 在 `pkg/provider/factory.go` 的 Create 流程中自动包装
+- 配置项：`retry.max_attempts`, `retry.initial_delay`, `retry.max_delay`
+
+**验收标准**：
+- [ ] Provider 创建时自动包装
+- [ ] 配置可自定义
+- [ ] 有集成测试
+
+---
+
+## Phase 15: 权限系统 (`internal/permission/`)
+
+**目标**：工具调用前检查权限，支持规则引擎和交互提示。
+
+**预计行数**：~500 行
+
+### Task 15.1: 权限规则 (`internal/permission/rules.go`)
+
+**文件**：`internal/permission/rules.go`
+
+**内容**：
+- `Rule` 结构体：`{Action, Resource, Effect}`
+- `Effect` 类型：`Allow`, `Deny`
+- 通配符支持（`*` 匹配所有）
+- `Ruleset` 结构体：有序规则列表
+- `Evaluate(action, resource) Decision` — 按顺序匹配
+
+**验收标准**：
+- [ ] 规则匹配正确
+- [ ] 通配符工作正常
+- [ ] 有单元测试
+
+### Task 15.2: 权限服务 (`internal/permission/service.go`)
+
+**文件**：`internal/permission/service.go`
+
+**内容**：
+- `Service` 结构体 — 管理权限检查和会话状态
+- `Check(ctx, tool, args) (Allowed, error)` — 检查工具调用权限
+- 会话级缓存（"always" 授权）
+- 全局规则 + 会话规则合并
+
+**验收标准**：
+- [ ] 权限检查正确
+- [ ] 会话缓存工作正常
+- [ ] 有单元测试
+
+### Task 15.3: 交互提示 (`internal/permission/prompt.go`)
+
+**文件**：`internal/permission/prompt.go`
+
+**内容**：
+- `PromptHandler` 接口 — 处理权限提示
+- `TerminalPromptHandler` — 终端交互实现
+- 提示选项：一次允许 / 永远允许 / 拒绝
+- YOLO 模式：跳过所有提示
+
+**验收标准**：
+- [ ] 终端提示工作正常
+- [ ] YOLO 模式跳过提示
+- [ ] 有单元测试
+
+### Task 15.4: Agent 集成 (`internal/permission/hook.go`)
+
+**文件**：`internal/permission/hook.go`
+
+**内容**：
+- `PermissionHook` — 实现 `hook.Hook` 接口
+- 在 `PreToolUse` 中检查权限
+- 拒绝时返回错误给模型
+- Hook 预审批：`PreToolUse` 返回 allow 时跳过提示
+
+**验收标准**：
+- [ ] 工具调用前检查权限
+- [ ] 拒绝时正确反馈
+- [ ] 有集成测试
+
+### Task 15.5: 命令黑名单 (`internal/permission/bash_guard.go`)
+
+**文件**：`internal/permission/bash_guard.go`
+
+**内容**：
+- `IsBlockedCommand(cmd string) bool` — 检查 bash 命令是否被禁止
+- 禁止列表：`rm -rf /`, `mkfs`, `dd if=`, `:(){ :|:& };:` 等
+- 支持自定义禁止列表（配置）
+
+**验收标准**：
+- [ ] 危险命令被拦截
+- [ ] 正常命令不受影响
+- [ ] 有单元测试
+
+---
+
+## Phase 16: 子代理 (`internal/subagent/`)
+
+**目标**：支持启动隔离子代理处理复杂任务。
+
+**预计行数**：~500 行
+
+### Task 16.1: 子代理管理器 (`internal/subagent/manager.go`)
+
+**文件**：`internal/subagent/manager.go`
+
+**内容**：
+- `Manager` 结构体 — 管理子代理生命周期
+- `Spawn(ctx, task, options) (*Result, error)` — 启动子代理
+- 隔离子会话（独立 session ID）
+- 前台模式（等待结果）/ 后台模式（异步执行）
+
+**验收标准**：
+- [ ] 子代理在隔离子会话中运行
+- [ ] 前台/后台模式工作正常
+- [ ] 有单元测试
+
+### Task 16.2: task 工具 (`internal/subagent/task_tool.go`)
+
+**文件**：`internal/subagent/task_tool.go`
+
+**内容**：
+- `TaskTool` — 实现 `tool.Tool` 接口
+- 参数：`description`, `prompt`, `subagent_type`
+- 返回子代理执行结果
+- 支持 task_id 恢复之前的子代理会话
+
+**验收标准**：
+- [ ] 工具定义正确
+- [ ] 子代理执行并返回结果
+- [ ] 有单元测试
+
+### Task 16.3: 成本传播 (`internal/subagent/cost.go`)
+
+**文件**：`internal/subagent/cost.go`
+
+**内容**：
+- 子代理 token 使用累加到父会话
+- `CostAggregator` — 聚合多子代理成本
+- 在 session 事件中记录总成本
+
+**验收标准**：
+- [ ] 成本正确累加
+- [ ] 有单元测试
+
+### Task 16.4: 只读代理 (`internal/subagent/readonly.go`)
+
+**文件**：`internal/subagent/readonly.go`
+
+**内容**：
+- `ReadOnlyAgent` — 配置为只读工具集
+- 禁用：write, edit, bash, multiedit
+- 适用场景：信息搜索、代码分析
+
+**验收标准**：
+- [ ] 只写工具被禁用
+- [ ] 只读工具正常工作
+- [ ] 有单元测试
+
+---
+
+## Phase 17: 增强工具 (`pkg/tool/builtin/` + `internal/tools/`)
+
+**目标**：添加更多实用工具。
+
+**预计行数**：~600 行
+
+### Task 17.1: web_fetch 工具 (`internal/tools/webfetch.go`)
+
+**文件**：`internal/tools/webfetch.go`
+
+**内容**：
+- `WebFetchTool` — 实现 `tool.Tool` 接口
+- 参数：`url`, `format` (text/markdown/html)
+- HTTP GET + 内容提取（纯文本/markdown/html）
+- 大小限制：100KB
+- 超时：30s
+
+**验收标准**：
+- [ ] 正确获取 URL 内容
+- [ ] 格式转换工作正常
+- [ ] 大小限制生效
+- [ ] 有单元测试
+
+### Task 17.2: web_search 工具 (`internal/tools/websearch.go`)
+
+**文件**：`internal/tools/websearch.go`
+
+**内容**：
+- `WebSearchTool` — 实现 `tool.Tool` 接口
+- 参数：`query`, `num_results`
+- 后端：Tavily API / Exa API（可配置）
+- 返回搜索结果列表
+
+**验收标准**：
+- [ ] 搜索返回结果
+- [ ] 可配置后端
+- [ ] 有单元测试
+
+### Task 17.3: todowrite 工具 (`internal/tools/todowrite.go`)
+
+**文件**：`internal/tools/todowrite.go`
+
+**内容**：
+- `TodoWriteTool` — 实现 `tool.Tool` 接口
+- 参数：`todos` (JSON 数组)
+- 会话级任务列表存储
+- 渲染输出：任务列表的文本表示
+
+**验收标准**：
+- [ ] 任务列表正确存储
+- [ ] 渲染格式清晰
+- [ ] 有单元测试
+
+### Task 17.4: apply_patch 工具 (`internal/tools/applypatch.go`)
+
+**文件**：`internal/tools/applypatch.go`
+
+**内容**：
+- `ApplyPatchTool` — 实现 `tool.Tool` 接口
+- 参数：`patch` (结构化补丁文本)
+- 补丁格式：`*** Begin Patch` / `*** End Patch`
+- 支持：Add File / Delete File / Update File
+- 顺序应用，部分失败时报告进度
+
+**验收标准**：
+- [ ] 补丁正确应用
+- [ ] 部分失败时报告已应用/失败的文件
+- [ ] 有单元测试
+
+### Task 17.5: question 工具 (`internal/tools/question.go`)
+
+**文件**：`internal/tools/question.go`
+
+**内容**：
+- `QuestionTool` — 实现 `tool.Tool` 接口
+- 参数：`questions` (JSON 数组，含问题文本和选项)
+- 通过权限系统交互提示用户
+- 返回用户选择
+
+**验收标准**：
+- [ ] 正确显示问题和选项
+- [ ] 返回用户选择
+- [ ] 有单元测试
+
+---
+
+## Phase 18: 终端 UI (`internal/tui/`)
+
+**目标**：基于 Bubble Tea 构建完整的终端界面。
+
+**预计行数**：~1200 行
+**依赖**：`charm.land/bubbletea/v2`, `charm.land/lipgloss/v2`, `charm.land/glamour`
+
+### Task 18.1: TUI 框架 (`internal/tui/app.go`)
+
+**文件**：`internal/tui/app.go`
+
+**内容**：
+- `App` 结构体 — Bubble Tea 主应用
+- `Model` 接口实现：`Init()`, `Update()`, `View()`
+- 消息类型：`UserInputMsg`, `AgentResponseMsg`, `ToolCallMsg`, `ErrorMsg`
+- 布局：顶部状态栏 + 中间消息区 + 底部输入区
+
+**验收标准**：
+- [ ] 基本界面渲染正确
+- [ ] 键盘输入处理正常
+- [ ] 可编译运行
+
+### Task 18.2: 消息渲染 (`internal/tui/message.go`)
+
+**文件**：`internal/tui/message.go`
+
+**内容**：
+- `MessageView` — 消息渲染组件
+- 用户消息：简单文本
+- 助手消息：Glamour markdown 渲染
+- 工具调用：显示工具名 + 参数 + 结果
+- 错误消息：红色高亮
+
+**验收标准**：
+- [ ] Markdown 正确渲染
+- [ ] 工具调用显示清晰
+- [ ] 可编译运行
+
+### Task 18.3: 输入区 (`internal/tui/input.go`)
+
+**文件**：`internal/tui/input.go`
+
+**内容**：
+- `InputView` — 输入区组件
+- 多行输入支持
+- 历史导航（上/下箭头）
+- Tab 补全（文件路径、命令）
+- Ctrl+C 取消 / Ctrl+D 退出
+
+**验收标准**：
+- [ ] 多行输入正常
+- [ ] 历史记录工作正常
+- [ ] 可编译运行
+
+### Task 18.4: 流式渲染 (`internal/tui/streaming.go`)
+
+**文件**：`internal/tui/streaming.go`
+
+**内容**：
+- `StreamingView` — 流式 token 渲染
+- 逐字输出效果
+- 工具调用进度指示
+- 思考过程显示（reasoning tokens）
+
+**验收标准**：
+- [ ] 流式渲染流畅
+- [ ] 工具进度可见
+- [ ] 可编译运行
+
+### Task 18.5: 状态栏 (`internal/tui/statusbar.go`)
+
+**文件**：`internal/tui/statusbar.go`
+
+**内容**：
+- `StatusBarView` — 顶部状态栏
+- 显示：模型名、Provider、token 使用、会话 ID
+- MCP 连接状态指示
+- 忙/闲状态
+
+**验收标准**：
+- [ ] 状态信息正确
+- [ ] 实时更新
+- [ ] 可编译运行
+
+### Task 18.6: CLI 集成 (`cmd/basework/tui.go`)
+
+**文件**：`cmd/basework/tui.go`
+
+**内容**：
+- `tui` 子命令 — 启动 TUI 模式
+- 替换现有的简单 REPL
+- 保留 `--no-tui` 标志回退到简单模式
+- 集成 Agent + Session + Tool + Hook
+
+**验收标准**：
+- [ ] TUI 模式可启动
+- [ ] 基本对话流程正常
+- [ ] 可编译运行
+
+---
+
+## Phase 19: 会话增强 (`pkg/session/`)
+
+**目标**：用 SQLite 替换 JSONL 后端，增加高级会话功能。
+
+**预计行数**：~500 行
+
+### Task 19.1: SQLite 存储 (`pkg/session/sqlite.go`)
+
+**文件**：`pkg/session/sqlite.go`
+
+**内容**：
+- `SQLiteStore` — 实现 `session.Store` 接口
+- 表结构：sessions, messages, tool_calls, tool_results
+- 使用 `modernc.org/sqlite`（纯 Go，无 CGO）
+- build tag `sqlite` 控制
+
+**验收标准**：
+- [ ] CRUD 操作正确
+- [ ] 查询性能可接受
+- [ ] 有单元测试
+
+### Task 19.2: 自动标题生成 (`pkg/session/title.go`)
+
+**文件**：`pkg/session/title.go`
+
+**内容**：
+- `GenerateTitle(ctx, model, firstMessage) (string, error)`
+- 使用小型模型生成简短标题
+- 在首条用户消息后自动触发
+- 可配置禁用
+
+**验收标准**：
+- [ ] 标题生成正确
+- [ ] 自动触发工作正常
+- [ ] 有单元测试
+
+### Task 19.3: 会话队列 (`pkg/session/queue.go`)
+
+**文件**：`pkg/session/queue.go`
+
+**内容**：
+- `Queue` 结构体 — 管理排队提示
+- 会话忙时新消息入队
+- 按 FIFO 顺序处理
+- 支持取消排队消息
+
+**验收标准**：
+- [ ] 排队机制正确
+- [ ] FIFO 顺序处理
+- [ ] 有单元测试
+
+### Task 19.4: 文件追踪 (`pkg/session/filetrack.go`)
+
+**文件**：`pkg/session/filetrack.go`
+
+**内容**：
+- `FileTracker` — 追踪会话中访问/修改的文件
+- `TrackRead(path)`, `TrackWrite(path)`, `TrackEdit(path)`
+- `GetTrackedFiles() []string`
+- 在会话元数据中持久化
+
+**验收标准**：
+- [ ] 文件访问正确追踪
+- [ ] 持久化到存储
+- [ ] 有单元测试
+
+---
+
+## Phase 20: Provider 扩展 (`pkg/provider/`)
+
+**目标**：添加更多 Provider 支持。
+
+**预计行数**：~800 行
+
+### Task 20.1: OpenCode Zen (`pkg/provider/opencode.go`)
+
+**文件**：`pkg/provider/opencode.go`
+
+**内容**：
+- `OpenCodeProvider` — OpenCode Zen 平台集成
+- 端点：`https://opencode.ai/zen/v1/chat/completions`
+- 默认模型：`big-pickle`
+- 免费模型列表：big-pickle, deepseek-v4-flash-free, mimo-v2.5-free 等
+- OpenAI 兼容协议
+
+**验收标准**：
+- [ ] 可连接到 OpenCode Zen
+- [ ] big-pickle 模型工作正常
+- [ ] 有单元测试
+
+### Task 20.2: Amazon Bedrock (`pkg/provider/bedrock.go`)
+
+**文件**：`pkg/provider/bedrock.go`
+
+**内容**：
+- `BedrockProvider` — AWS Bedrock Converse API
+- AWS 认证（access key + secret key + region）
+- 模型 ID 映射（anthropic.claude-3-5-sonnet 等）
+- 流式支持
+
+**验收标准**：
+- [ ] AWS 认证正确
+- [ ] 消息收发正常
+- [ ] 有单元测试
+
+### Task 20.3: Azure OpenAI (`pkg/provider/azure.go`)
+
+**文件**：`pkg/provider/azure.go`
+
+**内容**：
+- `AzureProvider` — Azure OpenAI 服务
+- 端点格式：`https://{resource}.openai.azure.com/openai/deployments/{deployment}`
+- API key 或 AD token 认证
+- api-version 参数
+
+**验收标准**：
+- [ ] Azure 端点正确
+- [ ] 认证工作正常
+- [ ] 有单元测试
+
+### Task 20.4: GitHub Copilot (`pkg/provider/copilot.go`)
+
+**文件**：`pkg/provider/copilot.go`
+
+**内容**：
+- `CopilotProvider` — GitHub Copilot 集成
+- OAuth 认证流程
+- 模型：gpt-4, claude-3-sonnet 等
+- 特殊的请求头处理
+
+**验收标准**：
+- [ ] OAuth 流程正确
+- [ ] 消息收发正常
+- [ ] 有单元测试
+
+### Task 20.5: Ollama (`pkg/provider/ollama.go`)
+
+**文件**：`pkg/provider/ollama.go`
+
+**内容**：
+- `OllamaProvider` — Ollama 本地模型
+- 端点：`http://localhost:11434/v1/chat/completions`
+- 自动发现本地模型（`/api/tags`）
+- OpenAI 兼容协议
+
+**验收标准**：
+- [ ] 可连接到 Ollama
+- [ ] 自动发现模型列表
+- [ ] 有单元测试
+
+---
+
+## Phase 21: 可观测性 (`internal/observability/`)
+
+**目标**：结构化日志和成本追踪。
+
+**预计行数**：~300 行
+
+### Task 21.1: 结构化日志 (`internal/observability/logging.go`)
+
+**文件**：`internal/observability/logging.go`
+
+**内容**：
+- 基于 `log/slog` 的结构化日志
+- 日志级别：DEBUG, INFO, WARN, ERROR
+- 文件日志：`~/.basework/logs/basework.log`
+- 可配置日志级别（环境变量 `BASEWORK_LOG_LEVEL`）
+
+**验收标准**：
+- [ ] 日志输出格式正确
+- [ ] 文件日志工作正常
+- [ ] 有单元测试
+
+### Task 21.2: 成本追踪 (`internal/observability/cost.go`)
+
+**文件**：`internal/observability/cost.go`
+
+**内容**：
+- `CostTracker` — 追踪 token 使用和费用
+- 每个模型的定价表（每百万 token）
+- `TrackUsage(modelID, promptTokens, completionTokens)`
+- `GetTotalCost() float64`
+
+**验收标准**：
+- [ ] token 计数正确
+- [ ] 费用计算准确
+- [ ] 有单元测试
+
+### Task 21.3: 事件总线 (`internal/observability/events.go`)
+
+**文件**：`internal/observability/events.go`
+
+**内容**：
+- `EventBus` — 发布/订阅事件系统
+- 事件类型：SessionCreated, MessageReceived, ToolCalled, ErrorOccurred
+- 订阅者接收事件通知
+
+**验收标准**：
+- [ ] 事件发布/订阅正常
+- [ ] 有单元测试
+
+---
+
+## Phase 22: 循环检测 (`internal/loopdetect/`)
+
+**目标**：检测 Agent 陷入循环并自动中断。
+
+**预计行数**：~200 行
+
+### Task 22.1: 循环检测器 (`internal/loopdetect/detector.go`)
+
+**文件**：`internal/loopdetect/detector.go`
+
+**内容**：
+- `Detector` 结构体 — 追踪工具调用签名
+- SHA-256 哈希：tool_name + input + output
+- 滑动窗口：最近 10 步
+- 阈值：同一签名出现 > 5 次触发中断
+
+**验收标准**：
+- [ ] 正确检测重复调用
+- [ ] 滑动窗口工作正常
+- [ ] 有单元测试
+
+### Task 22.2: Agent 集成 (`internal/loopdetect/hook.go`)
+
+**文件**：`internal/loopdetect/hook.go`
+
+**内容**：
+- `LoopDetectHook` — 实现 `hook.Hook` 接口
+- 在 `PostToolUse` 中记录调用签名
+- 检测到循环时返回错误终止 Agent
+
+**验收标准**：
+- [ ] 循环时正确中断
+- [ ] 正常调用不受影响
+- [ ] 有集成测试
+
+---
+
+## Phase 23: Prompt 缓存 (`internal/cache/`)
+
+**目标**：自动注入 Anthropic 缓存控制标记，减少 token 消耗。
+
+**预计行数**：~200 行
+
+### Task 23.1: 缓存策略 (`internal/cache/policy.go`)
+
+**文件**：`internal/cache/policy.go`
+
+**内容**：
+- `Policy` 接口 — 决定哪些消息/工具添加缓存标记
+- `AutoPolicy` — 自动在最后一个工具定义、最后系统消息、最新用户消息处注入
+- `ExplicitPolicy` — 手动指定缓存位置
+- 仅适用于 Anthropic 协议
+
+**验收标准**：
+- [ ] 缓存标记正确注入
+- [ ] 仅对 Anthropic 生效
+- [ ] 有单元测试
+
+### Task 23.2: Provider 集成 (`internal/cache/integration.go`)
+
+**文件**：`internal/cache/integration.go`
+
+**内容**：
+- 在 `pkg/provider/anthropic.go` 中集成缓存策略
+- `CacheControl` 字段添加到消息和工具定义
+- 配置：`cache.enabled`, `cache.policy`
+
+**验收标准**：
+- [ ] Anthropic 请求包含缓存标记
+- [ ] 缓存命中时 token 减少
+- [ ] 有单元测试
+
+---
+
+## Phase 24: MCP 增强 (`pkg/mcp/`)
+
+**目标**：增强 MCP 客户端功能。
+
+**预计行数**：~400 行
+
+### Task 24.1: 资源支持 (`pkg/mcp/resources.go`)
+
+**文件**：`pkg/mcp/resources.go`
+
+**内容**：
+- `ListResources(ctx) ([]Resource, error)` — 列出 MCP 资源
+- `ReadResource(ctx, uri) (Content, error)` — 读取资源内容
+- `list_mcp_resources` 工具
+- `read_mcp_resource` 工具
+
+**验收标准**：
+- [ ] 资源列表正确获取
+- [ ] 资源读取正确
+- [ ] 有单元测试
+
+### Task 24.2: 提示支持 (`pkg/mcp/prompts.go`)
+
+**文件**：`pkg/mcp/prompts.go`
+
+**内容**：
+- `ListPrompts(ctx) ([]Prompt, error)` — 列出 MCP 提示
+- `GetPrompt(ctx, name, args) (Messages, error)` — 获取提示消息
+- 提示消息注入到会话中
+
+**验收标准**：
+- [ ] 提示列表正确
+- [ ] 提示消息注入正确
+- [ ] 有单元测试
+
+### Task 24.3: 自动重连 (`pkg/mcp/reconnect.go`)
+
+**文件**：`pkg/mcp/reconnect.go`
+
+**内容**：
+- `ReconnectManager` — 管理 MCP 连接重连
+- Ping 失败时自动重建连接
+- 最大重试次数、退避策略
+- 状态机：Connected → Reconnecting → Connected/Error
+
+**验收标准**：
+- [ ] 断线后自动重连
+- [ ] 重连状态正确
+- [ ] 有单元测试
+
+### Task 24.4: Shell 变量展开 (`pkg/mcp/expand.go`)
+
+**文件**：`pkg/mcp/expand.go`
+
+**内容**：
+- `ExpandConfig(cfg MCPConfig) MCPConfig` — 展开配置中的变量
+- 支持：`$VAR`, `${VAR}`, `${VAR:-default}`, `$(command)`
+- 应用于 command, args, env, headers, url
+
+**验收标准**：
+- [ ] 变量正确展开
+- [ ] 默认值工作正常
+- [ ] 命令替换工作正常
+- [ ] 有单元测试
+
+---
+
+## Phase 25: OAuth 认证 (`internal/oauth/`)
+
+**目标**：支持 OAuth 2.0 认证流程。
+
+**预计行数**：~400 行
+
+### Task 25.1: OAuth 客户端 (`internal/oauth/client.go`)
+
+**文件**：`internal/oauth/client.go`
+
+**内容**：
+- `OAuthClient` — 实现 OAuth 2.0 客户端
+- PKCE 流程（code_verifier + code_challenge）
+- 授权码交换
+- 令牌刷新
+
+**验收标准**：
+- [ ] PKCE 流程正确
+- [ ] 令牌获取正确
+- [ ] 有单元测试
+
+### Task 25.2: 令牌存储 (`internal/oauth/store.go`)
+
+**文件**：`internal/oauth/store.go`
+
+**内容**：
+- `TokenStore` — 持久化 OAuth 令牌
+- 存储位置：`~/.basework/oauth/tokens.json`
+- 支持 access_token, refresh_token, expires_at
+- 自动刷新过期令牌
+
+**验收标准**：
+- [ ] 令牌持久化正确
+- [ ] 自动刷新工作正常
+- [ ] 有单元测试
+
+### Task 25.3: Provider 集成 (`internal/oauth/providers.go`)
+
+**文件**：`internal/oauth/providers.go`
+
+**内容**：
+- GitHub Copilot OAuth 配置
+- OpenCode Zen OAuth 配置
+- `basework auth` CLI 命令 — 交互式登录
+
+**验收标准**：
+- [ ] Copilot OAuth 工作正常
+- [ ] OpenCode Zen OAuth 工作正常
+- [ ] CLI 登录流程正确
+- [ ] 有集成测试
