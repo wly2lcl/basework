@@ -223,6 +223,327 @@
 
 ---
 
+## 迁移策略
+
+### 会话存储：JSONL → SQLite
+
+| 阶段 | 说明 |
+|------|------|
+| Phase 19 前 | 保持 JSONL 为默认后端 |
+| Phase 19 | 新增 SQLiteStore（build tag `sqlite`） |
+| 迁移工具 | `basework migrate sessions` 命令：扫描 JSONL 文件，逐行解析事件，写入 SQLite |
+| 兼容期 | 两种 Store 共存，通过 `session.store` 配置切换 |
+| 最终 | JSONL 降级为可选后端，SQLite 为默认 |
+
+**迁移原则**：
+- 不删除旧数据，保留 JSONL 文件作为备份
+- 迁移失败时回滚，不产生部分写入
+- 支持增量迁移（仅导入上次迁移后的新事件）
+
+### Agent API 兼容性
+
+| 策略 | 说明 |
+|------|------|
+| 接口不变 | `pkg/agent.Agent` 接口签名不变 |
+| 新增可选参数 | 通过 `agent.Option` 模式传入新功能（compaction, retry 等） |
+| Hook 扩展 | 新 Hook 点（PreStep, PostStep）通过新接口 `ExtendedHook` 暴露 |
+| 废弃标记 | 旧 API 用 `// Deprecated:` 注释标记，至少保留 2 个 Phase 周期 |
+
+---
+
+## 新增依赖清单
+
+### Phase 13-17（核心功能）
+
+| 依赖 | 用途 | Phase | 大小 |
+|------|------|-------|------|
+| 无新增 | 全部使用标准库 | 13-17 | - |
+
+### Phase 18（TUI）
+
+| 依赖 | 用途 | 大小 |
+|------|------|------|
+| `charm.land/bubbletea/v2` | TUI 框架 | ~2MB |
+| `charm.land/lipgloss/v2` | 样式系统 | ~500KB |
+| `charm.land/glamour` | Markdown 渲染 | ~1MB |
+
+### Phase 20（Provider 扩展）
+
+| 依赖 | 用途 | 大小 |
+|------|------|------|
+| `github.com/aws/aws-sdk-go-v2` | Bedrock 认证 | ~15MB |
+| `github.com/Azure/azure-sdk-for-go` | Azure 认证 | ~20MB |
+
+### Phase 21（可观测性）
+
+| 依赖 | 用途 | 大小 |
+|------|------|------|
+| 无新增 | 使用 `log/slog`（标准库） | - |
+
+### 可选依赖
+
+| 依赖 | 用途 | 条件 |
+|------|------|------|
+| `github.com/alecthomas/chroma/v2` | 语法高亮 | TUI 模式启用时 |
+| `go.opentelemetry.io/otel` | OpenTelemetry 追踪 | build tag `otel` |
+
+### 依赖增长估算
+
+| 阶段 | 新增依赖 | 二进制增量 |
+|------|----------|-----------|
+| Phase 1-12（已完成） | cobra, modernc.org/sqlite | ~30MB |
+| Phase 13-17 | 无 | ~0MB |
+| Phase 18 | Bubble Tea 生态 | ~3.5MB |
+| Phase 20 | AWS + Azure SDK | ~35MB |
+| **总计** | - | **~68MB** |
+
+---
+
+## 配置演进
+
+### 新增配置项
+
+```jsonc
+{
+  // Phase 13: 上下文压缩
+  "compaction": {
+    "enabled": true,
+    "threshold": 0.8,          // 窗口使用率超过 80% 时触发
+    "preserve_recent": 2,      // 保留最近 2 轮对话
+    "strategy": "auto",        // "auto" | "truncate" | "summarize"
+    "model": ""                // 摘要用小模型（空则用主模型）
+  },
+
+  // Phase 14: 重试机制
+  "retry": {
+    "max_attempts": 5,
+    "initial_delay": "2s",
+    "max_delay": "30s",
+    "backoff_factor": 2
+  },
+
+  // Phase 15: 权限系统
+  "permission": {
+    "mode": "interactive",     // "interactive" | "yolo" | "deny-all"
+    "rules": [
+      {"action": "bash", "resource": "*", "effect": "ask"},
+      {"action": "write", "resource": "*.go", "effect": "allow"}
+    ],
+    "blocked_commands": ["rm -rf /", "mkfs", "dd if=/dev/"]
+  },
+
+  // Phase 18: 终端 UI
+  "tui": {
+    "enabled": true,
+    "theme": "dark",           // "dark" | "light" | "dracula" | "monokai"
+    "markdown": true,
+    "syntax_highlight": true,
+    "compact_mode": false,
+    "diff_mode": "unified"     // "unified" | "split"
+  },
+
+  // Phase 19: 会话增强
+  "session": {
+    "store": "sqlite",         // "jsonl" | "sqlite" | "memory"
+    "auto_title": true,
+    "title_model": ""          // 标题生成用小模型
+  },
+
+  // Phase 20: 默认模型
+  "model": {
+    "default": "opencode/big-pickle",
+    "small": "opencode/deepseek-v4-flash-free"  // 用于摘要/标题
+  },
+
+  // Phase 21: 可观测性
+  "observability": {
+    "log_level": "info",       // "debug" | "info" | "warn" | "error"
+    "log_file": "~/.basework/logs/basework.log",
+    "cost_tracking": true
+  },
+
+  // Phase 22: 循环检测
+  "loop_detect": {
+    "enabled": true,
+    "window_size": 10,
+    "threshold": 5
+  },
+
+  // Phase 23: Prompt 缓存
+  "cache": {
+    "enabled": true,
+    "policy": "auto"           // "auto" | "none" | "explicit"
+  }
+}
+```
+
+### 配置发现优先级（不变）
+
+```
+命令行标志 > 环境变量 > .basework/config.json > ~/.config/basework/config.json
+```
+
+### 配置迁移
+
+- 旧配置自动识别，新增字段使用默认值
+- 无破坏性变更，旧配置文件继续可用
+- `basework config validate` 命令检查配置合法性
+
+---
+
+## CLI 命令路线图
+
+### 现有命令
+
+```
+basework agent        # 启动 Agent（简单 REPL）
+basework init         # 初始化配置
+basework model list   # 列出模型
+basework session list # 列出会话
+basework session clear # 清除会话
+```
+
+### 新增命令
+
+```
+# Phase 15: 权限
+basework permission list              # 列出当前权限规则
+basework permission add <rule>        # 添加规则
+basework permission remove <rule>     # 删除规则
+
+# Phase 18: TUI
+basework tui                          # 启动 TUI 模式
+basework tui --theme dark             # 指定主题
+basework tui --resume <session-id>    # 恢复会话
+
+# Phase 20: 模型管理
+basework model set <model-id>         # 设置默认模型
+basework model default                # 显示当前默认模型
+
+# Phase 25: 认证
+basework auth login <provider>        # OAuth 登录
+basework auth logout <provider>       # 登出
+basework auth status                  # 查看认证状态
+
+# Phase 19: 会话管理增强
+basework session resume <id>          # 恢复指定会话
+basework session export <id>          # 导出会话（markdown/json）
+basework session search <query>       # 搜索会话内容
+
+# 通用
+basework config validate              # 验证配置文件
+basework config show                  # 显示当前配置
+basework migrate sessions             # JSONL → SQLite 迁移
+basework logs [--tail N] [--follow]   # 查看日志
+```
+
+### 命令演进路线
+
+| Phase | 新增命令 |
+|-------|---------|
+| 15 | `permission list/add/remove` |
+| 18 | `tui` |
+| 19 | `session resume/export/search`, `migrate`, `logs` |
+| 20 | `model set/default` |
+| 25 | `auth login/logout/status` |
+
+---
+
+## API 兼容性策略
+
+### 分层保证
+
+| 层 | 包 | 兼容性承诺 |
+|----|-----|-----------|
+| 核心 API | `pkg/llm/`, `pkg/tool/`, `pkg/session/`, `pkg/agent/` | **SemVer 严格兼容**：不删除/修改导出类型签名 |
+| 扩展 API | `pkg/provider/`, `pkg/hook/`, `pkg/mcp/`, `pkg/lsp/` | **SemVer 次版本兼容**：可新增，不可删除 |
+| 内部实现 | `internal/*` | **无兼容性承诺**：随时可重构 |
+
+### 扩展原则
+
+```go
+// ✅ 正确：通过 Option 模式扩展
+func WithCompaction(cfg CompactionConfig) Option { ... }
+
+// ❌ 错误：修改接口签名
+type Agent interface {
+    Run(ctx, req) Response        // 不可改
+    RunWithCompaction(ctx, req, cfg) Response  // 不可加
+}
+```
+
+### 废弃策略
+
+1. `// Deprecated: 使用 Xxx 替代。将在 Phase N+2 移除。`
+2. 至少保留 2 个 Phase 的开发周期
+3. 移除前在 CHANGELOG.md 中记录
+
+---
+
+## 测试策略
+
+### 测试分层
+
+| 层级 | 位置 | 覆盖范围 | 工具 |
+|------|------|----------|------|
+| 单元测试 | `*_test.go`（每个包内） | 函数/方法级别 | `testing` |
+| 集成测试 | `tests/` | 跨包交互 | `testing` + mock |
+| E2E 测试 | `tests/e2e/` | 完整流程 | `testing` + 真实 API |
+| 压力测试 | `tests/stress/` | 并发/性能 | `testing` + `-race` |
+
+### 新增功能的测试要求
+
+| Phase | 测试类型 | 覆盖率目标 |
+|-------|---------|-----------|
+| 13 压缩 | 单元 + 集成 | > 80% |
+| 14 重试 | 单元 + 集成 | > 80% |
+| 15 权限 | 单元 + 集成 | > 90%（安全关键） |
+| 16 子代理 | 单元 + 集成 | > 70% |
+| 17 工具 | 单元 + 集成 | > 80% |
+| 18 TUI | 单元（渲染逻辑） | > 60% |
+| 19-25 | 单元 + 集成 | > 70% |
+
+### Mock 策略
+
+```go
+// mockModel — 模拟 LLM 响应
+type mockModel struct {
+    responses []llm.Response
+    calls     int
+}
+
+// mockTool — 模拟工具调用
+type mockTool struct {
+    name    string
+    handler func(args json.RawMessage) (tool.Result, error)
+}
+
+// mockStore — 模拟会话存储
+type mockStore struct {
+    events []session.Event
+}
+```
+
+### 测试命令
+
+```bash
+# 全量测试
+go test ./... -count=1 -timeout=180s
+
+# 竞态检测
+go test ./... -race -count=1
+
+# 覆盖率
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+
+# 仅运行某 Phase 的测试
+go test ./internal/compaction/... -v
+go test ./internal/retry/... -v
+```
+
+---
+
 ## 下一步
 
 1. **Phase 13**: 上下文压缩（compaction）
