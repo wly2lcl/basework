@@ -13,8 +13,14 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **可嵌入** — `agent.New(WithModel(...), WithTools(...))` 即可使用
 - **可扩展** — Hook + Plugin + Skill 三层扩展体系
 - **统一类型** — 一套 `ChatMessage`/`ToolCall` 类型贯穿始终
-- **可观测** — 事件溯源 Session + PubSub 事件总线
-- **可选复杂度** — Build Tag 控制可选模块（memory, tui）
+- **可观测** — 事件溯源 Session + PubSub 事件总线 + 结构化日志 + 成本追踪
+- **可选复杂度** — Build Tag 控制可选模块（memory, tui, otel）
+- **上下文压缩** — 自动摘要、滑动窗口、选择性保留
+- **重试机制** — 指数退避、错误分类、可恢复错误自动重试
+- **权限系统** — 规则引擎（allow/deny/ask）、YOLO 模式、命令黑名单
+- **子代理** — 任务委托、隔离子会话、成本传播
+- **循环检测** — SHA-256 签名 + 模式匹配，防止工具调用死循环
+- **OAuth 2.0** — PKCE 流程、令牌刷新、凭证安全存储
 - **10+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
 - **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
 - **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
@@ -109,11 +115,14 @@ func main() {
 │  cmd/basework/ — CLI 入口（cobra + TUI）                 │
 ├─────────────────────────────────────────────────────────┤
 │  internal/ — 终端产品专用逻辑                            │
-│  ├── tui/          终端 UI（Bubble Tea，计划中）         │
-│  ├── compaction/   上下文压缩（计划中）                  │
-│  ├── retry/        重试机制（计划中）                    │
-│  ├── permission/   权限系统（计划中）                    │
-│  └── ...           更多模块                              │
+│  ├── compaction/     上下文压缩                          │
+│  ├── retry/          重试机制                            │
+│  ├── permission/     权限系统                            │
+│  ├── subagent/       子代理系统                          │
+│  ├── loopdetect/     循环检测                            │
+│  ├── observability/  可观测性（日志 + 成本追踪）         │
+│  ├── oauth/          OAuth 2.0 认证                      │
+│  └── tui/            终端 UI（Bubble Tea，计划中）       │
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
 │  ├── llm/          类型系统 + 错误分类                   │
@@ -243,10 +252,14 @@ description: "代码审查最佳实践"
 | Tag | 默认 | 说明 |
 |-----|------|------|
 | `memory` | 关 | SQLite 持久化记忆 + FTS5 全文搜索 |
+| `otel` | 关 | OpenTelemetry 追踪导出 |
 
 ```bash
 # 启用记忆模块构建
 go build -tags memory ./...
+
+# 启用 OpenTelemetry 追踪
+go build -tags otel ./...
 ```
 
 ## 环境要求

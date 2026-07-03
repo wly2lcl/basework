@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/wly2lcl/basework/internal/subagent"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/tool"
@@ -56,6 +57,14 @@ func New(opts ...Option) (Agent, error) {
 		cfg.registry = tool.NewRegistry()
 		for _, t := range cfg.tools {
 			_ = cfg.registry.Register(t) // 忽略错误，测试时已保证唯一
+		}
+	}
+
+	// 如果配置了子代理协调器，注册 sub_agent 工具
+	if cfg.subAgentCoord != nil && cfg.subAgentCoord.Config.Enabled {
+		subTool := subagent.NewSubAgentTool(cfg.subAgentCoord)
+		if err := cfg.registry.Register(subTool); err != nil {
+			// 工具名冲突时记录但不阻断
 		}
 	}
 

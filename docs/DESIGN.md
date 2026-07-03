@@ -1690,7 +1690,16 @@ basework/
 │   ├── memory/                # L3: 记忆系统（build tag: memory）
 │   ├── config/                # L3: 配置
 │   └── skill/                 # L3: Skill
-└── internal/                  # 内部实现
+├── internal/                  # 终端产品专用逻辑
+│   ├── compaction/            上下文压缩
+│   ├── retry/                 重试机制
+│   ├── permission/            权限系统
+│   ├── subagent/              子代理系统
+│   ├── loopdetect/            循环检测
+│   ├── observability/         可观测性（日志 + 成本）
+│   ├── oauth/                 OAuth 2.0 认证
+│   └── tui/                   终端 UI（计划中）
+└── cmd/basework/              CLI 参考实现
 ```
 
 ---
@@ -2275,3 +2284,152 @@ Close() 取消 root context → 级联取消所有活跃操作。
 10. **Phase 10**：新建 `pkg/config/` + `pkg/skill/`
 11. **Phase 11**：新建 `cmd/basework/` CLI 参考实现
 12. **Phase 12**：集成测试 + 文档
+13. **Phase 13-25**：`internal/` 层新模块（见 §26）
+
+---
+
+## 26. 终端产品模块设计（`internal/`）
+
+> `internal/` 下的模块服务于终端产品（`cmd/basework/`），不暴露给嵌入方。
+> 它们依赖 `pkg/` 层的接口，但 `pkg/` 层对它们无感知。
+
+### 26.1 层间关系
+
+```
+cmd/basework/ ← 编排所有 internal 模块
+    │
+    ├── internal/compaction/      → pkg/agent (TurnD.ShouldCompact)
+    ├── internal/retry/           → pkg/llm (错误分类)
+    ├── internal/permission/      → pkg/hook (PermissionHook)
+    ├── internal/subagent/        → pkg/agent (Agent 实例管理)
+    ├── internal/loopdetect/      → pkg/hook (AfterTool hook)
+    ├── internal/observability/   → pkg/hook (AfterLLM/AfterTool hooks)
+    └── internal/oauth/           → pkg/provider (token 注入)
+```
+
+### 26.2 上下文压缩 (`internal/compaction/`)
+
+```
+compaction/
+├── engine.go           # 压缩引擎：触发判断 + 策略路由
+├── strategy.go         # 压缩策略接口
+├── summarization.go    # LLM 摘要策略
+├── selective.go        # 选择性保留策略（保留关键工具结果）
+├── sliding_window.go   # 滑动窗口策略（仅保留最近 N 轮）
+└── token.go            # Token 估算
+```
+
+**架构决策**：
+- **策略模式**：支持 `summarize`（LLM 摘要）、`truncate`（直接截断）、`sliding_window`（滑动窗口）
+- **触发机制**：在 `SetupTurn` 阶段通过 `EstimateTokens` 估算，超过阈值时触发
+- **事件溯源集成**：压缩产生 `session.EventCompacted` 事件，投影时截断旧消息
+- **与 pkg/agent 的关系**：`pkg/agent.CompactConfig` 定义配置，`internal/compaction` 实现策略
+
+### 26.3 重试机制 (`internal/retry/`)
+
+```
+retry/
+├── retry.go            # 重试循环 + 指数退避
+├── backoff.go          # 退避计算
+├── classify.go         # 错误分类（可重试/不可重试）
+```
+
+**架构决策**：
+- **错误分类驱动**：`classify.go` 将 `llm.Error` 分类为可重试（rate_limit, overloaded, network）和不可重试
+- **指数退避**：默认初始 1s，最大 30s，退避因子 2.0，加 jitter
+- **Retry-After 支持**：解析 HTTP 响应头的 `Retry-After`，优先使用服务器指定的等待时间
+- **与 pkg/agent 的关系**：`pkg/agent.RetryConfig` 定义配置，`internal/retry` 供 `AgentLoop` 调用
+
+### 26.4 权限系统 (`internal/permission/`)
+
+```
+permission/
+├── checker.go          # 权限检查器
+├── rule.go             # 规则定义与匹配
+├── mode.go             # 模式管理（interactive/yolo/deny-all）
+└── cache.go            # 用户选择缓存
+```
+
+**架构决策**：
+- **Hook 模式**（参考 §3.1.4）：权限通过 `BeforeTool` hook 实现，不独立建系统
+- **三值模式**：`interactive`（交互确认）、`yolo`（全部允许）、`deny-all`（全部拒绝）
+- **规则引擎**：通配符匹配（`tool:write:/etc/**`），首次匹配优先
+- **用户选择缓存**：同一工具同一路径的选择可缓存，避免重复询问
+- **与 pkg/hook 的关系**：`pkg/hook.PermissionHook` 定义规则结构，`internal/permission` 提供 CLI 交互层
+
+### 26.5 子代理系统 (`internal/subagent/`)
+
+```
+subagent/
+├── coordinator.go      # 子代理协调器
+├── progress.go         # 进度报告
+├── cost.go             # 成本累积与传播
+├── tool.go             # task 工具实现
+└── types.go            # 类型定义
+```
+
+**架构决策**：
+- **新 Agent 实例**：每个子代理创建独立的 `pkg/agent.Agent` 实例，共享 Model 和 ToolRegistry 的基础配置
+- **隔离子会话**：子代理使用独立的 `session.Store`（通过 `Session.Fork`），不污染父会话
+- **成本传播**：子代理的 token 消耗异步累加到父会话的 Usage 中
+- **进度流式回传**：子代理的输出通过 `Callback` 流式回传给父 agent
+- **只读代理**：通过 `pkg/agent.WithAgent("plan")` 创建只读子代理（无写工具权限）
+
+### 26.6 循环检测 (`internal/loopdetect/`)
+
+```
+loopdetect/
+├── detector.go         # 循环检测器（主入口）
+├── repeated.go         # 连续相同调用检测
+├── pattern.go          # 重复模式识别
+├── tool_loop.go        # 工具调用循环检测
+├── fusion.go           # 相似调用融合
+└── response.go         # 类型定义
+```
+
+**架构决策**：
+- **双重检测**：SHA-256 签名追踪（检测完全相同的调用序列）+ 模式匹配（检测变体循环）
+- **窗口机制**：默认追踪最近 10 步调用，超过 5 次相似调用触发中断
+- **工具融合**：对连续相同参数的重复工具调用（如反复 `read` 同一文件），融合为一次
+- **集成方式**：通过 `AfterTool` hook 注入检测逻辑，对主循环无侵入
+- **自动中断**：检测到循环后，自动跳过同类调用并向 LLM 返回警告消息
+
+### 26.7 可观测性 (`internal/observability/`)
+
+```
+observability/
+├── config.go           # 配置定义
+├── logger.go           # 结构化日志
+├── bus.go              # 事件总线适配
+├── event.go            # observability 事件类型
+├── subscriber.go       # 事件订阅者
+├── tokens.go           # Token 计数与费用估算
+└── cost.go             # 成本追踪
+```
+
+**架构决策**：
+- **标准库优先**：使用 `log/slog` 为默认日志后端，无额外依赖
+- **事件驱动**：订阅 `pkg/hook.Broker` 事件，将日志写入文件
+- **日志级别**：debug/info/warn/error，通过配置控制输出级别
+- **成本估算**：基于 Provider 返回的 Usage + 预设的每千 token 单价估算费用
+- **OpenTelemetry 可选**：通过 build tag `otel` 启用 OTel 追踪（Hook 模式实现）
+
+### 26.8 OAuth 2.0 (`internal/oauth/`)
+
+```
+oauth/
+├── config.go           # 配置定义
+├── flow.go             # PKCE 认证流程
+├── pkce.go             # PKCE 码挑战生成
+├── token.go            # 令牌管理与刷新
+├── store.go            # 凭证安全存储
+├── provider.go         # Provider 特定配置
+└── callback.go         # 本地回调服务器
+```
+
+**架构决策**：
+- **PKCE 流程**：Authorization Code + PKCE，无需 client_secret，适合 CLI 应用
+- **本地回调服务器**：启动临时 HTTP 服务器接收 callback code（监听 localhost）
+- **令牌自动刷新**：检测 `401/403` 响应时自动用 refresh_token 刷新 access_token
+- **安全存储**：凭证加密存储在 `~/.config/basework/auth/`，文件权限 0600
+- **Provider 配置**：内置 GitHub、Google 等常见 Provider 的端点配置

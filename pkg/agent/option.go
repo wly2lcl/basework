@@ -1,6 +1,11 @@
 package agent
 
 import (
+	"github.com/wly2lcl/basework/internal/compaction"
+	"github.com/wly2lcl/basework/internal/loopdetect"
+	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/internal/subagent"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -21,6 +26,14 @@ type config struct {
 	plugins      []Plugin
 	observer     Observer
 	callback     Callback
+
+	// 集成模块配置
+	compactor     *compaction.Engine
+	permChecker   *permission.Checker
+	loopDetector  *loopdetect.Detector
+	subAgentCoord *subagent.Coordinator
+	eventBus      *observability.EventBus
+	obsEnabled    bool
 }
 
 // WithModel 设置 LLM 模型
@@ -71,4 +84,29 @@ func WithObserver(o Observer) Option {
 // WithCallback 设置生命周期回调
 func WithCallback(cb Callback) Option {
 	return func(c *config) { c.callback = cb }
+}
+
+// WithCompactor 设置上下文压缩引擎
+func WithCompactor(e *compaction.Engine) Option {
+	return func(c *config) { c.compactor = e }
+}
+
+// WithPermissionChecker 设置权限检查器
+func WithPermissionChecker(pc *permission.Checker) Option {
+	return func(c *config) { c.permChecker = pc }
+}
+
+// WithLoopDetector 设置循环检测器
+func WithLoopDetector(d *loopdetect.Detector) Option {
+	return func(c *config) { c.loopDetector = d }
+}
+
+// WithSubAgentCoordinator 设置子代理协调器
+func WithSubAgentCoordinator(co *subagent.Coordinator) Option {
+	return func(c *config) { c.subAgentCoord = co }
+}
+
+// WithEventBus 设置可观测性事件总线
+func WithEventBus(eb *observability.EventBus) Option {
+	return func(c *config) { c.eventBus = eb; c.obsEnabled = eb != nil }
 }

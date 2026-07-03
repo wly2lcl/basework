@@ -43,6 +43,7 @@ func init() {
 	rootCmd.AddCommand(modelCmd)
 	rootCmd.AddCommand(sessionCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(authCmd)
 }
 
 func main() {

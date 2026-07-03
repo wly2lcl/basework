@@ -1,6 +1,6 @@
 # Basework 项目状态
 
-> 最后更新：2025-01-03
+> 最后更新：2025-07-03
 
 ## 项目概述
 
@@ -21,13 +21,14 @@
 │  cmd/basework/ — CLI 入口（cobra + 增强 REPL/TUI）       │
 ├─────────────────────────────────────────────────────────┤
 │  internal/ — 终端产品专用逻辑                            │
-│  ├── tui/          终端 UI（Bubble Tea）                 │
-│  ├── compaction/   上下文压缩                            │
-│  ├── retry/        重试机制                              │
-│  ├── permission/   权限系统                              │
-│  ├── loopdetect/   循环检测                              │
-│  ├── costtrack/    成本追踪                              │
-│  └── observability/ 可观测性                             │
+│  ├── compaction/     上下文压缩                           │
+│  ├── retry/          重试机制                             │
+│  ├── permission/     权限系统                             │
+│  ├── subagent/       子代理系统                           │
+│  ├── loopdetect/     循环检测                             │
+│  ├── observability/  可观测性（日志 + 成本）              │
+│  ├── oauth/          OAuth 2.0 认证                       │
+│  └── tui/            终端 UI（Bubble Tea，计划中）        │
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
 │  ├── agent/        Agent 循环                            │
@@ -46,7 +47,7 @@
 
 ---
 
-## 已完成功能（Phase 1-12）
+## 已完成功能（Phase 1-16 + 21-22 + 25）
 
 ### ✅ 核心框架
 
@@ -99,26 +100,48 @@
 | `grep` | ✅ | 正则内容搜索 |
 | `lsp_*` | ✅ | LSP 诊断/引用/重启（6 个工具） |
 
+### ✅ 生产韧性模块
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/compaction/` | ✅ 完成（Phase 13） | 上下文压缩：自动摘要、滑动窗口、选择性保留 |
+| `internal/retry/` | ✅ 完成（Phase 14） | 重试机制：指数退避、错误分类、Retry-After 支持 |
+| `internal/loopdetect/` | ✅ 完成（Phase 22） | 循环检测：SHA-256 签名追踪、模式匹配、工具融合 |
+
+### ✅ 安全与权限
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/permission/` | ✅ 完成（Phase 15） | 权限系统：规则引擎、交互提示、YOLO 模式 |
+| `internal/oauth/` | ✅ 完成（Phase 25） | OAuth 2.0：PKCE 流程、令牌刷新、凭证安全存储 |
+
+### ✅ 子代理系统
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/subagent/` | ✅ 完成（Phase 16） | 任务委托、隔离子会话、成本传播、只读代理 |
+
+### ✅ 可观测性
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/observability/` | ✅ 完成（Phase 21） | 结构化日志、Token 计数、成本追踪 |
+
 ---
 
-## 待完成功能（Phase 13-25）
+## 待完成功能（Phase 17-20 + 23-24）
 
 ### 🔲 生产韧性
 
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 上下文压缩 | P0 | 自动摘要、工具输出修剪、保留最近轮次 |
-| 重试机制 | P0 | 指数退避、retry-after 解析、速率限制检测 |
-| 循环检测 | P1 | SHA-256 签名追踪、10 步 > 5 次自动中断 |
 | Prompt 缓存 | P1 | Anthropic CacheHint 自动注入 |
 
 ### 🔲 安全与权限
 
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 权限系统 | P0 | 规则引擎（allow/deny）、交互提示、YOLO 模式 |
 | 命令黑名单 | P1 | bash 工具禁用危险命令 |
-| OAuth 2.0 | P2 | PKCE 流程、令牌刷新、凭证存储 |
 
 ### 🔲 工具增强
 
@@ -129,14 +152,6 @@
 | `todowrite` | P1 | 任务列表管理 |
 | `apply_patch` | P2 | 结构化补丁应用 |
 | `question` | P2 | 向用户提问 |
-
-### 🔲 子代理系统
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| `task` 工具 | P0 | 启动子代理、隔离子会话 |
-| 成本传播 | P1 | 子代理 token 累加到父会话 |
-| 只读代理 | P1 | 信息搜索任务（无写入权限） |
 
 ### 🔲 会话增强
 
@@ -168,14 +183,6 @@
 | 会话选择器 | P2 | 浏览/切换会话 |
 | 模型选择器 | P2 | 模型切换对话框 |
 
-### 🔲 可观测性
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 结构化日志 | P0 | slog 日志、文件输出 |
-| 成本追踪 | P1 | token 计数、费用估算 |
-| OpenTelemetry | P2 | 追踪导出 |
-
 ### 🔲 MCP 增强
 
 | 功能 | 优先级 | 说明 |
@@ -193,15 +200,15 @@
 |------|----------|----------|-------|
 | **核心框架** | ✅ | ✅ | ✅ |
 | **TUI** | 🔲 简单 REPL | ✅ OpenTUI | ✅ Bubble Tea |
-| **上下文压缩** | 🔲 | ✅ 多策略 | ✅ 自动摘要 |
-| **重试机制** | 🔲 | ✅ 指数退避 | ✅ OnRetry |
-| **权限系统** | 🔲 | ✅ 规则引擎 | ✅ 交互提示 |
-| **子代理** | 🔲 | ✅ task 工具 | ✅ agent 工具 |
-| **循环检测** | 🔲 | 🔲 | ✅ SHA-256 |
+| **上下文压缩** | ✅ | ✅ 多策略 | ✅ 自动摘要 |
+| **重试机制** | ✅ | ✅ 指数退避 | ✅ OnRetry |
+| **权限系统** | ✅ | ✅ 规则引擎 | ✅ 交互提示 |
+| **子代理** | ✅ | ✅ task 工具 | ✅ agent 工具 |
+| **循环检测** | ✅ | 🔲 | ✅ SHA-256 |
 | **Prompt 缓存** | 🔲 | ✅ CacheHint | ✅ 自动标记 |
-| **结构化日志** | 🔲 | ✅ + OpenTelemetry | ✅ slog |
-| **成本追踪** | 🔲 | ✅ | ✅ |
-| **OAuth** | 🔲 | ✅ | ✅ |
+| **结构化日志** | ✅ | ✅ + OpenTelemetry | ✅ slog |
+| **成本追踪** | ✅ | ✅ | ✅ |
+| **OAuth** | ✅ | ✅ | ✅ |
 | **本地模型** | 🔲 | 🔲 | ✅ Ollama |
 | **Provider 数量** | 10 | 10+ | 20+ |
 | **内置工具数量** | 8 | 13 | 22 |
@@ -220,6 +227,7 @@
 | `26fbe0a` | Phase 4-5: Session + Agent | - | - |
 | `6a2aa08` | Phase 1-3: 基础框架 | - | - |
 | `4be26c8` | 初始提交 | - | - |
+| `(未提交)` | Phase 13-16, 21-22, 25: 7 个 internal 模块 | - | - |
 
 ---
 
@@ -253,11 +261,11 @@
 
 ## 新增依赖清单
 
-### Phase 13-17（核心功能）
+### Phase 13-17 + 21-22 + 25（核心功能 — 已完成）
 
 | 依赖 | 用途 | Phase | 大小 |
 |------|------|-------|------|
-| 无新增 | 全部使用标准库 | 13-17 | - |
+| 无新增 | 全部使用标准库 | 13-17, 21-22, 25 | - |
 
 ### Phase 18（TUI）
 
@@ -274,12 +282,6 @@
 | `github.com/aws/aws-sdk-go-v2` | Bedrock 认证 | ~15MB |
 | `github.com/Azure/azure-sdk-for-go` | Azure 认证 | ~20MB |
 
-### Phase 21（可观测性）
-
-| 依赖 | 用途 | 大小 |
-|------|------|------|
-| 无新增 | 使用 `log/slog`（标准库） | - |
-
 ### 可选依赖
 
 | 依赖 | 用途 | 条件 |
@@ -292,7 +294,7 @@
 | 阶段 | 新增依赖 | 二进制增量 |
 |------|----------|-----------|
 | Phase 1-12（已完成） | cobra, modernc.org/sqlite | ~30MB |
-| Phase 13-17 | 无 | ~0MB |
+| Phase 13-17 + 21-22 + 25（已完成） | 无 | ~0MB |
 | Phase 18 | Bubble Tea 生态 | ~3.5MB |
 | Phase 20 | AWS + Azure SDK | ~35MB |
 | **总计** | - | **~68MB** |
@@ -401,51 +403,47 @@ basework init         # 初始化配置
 basework model list   # 列出模型
 basework session list # 列出会话
 basework session clear # 清除会话
+basework permission list              # 列出权限规则
+basework permission add <rule>        # 添加规则
+basework permission remove <rule>     # 删除规则
+basework auth login <provider>        # OAuth 登录
+basework auth logout <provider>       # 登出
+basework auth status                  # 查看认证状态
+basework config validate              # 验证配置文件
+basework config show                  # 显示当前配置
+basework logs [--tail N] [--follow]   # 查看日志
 ```
 
 ### 新增命令
 
 ```
-# Phase 15: 权限
-basework permission list              # 列出当前权限规则
-basework permission add <rule>        # 添加规则
-basework permission remove <rule>     # 删除规则
-
-# Phase 18: TUI
+# Phase 18: TUI (计划中)
 basework tui                          # 启动 TUI 模式
 basework tui --theme dark             # 指定主题
 basework tui --resume <session-id>    # 恢复会话
 
-# Phase 20: 模型管理
+# Phase 20: 模型管理 (计划中)
 basework model set <model-id>         # 设置默认模型
 basework model default                # 显示当前默认模型
 
-# Phase 25: 认证
-basework auth login <provider>        # OAuth 登录
-basework auth logout <provider>       # 登出
-basework auth status                  # 查看认证状态
-
-# Phase 19: 会话管理增强
+# Phase 19: 会话管理增强 (计划中)
 basework session resume <id>          # 恢复指定会话
 basework session export <id>          # 导出会话（markdown/json）
 basework session search <query>       # 搜索会话内容
 
-# 通用
-basework config validate              # 验证配置文件
-basework config show                  # 显示当前配置
+# 通用 (计划中)
 basework migrate sessions             # JSONL → SQLite 迁移
-basework logs [--tail N] [--follow]   # 查看日志
 ```
 
 ### 命令演进路线
 
 | Phase | 新增命令 |
 |-------|---------|
-| 15 | `permission list/add/remove` |
-| 18 | `tui` |
-| 19 | `session resume/export/search`, `migrate`, `logs` |
-| 20 | `model set/default` |
-| 25 | `auth login/logout/status` |
+| 15 | ✅ `permission list/add/remove`（已实现） |
+| 18 | 🔲 `tui`（计划中） |
+| 19 | 🔲 `session resume/export/search`, `migrate`（计划中） |
+| 20 | 🔲 `model set/default`（计划中） |
+| 25 | ✅ `auth login/logout/status`（已实现） |
 
 ---
 
@@ -495,13 +493,13 @@ type Agent interface {
 
 | Phase | 测试类型 | 覆盖率目标 |
 |-------|---------|-----------|
-| 13 压缩 | 单元 + 集成 | > 80% |
-| 14 重试 | 单元 + 集成 | > 80% |
-| 15 权限 | 单元 + 集成 | > 90%（安全关键） |
-| 16 子代理 | 单元 + 集成 | > 70% |
-| 17 工具 | 单元 + 集成 | > 80% |
-| 18 TUI | 单元（渲染逻辑） | > 60% |
-| 19-25 | 单元 + 集成 | > 70% |
+| 13 压缩 | ✅ 已完成 | 单元 + 集成 | > 80% |
+| 14 重试 | ✅ 已完成 | 单元 + 集成 | > 80% |
+| 15 权限 | ✅ 已完成 | 单元 + 集成 | > 90%（安全关键） |
+| 16 子代理 | ✅ 已完成 | 单元 + 集成 | > 70% |
+| 17 工具 | 🔲 | 单元 + 集成 | > 80% |
+| 18 TUI | 🔲 | 单元（渲染逻辑） | > 60% |
+| 19-20 + 23-24 | 🔲 | 单元 + 集成 | > 70% |
 
 ### Mock 策略
 
@@ -546,12 +544,11 @@ go test ./internal/retry/... -v
 
 ## 下一步
 
-1. **Phase 13**: 上下文压缩（compaction）
-2. **Phase 14**: 重试机制（retry）
-3. **Phase 15**: 权限系统（permission）
-4. **Phase 16**: 子代理（sub-agents）
-5. **Phase 17**: 增强工具（web fetch/search/todowrite）
-6. **Phase 18**: TUI（Bubble Tea 终端界面）
-7. **Phase 19-25**: 会话、Provider、可观测性、MCP 增强
+1. **Phase 17**: 增强工具（web fetch/search/todowrite）
+2. **Phase 18**: TUI（Bubble Tea 终端界面）
+3. **Phase 19**: 会话增强（SQLite 后端、自动标题、会话队列）
+4. **Phase 20**: Provider 扩展（Bedrock、Azure、GitHub Copilot、Ollama）
+5. **Phase 23**: Prompt 缓存（Anthropic CacheHint 自动注入）
+6. **Phase 24**: MCP 增强（资源支持、提示支持、自动重连）
 
 详见 [TASKS.md](./TASKS.md)。

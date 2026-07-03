@@ -2,7 +2,12 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"log"
 
+	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
 )
@@ -207,8 +212,43 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 	store := p.td.Session()
 	records := make([]ToolCallRecord, 0, len(calls))
 
+	// 通过类型断言获取 agent 的权限检查器和事件总线
+	var permChecker *permission.Checker
+	var eventBus *observability.EventBus
+	obsEnabled := false
+	if atd, ok := p.td.(*agentTurnD); ok {
+		permChecker = atd.agent.permChecker
+		eventBus = atd.agent.eventBus
+		obsEnabled = atd.agent.obsEnabled
+	}
+
 	for _, call := range calls {
-		// 1. BeforeTool hook
+		// 1. 权限检查
+		if permChecker != nil {
+			var args map[string]interface{}
+			if call.ArgsJSON != "" {
+				_ = json.Unmarshal([]byte(call.ArgsJSON), &args)
+			}
+			allowed, pErr := permChecker.Check(ctx, call.Name, args)
+			if pErr != nil {
+				log.Printf("[权限] 检查失败: %v", pErr)
+			} else if !allowed {
+				errMsg := "权限拒绝: 工具 " + call.Name + " 未被允许执行"
+				records = append(records, ToolCallRecord{Call: call, Err: errors.New(errMsg)})
+				failData, _ := session.EncodeData(&session.ToolFailedData{
+					ToolCallID: call.ID,
+					Error:      errMsg,
+				})
+				_ = store.AppendEvent(session.Event{
+					SessionID: p.sessionID,
+					Type:      session.EventToolFailed,
+					Data:      failData,
+				})
+				continue
+			}
+		}
+
+		// 2. BeforeTool hook
 		modifiedCall, err := p.td.Hooks().RunBeforeTool(call)
 		if err != nil {
 			records = append(records, ToolCallRecord{Call: call, Err: err})
@@ -228,18 +268,38 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 			call = *modifiedCall
 		}
 
-		// 2. 执行工具
+		// 可观测性：发布 tool.start 事件
+		if obsEnabled && eventBus != nil {
+			eventBus.Publish(observability.NewEvent(observability.EventToolStart, map[string]interface{}{
+				"tool_name": call.Name,
+				"tool_id":   call.ID,
+			}))
+		}
+
+		// 3. 执行工具
 		result, execErr := p.td.ToolRegistry().Settle(ctx, call)
 
-		// 3. AfterTool hook
+		// 可观测性：发布 tool.end 事件
+		if obsEnabled && eventBus != nil {
+			data := map[string]interface{}{
+				"tool_name": call.Name,
+				"tool_id":   call.ID,
+			}
+			if execErr != nil {
+				data["error"] = execErr.Error()
+			}
+			eventBus.Publish(observability.NewEvent(observability.EventToolEnd, data))
+		}
+
+		// 4. AfterTool hook
 		p.td.Hooks().RunAfterTool(call, result, execErr)
 
-		// 4. 回调通知
+		// 5. 回调通知
 		if cb := p.td.Callback(); cb != nil {
 			cb.OnToolCallEnd(call, result, execErr)
 		}
 
-		// 5. 追加事件到 session
+		// 6. 追加事件到 session
 		if execErr != nil {
 			failData, _ := session.EncodeData(&session.ToolFailedData{
 				ToolCallID: call.ID,

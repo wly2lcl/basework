@@ -28,6 +28,74 @@ type Config struct {
 	MCPConfigs       map[string]interface{} `json:"mcp_configs,omitempty"`
 	MaxToolCalls     int                    `json:"max_tool_calls,omitempty"`
 	MaxContextTokens int                    `json:"max_context_tokens,omitempty"`
+
+	// 上下文压缩配置
+	Compaction CompactionConfig `json:"compaction,omitempty"`
+	// 重试配置
+	Retry RetryConfig `json:"retry,omitempty"`
+	// 权限配置
+	Permission PermissionConfig `json:"permission,omitempty"`
+	// 子代理配置
+	SubAgent SubAgentConfig `json:"sub_agent,omitempty"`
+	// 循环检测配置
+	LoopDetect LoopDetectConfig `json:"loop_detect,omitempty"`
+	// 可观测性配置
+	Observability ObservabilityConfig `json:"observability,omitempty"`
+	// OAuth 配置
+	OAuth OAuthConfig `json:"oauth,omitempty"`
+}
+
+// CompactionConfig 是上下文压缩模块的配置
+type CompactionConfig struct {
+	Enabled   bool    `json:"enabled"`
+	Strategy  string  `json:"strategy"`   // sliding_window / summarization / selective
+	Threshold float64 `json:"threshold"`  // 自动触发阈值 0.0-1.0，默认 0.8
+	WindowSize int    `json:"window_size"` // 滑动窗口大小，默认 10
+}
+
+// RetryConfig 是重试机制的配置
+type RetryConfig struct {
+	Enabled     bool  `json:"enabled"`
+	MaxAttempts int   `json:"max_attempts"` // 最大重试次数，默认 3
+	BaseDelayMs int   `json:"base_delay_ms"` // 基础延迟（毫秒），默认 2000
+	MaxDelayMs  int   `json:"max_delay_ms"`  // 最大延迟（毫秒），默认 60000
+}
+
+// PermissionConfig 是权限系统的配置
+type PermissionConfig struct {
+	Enabled bool   `json:"enabled"`
+	Mode    string `json:"mode"` // interactive / yolo / deny-all
+}
+
+// SubAgentConfig 是子代理系统的配置
+type SubAgentConfig struct {
+	Enabled       bool    `json:"enabled"`
+	DefaultType   string  `json:"default_type"`   // general / readonly
+	CostLimit     float64 `json:"cost_limit"`     // 成本限制（美元），默认 1.0
+	MaxConcurrent int     `json:"max_concurrent"` // 最大并发数，默认 5
+}
+
+// LoopDetectConfig 是循环检测的配置
+type LoopDetectConfig struct {
+	Enabled           bool     `json:"enabled"`
+	RepeatedThreshold int      `json:"repeated_threshold"`  // 重复内容阈值，默认 3
+	ToolLoopThreshold int      `json:"tool_loop_threshold"` // 工具循环阈值，默认 5
+	ResponseStrategy  string   `json:"response_strategy"`   // warn / interrupt / prompt
+	CustomPatterns    []string `json:"custom_patterns,omitempty"`
+}
+
+// ObservabilityConfig 是可观测性模块的配置
+type ObservabilityConfig struct {
+	Enabled  bool   `json:"enabled"`
+	LogLevel string `json:"log_level"`  // debug / info / warn / error
+	LogOutput string `json:"log_output"` // stdout / stderr 或文件路径
+}
+
+// OAuthConfig 是 OAuth 认证模块的配置
+type OAuthConfig struct {
+	Enabled        bool   `json:"enabled"`
+	StorageBackend string `json:"storage_backend"` // file / keychain
+	CallbackPort   int    `json:"callback_port"`   // 默认 8080
 }
 
 // defaultConfig 返回默认配置。
@@ -47,6 +115,52 @@ func defaultConfig() *Config {
 		MCPConfigs:       nil,
 		MaxToolCalls:     20,
 		MaxContextTokens: 128000,
+		// 压缩：默认不启用
+		Compaction: CompactionConfig{
+			Enabled:    false,
+			Strategy:   "sliding_window",
+			Threshold:  0.8,
+			WindowSize: 10,
+		},
+		// 重试：默认启用
+		Retry: RetryConfig{
+			Enabled:     true,
+			MaxAttempts: 3,
+			BaseDelayMs: 2000,
+			MaxDelayMs:  60000,
+		},
+		// 权限：默认 yolo 模式（不检查）
+		Permission: PermissionConfig{
+			Enabled: false,
+			Mode:    "yolo",
+		},
+		// 子代理：默认启用
+		SubAgent: SubAgentConfig{
+			Enabled:       true,
+			DefaultType:   "general",
+			CostLimit:     1.0,
+			MaxConcurrent: 5,
+		},
+		// 循环检测：默认启用
+		LoopDetect: LoopDetectConfig{
+			Enabled:           true,
+			RepeatedThreshold: 3,
+			ToolLoopThreshold: 5,
+			ResponseStrategy:  "warn",
+			CustomPatterns:    nil,
+		},
+		// 可观测性：默认不启用
+		Observability: ObservabilityConfig{
+			Enabled:  false,
+			LogLevel: "info",
+			LogOutput: "stdout",
+		},
+		// OAuth：默认不启用
+		OAuth: OAuthConfig{
+			Enabled:        false,
+			StorageBackend: "file",
+			CallbackPort:   8080,
+		},
 	}
 }
 
@@ -65,6 +179,11 @@ func (c *Config) clone() *Config {
 	if cp.StopSequences != nil {
 		cp.StopSequences = make([]string, len(c.StopSequences))
 		copy(cp.StopSequences, c.StopSequences)
+	}
+	// 深拷贝 LoopDetectConfig.CustomPatterns
+	if cp.LoopDetect.CustomPatterns != nil {
+		cp.LoopDetect.CustomPatterns = make([]string, len(c.LoopDetect.CustomPatterns))
+		copy(cp.LoopDetect.CustomPatterns, c.LoopDetect.CustomPatterns)
 	}
 	return &cp
 }

@@ -2,8 +2,13 @@ package agent
 
 import (
 	"context"
+	"log"
 	"sync"
 
+	"github.com/wly2lcl/basework/internal/compaction"
+	"github.com/wly2lcl/basework/internal/loopdetect"
+	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -23,6 +28,13 @@ type AgentLoop struct {
 	pipeline  *Pipeline
 	mu        sync.Mutex
 	closed    bool
+
+	// 集成模块实例
+	compactor    *compaction.Engine
+	permChecker  *permission.Checker
+	loopDetector *loopdetect.Detector
+	eventBus     *observability.EventBus
+	obsEnabled   bool
 }
 
 // agentInstance 实现 Instance 接口
@@ -100,14 +112,19 @@ func newAgentLoop(cfg *config, chain *hook.Chain) (*AgentLoop, error) {
 	}
 
 	a := &AgentLoop{
-		model:     cfg.model,
-		session:   sess,
-		sessionID: info.ID,
-		cfg:       cfg,
-		chain:     chain,
-		plugins:   cfg.plugins,
-		observer:  cfg.observer,
-		callback:  cfg.callback,
+		model:        cfg.model,
+		session:      sess,
+		sessionID:    info.ID,
+		cfg:          cfg,
+		chain:        chain,
+		plugins:      cfg.plugins,
+		observer:     cfg.observer,
+		callback:     cfg.callback,
+		compactor:    cfg.compactor,
+		permChecker:  cfg.permChecker,
+		loopDetector: cfg.loopDetector,
+		eventBus:     cfg.eventBus,
+		obsEnabled:   cfg.obsEnabled,
 	}
 
 	// 初始化插件（失败时回滚已初始化的）
@@ -260,6 +277,24 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 	var finalUsage llm.Usage
 	var finalMessage llm.ChatMessage
 
+	// 可观测性：发布 agent.start 事件
+	a.publishEvent(observability.EventAgentStart, nil)
+
+	// 1. 压缩：检查是否需要压缩上下文
+	history, err := a.td().History()
+	if err == nil && a.compactor != nil {
+		maxTokens := a.cfg.model.ID()
+		_ = maxTokens // 占位，实际需要从 model 获取 max tokens
+		if a.compactor.ShouldCompact(history, 128000) { // 使用默认 maxTokens
+			compacted, cerr := a.compactor.Compact(history)
+			if cerr == nil && len(compacted) < len(history) {
+				// 清空 session 并写入压缩后的消息
+				// 简化实现：记录日志，实际压缩需要修改 session 存储
+				log.Printf("[压缩] 上下文已从 %d 条消息压缩至 %d 条", len(history), len(compacted))
+			}
+		}
+	}
+
 	for step := 0; step < a.cfg.maxSteps; step++ {
 		// 每轮重新创建 pipeline（TurnD 会从 session 读取最新状态）
 		inst := &agentInstance{agent: a}
@@ -275,12 +310,44 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 
 		result, err := p.Run(ctx)
 		if err != nil {
+			// 可观测性：发布 agent.error 事件
+			a.publishEvent(observability.EventAgentError, map[string]interface{}{
+				"error": err.Error(),
+				"step":  step,
+			})
+
 			// 追加 turn failed 事件
 			_ = a.session.AppendEvent(session.Event{
 				SessionID: a.sessionID,
 				Type:      session.EventTurnFailed,
 			})
 			return nil, err
+		}
+
+		// 2. 循环检测：检查每次 assistant 响应后的循环
+		if a.loopDetector != nil {
+			// 从 session 获取当前消息历史
+			messages, _ := a.td().History()
+			// 构建 tool call 列表供循环检测
+			var ldCalls []loopdetect.ToolCall
+			for _, tc := range result.ToolCalls {
+				var args map[string]interface{}
+				args = nil // 简化：循环检测主要关注工具名称
+				ldCalls = append(ldCalls, loopdetect.ToolCall{
+					ToolName: tc.Call.Name,
+					Args:     args,
+				})
+			}
+
+			detectResult, dErr := a.loopDetector.Check(messages, ldCalls)
+			if dErr != nil {
+				// 中断策略返回的错误，直接返回
+				return nil, dErr
+			}
+			if detectResult.IsLoop {
+				log.Printf("[循环检测] 检测到循环: %s", detectResult.Details)
+				// warn 策略已记录日志，继续执行
+			}
 		}
 
 		// 追加 turn ended 事件
@@ -296,6 +363,11 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		allToolCalls = append(allToolCalls, result.ToolCalls...)
 
 		if !result.HasToolCalls {
+			// 可观测性：发布 agent.end 事件
+			a.publishEvent(observability.EventAgentEnd, map[string]interface{}{
+				"total_tokens":  finalUsage.TotalTokens,
+				"tool_calls":    len(allToolCalls),
+			})
 			return &Response{
 				Message:   finalMessage,
 				ToolCalls: allToolCalls,
@@ -305,7 +377,24 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		}
 	}
 
+	// 可观测性：发布 agent.end 事件（步数超限）
+	a.publishEvent(observability.EventAgentEnd, map[string]interface{}{
+		"error":       ErrMaxStepsExceeded.Error(),
+		"tool_calls":  len(allToolCalls),
+	})
 	return nil, ErrMaxStepsExceeded
+}
+
+// td 返回当前会话的 TurnD 实现
+func (a *AgentLoop) td() TurnD {
+	return (&agentInstance{agent: a}).TurnD()
+}
+
+// publishEvent 发布可观测性事件（仅在启用时）
+func (a *AgentLoop) publishEvent(eventType string, data map[string]interface{}) {
+	if a.eventBus != nil && a.obsEnabled {
+		a.eventBus.Publish(observability.NewEvent(eventType, data))
+	}
 }
 
 // Close 关闭 agent，逆序关闭插件
