@@ -1,6 +1,6 @@
 # Basework
 
-Go 语言通用 AI Agent 编程框架。构建能使用工具、调用多模型 LLM、通过插件扩展的 AI Agent —— 可嵌入 CLI、Web 服务或自定义应用。
+Go 语言 AI Agent 框架与终端产品。既是可嵌入的 Go 库，也是功能完整的终端 AI 编程助手。
 
 ```go
 import "github.com/wly2lcl/basework/pkg/agent"
@@ -8,16 +8,19 @@ import "github.com/wly2lcl/basework/pkg/agent"
 
 ## 特性
 
+- **双模式** — 嵌入式框架 + 独立终端产品
 - **最小核心** — Agent loop + provider + tool + session < 3000 行
 - **可嵌入** — `agent.New(WithModel(...), WithTools(...))` 即可使用
 - **可扩展** — Hook + Plugin + Skill 三层扩展体系
 - **统一类型** — 一套 `ChatMessage`/`ToolCall` 类型贯穿始终
 - **可观测** — 事件溯源 Session + PubSub 事件总线
 - **可选复杂度** — Build Tag 控制可选模块（memory, tui）
-- **30+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
+- **10+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
+- **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
 - **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
 - **MCP 支持** — Model Context Protocol 外部工具服务器
 - **会话持久化** — 事件溯源，支持回放
+- **终端 UI** — Bubble Tea 构建的完整 TUI（计划中）
 
 ## 安装
 
@@ -102,22 +105,29 @@ func main() {
 ## 架构
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  L4: Application (应用层)                              │
-│  CLI / TUI / 嵌入 / 自定义 Channel                    │
-├──────────────────────────────────────────────────────┤
-│  L3: Extension (扩展层)                               │
-│  Config + Skill + LSP + MCP + Memory                 │
-├──────────────────────────────────────────────────────┤
-│  L2: Session (会话层)                                  │
-│  Event Sourcing Store + Projection                    │
-├──────────────────────────────────────────────────────┤
-│  L1: Agent Loop (核心层)                               │
-│  Pipeline + TurnD/Instance + Steering + Streaming    │
-├──────────────────────────────────────────────────────┤
-│  L0: Foundation (基础层)                               │
-│  LLM Types + Provider + Tool + Hook/PubSub            │
-└──────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  cmd/basework/ — CLI 入口（cobra + TUI）                 │
+├─────────────────────────────────────────────────────────┤
+│  internal/ — 终端产品专用逻辑                            │
+│  ├── tui/          终端 UI（Bubble Tea，计划中）         │
+│  ├── compaction/   上下文压缩（计划中）                  │
+│  ├── retry/        重试机制（计划中）                    │
+│  ├── permission/   权限系统（计划中）                    │
+│  └── ...           更多模块                              │
+├─────────────────────────────────────────────────────────┤
+│  pkg/ — 核心框架（可嵌入，稳定 API）                      │
+│  ├── llm/          类型系统 + 错误分类                   │
+│  ├── tool/         工具接口 + 8 个内置工具               │
+│  ├── hook/         Hook 系统 + PubSub                   │
+│  ├── session/      会话管理 + 事件溯源                   │
+│  ├── agent/        Agent 循环 + 流式处理                 │
+│  ├── provider/     Provider 工厂（10 个 Provider）       │
+│  ├── lsp/          LSP 集成                              │
+│  ├── mcp/          MCP 集成                              │
+│  ├── memory/       记忆系统（FTS5, build tag）           │
+│  ├── config/       配置管理（CoW 模式）                  │
+│  └── skill/        技能加载                              │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### 核心包
@@ -245,11 +255,26 @@ go build -tags memory ./...
 
 ## 文档
 
+### 快速开始
 - [嵌入指南](docs/guides/embedder-guide.md) — 将 basework 嵌入 Go 应用
-- [配置参考](docs/guides/configuration.md) — 配置文件、环境变量、Provider 配置
+- [Provider 配置](docs/guides/provider-guide.md) — Provider 配置、模型选择、故障排查
+- [配置参考](docs/guides/configuration.md) — 配置文件、环境变量
+
+### 架构与设计
+- [架构概览](ARCHITECTURE.md) — 系统架构、模块依赖、API 兼容性
+- [设计文档](docs/DESIGN.md) — 架构设计、接口定义、设计决策
+- [项目状态](docs/STATUS.md) — 已完成功能、待完成功能、对比分析
+
+### 开发指南
 - [扩展指南](docs/guides/extending.md) — Hook、Plugin、Skill、自定义 Provider/Tool
-- [设计文档](docs/DESIGN.md) — 架构、接口定义、设计决策
-- [任务清单](docs/TASKS.md) — 实施阶段和任务详情
+- [迁移指南](docs/guides/migration.md) — 版本升级、JSONL → SQLite 迁移
+- [贡献指南](CONTRIBUTING.md) — 如何贡献代码
+
+### 项目管理
+- [任务清单](docs/TASKS.md) — Phase 1-25 完整任务列表
+- [路线图](ROADMAP.md) — 高层路线图
+- [变更日志](CHANGELOG.md) — 版本变更记录
+- [安全策略](SECURITY.md) — 漏洞报告、安全更新
 
 ## 许可证
 
