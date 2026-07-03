@@ -261,6 +261,11 @@ go build -tags memory ./...
 - [Provider 配置](docs/guides/provider-guide.md) — Provider 配置、模型选择、故障排查
 - [配置参考](docs/guides/configuration.md) — 配置文件、环境变量
 
+### 功能指南
+- [权限系统](docs/guides/permission-guide.md) — 权限规则、交互提示、YOLO 模式（Phase 15）
+- [子代理](docs/guides/subagent-guide.md) — 任务委托、隔离子会话、成本追踪（Phase 16）
+- [终端 UI](docs/guides/tui-guide.md) — TUI 启动、快捷键、主题配置（Phase 18）
+
 ### 常见问题
 - [FAQ](docs/FAQ.md) — 常见问题解答
 
