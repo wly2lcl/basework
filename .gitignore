@@ -1,4 +1,5 @@
 # Binaries
+/basework
 bin/
 *.exe
 

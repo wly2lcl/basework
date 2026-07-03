@@ -245,6 +245,9 @@ go build -tags memory ./...
 
 ## 文档
 
+- [嵌入指南](docs/guides/embedder-guide.md) — 将 basework 嵌入 Go 应用
+- [配置参考](docs/guides/configuration.md) — 配置文件、环境变量、Provider 配置
+- [扩展指南](docs/guides/extending.md) — Hook、Plugin、Skill、自定义 Provider/Tool
 - [设计文档](docs/DESIGN.md) — 架构、接口定义、设计决策
 - [任务清单](docs/TASKS.md) — 实施阶段和任务详情
 
