@@ -10,6 +10,8 @@ import (
 type Info struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
+	Model        string    `json:"model,omitempty"`
+	Provider     string    `json:"provider,omitempty"`
 	MessageCount int       `json:"message_count"`
 	Usage        llm.Usage `json:"usage"`
 	CreatedAt    time.Time `json:"created_at"`

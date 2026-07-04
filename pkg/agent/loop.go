@@ -397,6 +397,11 @@ func (a *AgentLoop) publishEvent(eventType string, data map[string]interface{}) 
 	}
 }
 
+// Tools 返回已注册的工具列表
+func (a *AgentLoop) Tools() []tool.Tool {
+	return a.cfg.registry.MaterializeAsTools()
+}
+
 // Close 关闭 agent，逆序关闭插件
 func (a *AgentLoop) Close() error {
 	a.mu.Lock()

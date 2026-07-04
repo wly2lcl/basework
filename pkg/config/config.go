@@ -11,6 +11,40 @@ import (
 	"sync"
 )
 
+// OpenCodeConfig 是 OpenCode Zen Provider 的配置
+type OpenCodeConfig struct {
+	APIKey string `json:"api_key"`
+	Model  string `json:"model"` // 默认 "big-pickle"
+}
+
+// BedrockConfig 是 Amazon Bedrock Provider 的配置
+type BedrockConfig struct {
+	AccessKey string `json:"access_key"`
+	SecretKey string `json:"secret_key"`
+	Region    string `json:"region"` // 默认 "us-east-1"
+	Model     string `json:"model"`
+}
+
+// AzureConfig 是 Azure OpenAI Provider 的配置
+type AzureConfig struct {
+	Resource   string `json:"resource"`
+	Deployment string `json:"deployment"`
+	APIKey     string `json:"api_key"`
+	APIVersion string `json:"api_version"` // 默认 "2024-02-01"
+}
+
+// CopilotConfig 是 GitHub Copilot Provider 的配置
+type CopilotConfig struct {
+	Model     string `json:"model"` // 默认 "gpt-4"
+	TokenPath string `json:"token_path"`
+}
+
+// OllamaConfig 是 Ollama Provider 的配置
+type OllamaConfig struct {
+	Endpoint string `json:"endpoint"` // 默认 "http://localhost:11434"
+	Model    string `json:"model"`
+}
+
 // Config 是运行时配置。
 type Config struct {
 	Provider         string                 `json:"provider"`
@@ -43,6 +77,17 @@ type Config struct {
 	Observability ObservabilityConfig `json:"observability,omitempty"`
 	// OAuth 配置
 	OAuth OAuthConfig `json:"oauth,omitempty"`
+	// 工具配置
+	Tools ToolsConfig `json:"tools,omitempty"`
+	// 会话配置
+	Session SessionConfig `json:"session,omitempty"`
+
+	// Provider 特定配置
+	OpenCode OpenCodeConfig `json:"opencode,omitempty"`
+	Bedrock  BedrockConfig  `json:"bedrock,omitempty"`
+	Azure    AzureConfig    `json:"azure,omitempty"`
+	Copilot  CopilotConfig  `json:"copilot,omitempty"`
+	Ollama   OllamaConfig   `json:"ollama,omitempty"`
 }
 
 // CompactionConfig 是上下文压缩模块的配置
@@ -96,6 +141,37 @@ type OAuthConfig struct {
 	Enabled        bool   `json:"enabled"`
 	StorageBackend string `json:"storage_backend"` // file / keychain
 	CallbackPort   int    `json:"callback_port"`   // 默认 8080
+}
+
+// ToolsConfig 是内置工具的配置
+type ToolsConfig struct {
+	WebSearch WebSearchConfig `json:"web_search,omitempty"`
+}
+
+// WebSearchConfig 是 web_search 工具的配置
+type WebSearchConfig struct {
+	Backend string `json:"backend"` // "tavily" 或 "exa"
+	APIKey  string `json:"api_key,omitempty"`
+}
+
+// SessionConfig 是会话系统的配置
+type SessionConfig struct {
+	Store      string          `json:"store"`       // "jsonl" 或 "sqlite"
+	SQLitePath string          `json:"sqlite_path"` // SQLite 文件路径
+	AutoTitle  AutoTitleConfig `json:"auto_title"`
+	Queue      QueueConfig     `json:"queue"`
+}
+
+// AutoTitleConfig 是自动标题生成的配置
+type AutoTitleConfig struct {
+	Enabled bool   `json:"enabled"`
+	Model   string `json:"model"` // 用于生成标题的模型
+}
+
+// QueueConfig 是会话队列的配置
+type QueueConfig struct {
+	Enabled bool `json:"enabled"`
+	MaxSize int  `json:"max_size"` // 最大队列大小
 }
 
 // defaultConfig 返回默认配置。
@@ -154,6 +230,19 @@ func defaultConfig() *Config {
 			Enabled:  false,
 			LogLevel: "info",
 			LogOutput: "stdout",
+		},
+		// 会话：默认 JSONL 存储，启用自动标题和队列
+		Session: SessionConfig{
+			Store:      "jsonl",
+			SQLitePath: "",
+			AutoTitle: AutoTitleConfig{
+				Enabled: true,
+				Model:   "",
+			},
+			Queue: QueueConfig{
+				Enabled: true,
+				MaxSize: 100,
+			},
 		},
 		// OAuth：默认不启用
 		OAuth: OAuthConfig{

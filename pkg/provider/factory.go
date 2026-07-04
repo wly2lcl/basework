@@ -34,6 +34,12 @@ var protocols = map[string]protocolMeta{
 	"openrouter": {defaultBaseURL: "https://openrouter.ai/api/v1", allowEmptyKey: false},
 	"xai":        {defaultBaseURL: "https://api.x.ai/v1", allowEmptyKey: false},
 	"mistral":    {defaultBaseURL: "https://api.mistral.ai/v1", allowEmptyKey: false},
+	// Phase 20 新增 Provider
+	"opencode": {defaultBaseURL: "https://opencode.ai/zen/v1", allowEmptyKey: false},
+	"bedrock":  {defaultBaseURL: "", allowEmptyKey: true},
+	"azure":    {defaultBaseURL: "", allowEmptyKey: false},
+	"copilot":  {defaultBaseURL: "", allowEmptyKey: true},
+	"ollama":   {defaultBaseURL: "http://localhost:11434", allowEmptyKey: true},
 }
 
 // compatProviders 列出所有已知走 OpenAI-compatible 路径的 provider 类型
@@ -45,6 +51,8 @@ var compatProviders = map[string]bool{
 	"openrouter":    true,
 	"xai":           true,
 	"mistral":       true,
+	"opencode":      true,
+	"ollama":        true,
 }
 
 // Create 根据配置创建 Model
@@ -71,6 +79,16 @@ func Create(cfg Config) (llm.Model, error) {
 		return newGemini(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 	case "openai":
 		return newOpenAI(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "bedrock":
+		return newBedrock(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "azure":
+		return newAzure(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "copilot":
+		return newCopilot(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "opencode":
+		return newOpenCode(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "ollama":
+		return newOllama(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 	default:
 		// 所有其他类型走 OpenAI-compatible 路径
 		return newOpenAICompat(cfg, baseURL)

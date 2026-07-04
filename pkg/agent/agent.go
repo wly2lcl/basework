@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/internal/subagent"
+	"github.com/wly2lcl/basework/internal/tools"
+	pkgcfg "github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/tool"
@@ -20,6 +23,9 @@ type Agent interface {
 
 	// HandleMessages 处理预构建的多条消息（支持多模态）
 	HandleMessages(ctx context.Context, messages []llm.ChatMessage) (*Response, error)
+
+	// Tools 返回已注册的工具列表
+	Tools() []tool.Tool
 
 	// Close 释放 agent 资源
 	Close() error
@@ -38,6 +44,21 @@ type ToolCallRecord struct {
 	Call   llm.ToolCall
 	Result *tool.Result
 	Err    error
+}
+
+// registerBuiltinTools 注册 5 个内置工具到 registry
+func registerBuiltinTools(registry *tool.Registry, permChecker *permission.Checker, cfg *pkgcfg.Config) {
+	builtinTools := []tool.Tool{
+		tools.NewWebFetchTool(),
+		tools.NewWebSearchTool(cfg),
+		tools.NewTodoWriteTool(),
+		tools.NewApplyPatchTool("."),
+		tools.NewQuestionTool(permChecker),
+	}
+
+	for _, t := range builtinTools {
+		_ = registry.Register(t) // 同名工具冲突时静默跳过
+	}
 }
 
 // New 创建 agent，应用提供的选项进行配置
@@ -59,6 +80,10 @@ func New(opts ...Option) (Agent, error) {
 			_ = cfg.registry.Register(t) // 忽略错误，测试时已保证唯一
 		}
 	}
+
+	// 注册 5 个内置增强工具
+	appCfg := &pkgcfg.Config{}
+	registerBuiltinTools(cfg.registry, cfg.permChecker, appCfg)
 
 	// 如果配置了子代理协调器，注册 sub_agent 工具
 	if cfg.subAgentCoord != nil && cfg.subAgentCoord.Config.Enabled {

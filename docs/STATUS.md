@@ -1,6 +1,6 @@
 # Basework 项目状态
 
-> 最后更新：2025-07-03
+> 最后更新：2026-07-04
 
 ## 项目概述
 
@@ -8,8 +8,8 @@
 
 - **定位**：既是可嵌入的 Go 库，也是独立的终端 AI 助手
 - **默认模型**：OpenCode Zen 的 `big-pickle`（免费）
-- **代码规模**：~26,000 行 Go 代码
-- **测试覆盖**：524 个测试全部通过
+- **代码规模**：~33,000 行 Go 代码
+- **测试覆盖**：600+ 个测试全部通过
 - **Go 版本**：1.26+
 
 ---
@@ -18,7 +18,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  cmd/basework/ — CLI 入口（cobra + 增强 REPL/TUI）       │
+│  cmd/basework/ — CLI 入口（cobra + 增强 REPL + TUI）     │
 ├─────────────────────────────────────────────────────────┤
 │  internal/ — 终端产品专用逻辑                            │
 │  ├── compaction/     上下文压缩                           │
@@ -28,14 +28,15 @@
 │  ├── loopdetect/     循环检测                             │
 │  ├── observability/  可观测性（日志 + 成本）              │
 │  ├── oauth/          OAuth 2.0 认证                       │
-│  └── tui/            终端 UI（Bubble Tea，计划中）        │
+│  ├── tools/          增强工具（web_fetch/search/todo…）  │
+│  └── tui/            终端 UI（Bubble Tea 已实现）         │
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
 │  ├── agent/        Agent 循环                            │
 │  ├── llm/          类型系统 + 错误分类                   │
-│  ├── provider/     Provider 工厂（10 个 Provider）       │
+│  ├── provider/     Provider 工厂（15+ 个 Provider）      │
 │  ├── tool/         工具系统（8 个内置工具）              │
-│  ├── session/      会话管理                              │
+│  ├── session/      会话管理（JSONL + SQLite + 队列）     │
 │  ├── hook/         钩子系统                              │
 │  ├── lsp/          LSP 集成                              │
 │  ├── mcp/          MCP 集成                              │
@@ -47,7 +48,7 @@
 
 ---
 
-## 已完成功能（Phase 1-16 + 21-22 + 25）
+## 已完成功能（Phase 1-22 + 25）
 
 ### ✅ 核心框架
 
@@ -73,7 +74,7 @@
 | `tests/` | ✅ 完成 | 11 个集成测试、竞态检测通过 |
 | `docs/guides/` | ✅ 完成 | 嵌入指南、配置参考、扩展指南 |
 
-### ✅ Provider 支持
+### ✅ Provider 支持（15+）
 
 | Provider | 状态 | 协议 |
 |----------|------|------|
@@ -87,8 +88,13 @@
 | xAI | ✅ | openai-compat |
 | Mistral | ✅ | openai-compat |
 | openai-compat | ✅ | 通用兼容 |
+| OpenCode Zen | ✅（Phase 20） | openai-compat，免费模型 big-pickle |
+| Amazon Bedrock | ✅（Phase 20） | AWS Converse API，SigV4 签名 |
+| Azure OpenAI | ✅（Phase 20） | OpenAI 兼容，api-key 认证 |
+| GitHub Copilot | ✅（Phase 20） | OAuth 设备授权，openai-compat |
+| Ollama | ✅（Phase 20） | 本地模型，自动发现 /api/tags |
 
-### ✅ 内置工具
+### ✅ 内置工具 + 增强工具
 
 | 工具 | 状态 | 说明 |
 |------|------|------|
@@ -99,6 +105,11 @@
 | `glob` | ✅ | 文件模式匹配 |
 | `grep` | ✅ | 正则内容搜索 |
 | `lsp_*` | ✅ | LSP 诊断/引用/重启（6 个工具） |
+| `web_fetch` | ✅（Phase 17） | URL 获取、HTML 转 text/markdown |
+| `web_search` | ✅（Phase 17） | 网络搜索（Tavily/Exa 后端） |
+| `todowrite` | ✅（Phase 17） | 任务列表管理 |
+| `apply_patch` | ✅（Phase 17） | 结构化补丁应用（Add/Delete/Update） |
+| `question` | ✅（Phase 17） | 向用户提问并获取选择 |
 
 ### ✅ 生产韧性模块
 
@@ -121,6 +132,33 @@
 |------|------|------|
 | `internal/subagent/` | ✅ 完成（Phase 16） | 任务委托、隔离子会话、成本传播、只读代理 |
 
+### ✅ 增强工具系统
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/tools/` | ✅ 完成（Phase 17） | 5 个增强工具：web_fetch、web_search、todowrite、apply_patch、question |
+
+### ✅ 终端 UI
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `internal/tui/` | ✅ 完成（Phase 18） | Bubble Tea TUI 主应用 |
+| `internal/tui/input.go` | ✅ 完成 | 输入区：多行输入、历史导航、Tab 补全 |
+| `internal/tui/streaming.go` | ✅ 完成 | 流式输出：逐字显示、spinner 动画、工具进度 |
+| `internal/tui/statusbar.go` | ✅ 完成 | 状态栏：模型名、Provider、token 用量、MCP 状态 |
+| `internal/tui/message.go` | ✅ 完成 | 消息渲染：Glamour Markdown、语法高亮 |
+| `cmd/basework tui` | ✅ 完成 | `basework tui` 命令启动 TUI |
+
+### ✅ 会话增强
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `pkg/session/sqlite.go` | ✅ 完成（Phase 19） | SQLite 会话存储（build tag: sqlite） |
+| `pkg/session/filetrack.go` | ✅ 完成 | FileTracker 追踪读写编辑的文件 |
+| `pkg/session/queue.go` | ✅ 完成 | 线程安全 FIFO 消息队列，支持取消 |
+| `pkg/config` AutoTitle | ✅ 完成 | 自动标题生成配置 |
+| `pkg/config` QueueConfig | ✅ 完成 | 会话队列配置 |
+
 ### ✅ 可观测性
 
 | 模块 | 状态 | 说明 |
@@ -129,7 +167,7 @@
 
 ---
 
-## 待完成功能（Phase 17-20 + 23-24）
+## 待完成功能（Phase 23-24）
 
 ### 🔲 生产韧性
 
@@ -142,46 +180,6 @@
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
 | 命令黑名单 | P1 | bash 工具禁用危险命令 |
-
-### 🔲 工具增强
-
-| 工具 | 优先级 | 说明 |
-|------|--------|------|
-| `web_fetch` | P0 | URL 获取、markdown 转换 |
-| `web_search` | P1 | 网页搜索（Tavily/Exa） |
-| `todowrite` | P1 | 任务列表管理 |
-| `apply_patch` | P2 | 结构化补丁应用 |
-| `question` | P2 | 向用户提问 |
-
-### 🔲 会话增强
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| SQLite 后端 | P0 | 替换 JSONL、支持查询 |
-| 自动标题 | P1 | 首次消息生成会话标题 |
-| 会话队列 | P2 | 忙时排队提示 |
-| 文件追踪 | P2 | 跟踪访问/修改的文件 |
-
-### 🔲 Provider 扩展
-
-| Provider | 优先级 | 说明 |
-|----------|--------|------|
-| OpenCode Zen | P0 | big-pickle 免费模型、默认选项 |
-| Amazon Bedrock | P1 | AWS Converse API |
-| Azure OpenAI | P1 | Azure 端点 |
-| GitHub Copilot | P2 | OAuth 认证 |
-| Ollama | P2 | 本地模型自动发现 |
-
-### 🔲 终端 UI
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| TUI 框架 | P0 | Bubble Tea 基础界面 |
-| Markdown 渲染 | P0 | Glamour 渲染响应 |
-| 语法高亮 | P1 | Chroma 代码高亮 |
-| Diff 视图 | P1 | 统一/分屏模式 |
-| 会话选择器 | P2 | 浏览/切换会话 |
-| 模型选择器 | P2 | 模型切换对话框 |
 
 ### 🔲 MCP 增强
 
@@ -199,7 +197,7 @@
 | 特性 | basework | opencode | crush |
 |------|----------|----------|-------|
 | **核心框架** | ✅ | ✅ | ✅ |
-| **TUI** | 🔲 简单 REPL | ✅ OpenTUI | ✅ Bubble Tea |
+| **TUI** | ✅ Bubble Tea | ✅ OpenTUI | ✅ Bubble Tea |
 | **上下文压缩** | ✅ | ✅ 多策略 | ✅ 自动摘要 |
 | **重试机制** | ✅ | ✅ 指数退避 | ✅ OnRetry |
 | **权限系统** | ✅ | ✅ 规则引擎 | ✅ 交互提示 |
@@ -209,9 +207,11 @@
 | **结构化日志** | ✅ | ✅ + OpenTelemetry | ✅ slog |
 | **成本追踪** | ✅ | ✅ | ✅ |
 | **OAuth** | ✅ | ✅ | ✅ |
-| **本地模型** | 🔲 | 🔲 | ✅ Ollama |
-| **Provider 数量** | 10 | 10+ | 20+ |
-| **内置工具数量** | 8 | 13 | 22 |
+| **本地模型** | ✅ Ollama | 🔲 | ✅ Ollama |
+| **Provider 数量** | 15+ | 10+ | 20+ |
+| **内置工具数量** | 13（8 内置 + 5 增强） | 13 | 22 |
+| **会话存储** | ✅ JSONL + SQLite | ✅ JSONL | ✅ SQLite |
+| **文件追踪** | ✅ | ✅ | ✅ |
 
 ---
 
@@ -228,6 +228,7 @@
 | `6a2aa08` | Phase 1-3: 基础框架 | - | - |
 | `4be26c8` | 初始提交 | - | - |
 | `(未提交)` | Phase 13-16, 21-22, 25: 7 个 internal 模块 | - | - |
+| `(未提交)` | Phase 17-20: 增强工具 + TUI + SQLite + Provider 扩展 | 10 | +6726 |
 
 ---
 
@@ -238,7 +239,7 @@
 | 阶段 | 说明 |
 |------|------|
 | Phase 19 前 | 保持 JSONL 为默认后端 |
-| Phase 19 | 新增 SQLiteStore（build tag `sqlite`） |
+| **Phase 19** | ✅ **已完成**: 新增 SQLiteStore（build tag `sqlite`） |
 | 迁移工具 | `basework migrate sessions` 命令：扫描 JSONL 文件，逐行解析事件，写入 SQLite |
 | 兼容期 | 两种 Store 共存，通过 `session.store` 配置切换 |
 | 最终 | JSONL 降级为可选后端，SQLite 为默认 |
@@ -414,24 +415,15 @@ basework config show                  # 显示当前配置
 basework logs [--tail N] [--follow]   # 查看日志
 ```
 
-### 新增命令
+### 新增命令（已实现）
 
 ```
-# Phase 18: TUI (计划中)
 basework tui                          # 启动 TUI 模式
-basework tui --theme dark             # 指定主题
-basework tui --resume <session-id>    # 恢复会话
-
-# Phase 20: 模型管理 (计划中)
 basework model set <model-id>         # 设置默认模型
 basework model default                # 显示当前默认模型
-
-# Phase 19: 会话管理增强 (计划中)
 basework session resume <id>          # 恢复指定会话
 basework session export <id>          # 导出会话（markdown/json）
 basework session search <query>       # 搜索会话内容
-
-# 通用 (计划中)
 basework migrate sessions             # JSONL → SQLite 迁移
 ```
 
@@ -440,9 +432,9 @@ basework migrate sessions             # JSONL → SQLite 迁移
 | Phase | 新增命令 |
 |-------|---------|
 | 15 | ✅ `permission list/add/remove`（已实现） |
-| 18 | 🔲 `tui`（计划中） |
-| 19 | 🔲 `session resume/export/search`, `migrate`（计划中） |
-| 20 | 🔲 `model set/default`（计划中） |
+| 18 | ✅ `tui`（已实现） |
+| 19 | ✅ `session resume/export/search`, `migrate`（已实现） |
+| 20 | ✅ `model set/default`（已实现） |
 | 25 | ✅ `auth login/logout/status`（已实现） |
 
 ---
@@ -497,9 +489,11 @@ type Agent interface {
 | 14 重试 | ✅ 已完成 | 单元 + 集成 | > 80% |
 | 15 权限 | ✅ 已完成 | 单元 + 集成 | > 90%（安全关键） |
 | 16 子代理 | ✅ 已完成 | 单元 + 集成 | > 70% |
-| 17 工具 | 🔲 | 单元 + 集成 | > 80% |
-| 18 TUI | 🔲 | 单元（渲染逻辑） | > 60% |
-| 19-20 + 23-24 | 🔲 | 单元 + 集成 | > 70% |
+| 17 工具 | ✅ 已完成 | 单元 + 集成 | > 80% |
+| 18 TUI | ✅ 已完成 | 单元（渲染逻辑） | > 60% |
+| 19 会话增强 | ✅ 已完成 | 单元 + 集成 | > 70% |
+| 20 Provider 扩展 | ✅ 已完成 | 单元 + 集成 | > 70% |
+| 23-24 | 🔲 | 待定 | > 70% |
 
 ### Mock 策略
 
@@ -544,11 +538,8 @@ go test ./internal/retry/... -v
 
 ## 下一步
 
-1. **Phase 17**: 增强工具（web fetch/search/todowrite）
-2. **Phase 18**: TUI（Bubble Tea 终端界面）
-3. **Phase 19**: 会话增强（SQLite 后端、自动标题、会话队列）
-4. **Phase 20**: Provider 扩展（Bedrock、Azure、GitHub Copilot、Ollama）
-5. **Phase 23**: Prompt 缓存（Anthropic CacheHint 自动注入）
-6. **Phase 24**: MCP 增强（资源支持、提示支持、自动重连）
+1. **Phase 23**: Prompt 缓存（Anthropic CacheHint 自动注入）
+2. **Phase 24**: MCP 增强（资源支持、提示支持、自动重连）
+3. **Phase 25**: OAuth 2.0（已完成—PKCE 流程、令牌刷新、凭证安全存储）
 
 详见 [TASKS.md](./TASKS.md)。

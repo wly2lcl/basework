@@ -801,7 +801,8 @@ description: "做什么用的"
 | Tag | 默认 | 说明 |
 |-----|------|------|
 | `memory` | 关 | SQLite 上下文管理（FTS5 全文搜索） |
-| `tui` | 关 | TUI 界面（如未来添加） |
+| `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
+| `tui` | 关 | TUI 界面（Bubble Tea） |
 
 无 `slim`、`bedrock`、`isolation` 标签。所有可选模块默认关闭，需要时显式开启。
 
@@ -1698,7 +1699,8 @@ basework/
 │   ├── loopdetect/            循环检测
 │   ├── observability/         可观测性（日志 + 成本）
 │   ├── oauth/                 OAuth 2.0 认证
-│   └── tui/                   终端 UI（计划中）
+│   ├── tools/                 增强工具（web_fetch、web_search 等）
+│   └── tui/                   终端 UI（Bubble Tea 已实现）
 └── cmd/basework/              CLI 参考实现
 ```
 
@@ -1729,6 +1731,40 @@ Channel 模式需要消费者管理 goroutine 生命周期和 context 取消。�
 - 消费者只需实现接口方法
 - 不需要 `go func()` + `select` 模式
 - 错误处理更自然（方法内直接处理）
+
+### D9: 增强工具为什么放在 `internal/tools/` 而非 `pkg/tool/builtin/`？
+
+内置工具（bash/read/write/edit/glob/grep）是框架核心，必须嵌入方可用。增强工具（web_fetch/web_search/todowrite/apply_patch/question）是终端产品功能，嵌入方可以按需实现自己的版本。
+
+**方案**：增强工具放在 `internal/tools/`，通过 `cmd/basework` 注册到 ToolRegistry。嵌入方可以自行决定是否使用。
+
+### D10: TUI 为什么用 Bubble Tea 而非其他框架？
+
+Bubble Tea 是 Go 生态中最成熟的 TUI 框架，借鉴了 Elm 架构。相比其他选择：
+- **tview**：更重，布局系统复杂
+- **termui**：面向仪表盘，不适合聊天应用
+- **Bubble Tea**：组件化、消息驱动、与 Go 并发模型契合
+
+### D11: SQLite 会话存储为什么用 build tag 控制？
+
+SQLite 通过 `modernc.org/sqlite`（纯 Go）实现，但仍增加了二进制大小和启动时间。用 `sqlite` build tag 控制：
+- 默认使用 JSONLStore（零额外依赖）
+- 需要 SQLite 时显式启用 `go build -tags sqlite`
+- 存储接口一致，切换对上层透明
+
+### D12: Bedrock 为什么不依赖 AWS SDK？
+
+AWS SDK Go v2 约 15MB，其中大部分是 basework 不需要的服务。Bedrock Provider 只需要 SigV4 签名和 Converse API，使用原生 HTTP 实现：
+- 原生 SigV4 实现约 80 行代码
+- 无额外依赖，避免依赖膨胀
+- 测试友好（可 mock HTTP 端点）
+
+### D13: Copilot 为什么用 OAuth 设备授权而非 API Key？
+
+GitHub Copilot 不提供 API Key 认证方式，只支持 OAuth 设备授权流程。这是 CLI 应用的标准 OAuth 模式：
+- 用户无需在浏览器中输入敏感凭证
+- 设备码流程适合无 GUI 的终端环境
+- Token 持久化到文件，避免重复认证
 
 ---
 
@@ -2270,7 +2306,7 @@ Close() 取消 root context → 级联取消所有活跃操作。
 
 ## 25. 迁移策略
 
-从 openwork 到 basework 的迁移路径（更新版）：
+从 openwork 到 basework 的迁移路径（终版）：
 
 1. **Phase 1**：新建 `pkg/llm/` 统一类型（无依赖，可并行）
 2. **Phase 2**：新建 `pkg/hook/` PubSub + Hook（依赖 pkg/llm）
@@ -2284,7 +2320,14 @@ Close() 取消 root context → 级联取消所有活跃操作。
 10. **Phase 10**：新建 `pkg/config/` + `pkg/skill/`
 11. **Phase 11**：新建 `cmd/basework/` CLI 参考实现
 12. **Phase 12**：集成测试 + 文档
-13. **Phase 13-25**：`internal/` 层新模块（见 §26）
+13. **Phase 13**：`internal/compaction/` 上下文压缩
+14. **Phase 14**：`internal/retry/` 重试机制
+15. **Phase 15**：`internal/permission/` 权限系统
+16. **Phase 16**：`internal/subagent/` 子代理系统
+17. **Phase 17**：`internal/tools/` 增强工具包
+18. **Phase 18**：`internal/tui/` 终端 UI
+19. **Phase 19**：`pkg/session/` SQLite 存储 + 自动标题 + 队列 + 文件追踪
+20. **Phase 20**：`pkg/provider/` Provider 扩展（OpenCode Zen、Bedrock、Azure、Copilot、Ollama）
 
 ---
 
@@ -2433,3 +2476,405 @@ oauth/
 - **令牌自动刷新**：检测 `401/403` 响应时自动用 refresh_token 刷新 access_token
 - **安全存储**：凭证加密存储在 `~/.config/basework/auth/`，文件权限 0600
 - **Provider 配置**：内置 GitHub、Google 等常见 Provider 的端点配置
+
+### 26.9 增强工具系统 (`internal/tools/`)
+
+```
+tools/
+├── webfetch.go         # web_fetch 工具：获取网页内容，支持 text/markdown/html 格式
+├── websearch.go        # web_search 工具：网络搜索（Tavily/Exa 后端）
+├── todowrite.go        # todowrite 工具：任务列表管理
+├── applypatch.go       # apply_patch 工具：结构化补丁应用
+├── question.go         # question 工具：向用户提问交互
+├── *_test.go           # 对应测试文件
+```
+
+**架构决策**：
+- **统一接口**：所有工具实现 `pkg/tool.Tool` 接口，与内置工具（bash/read/write）使用相同注册机制
+- **不依赖框架核心**：`internal/tools/` 只依赖 `pkg/tool` 接口，不依赖 `pkg/agent`
+- **通过 `cmd/basework` 编排**：CLI 入口负责创建 ToolRegistry 并注册这些工具
+- **无额外依赖**：web_fetch 使用标准库 `net/http` + `golang.org/x/net/html` 解析 HTML
+
+#### web_fetch 工具
+
+```go
+// internal/tools/webfetch.go
+// 获取指定 URL 的内容并提取文本信息
+// 参数: url (required), format (text|markdown|html, default: text)
+// 限制: 100KB 响应大小, 30s 超时
+// HTML 解析: 标准库 html.Parse，块级元素自动加换行
+```
+
+#### web_search 工具
+
+```go
+// internal/tools/websearch.go
+// 搜索网络信息，支持 Tavily 和 Exa 搜索后端
+// 参数: query (required), num_results (1-20, default: 5)
+// 配置: 通过 config.tools.web_search.backend/api_key 控制
+// 结果统一为 SearchResult{Title, URL, Summary}
+```
+
+#### todowrite 工具
+
+```go
+// internal/tools/todowrite.go
+// 任务列表管理，纯内存存储（会话级）
+// 参数: todos (required) [{text, status}]
+// 状态: "pending" | "completed"
+// 渲染: 带完成统计的格式化列表
+```
+
+#### apply_patch 工具
+
+```go
+// internal/tools/applypatch.go
+// 应用结构化补丁到文件系统
+// 格式: *** Begin Patch / *** End Patch 包裹
+// 操作: Add File（创建新文件）、Delete File（删除文件）、Update File（更新文件内容）
+// 限制: 工作目录约束，防止越界操作
+```
+
+#### question 工具
+
+```go
+// internal/tools/question.go
+// 向用户提出问题并提供选项供选择
+// 参数: questions (required) [{text, options}]
+// 交互: stdin/stdout 读取用户选择
+// YOLO 模式: 自动选择第一个选项
+// Mock 支持: 通过可替换的 stdin/stdout 方便测试
+```
+
+### 26.10 终端 UI (`internal/tui/`)
+
+```
+tui/
+├── app.go            # TUI 主应用（Bubble Tea Model 接口）
+├── input.go          # 输入区组件（多行、历史、Tab 补全）
+├── message.go        # 消息渲染组件（Glamour Markdown 渲染）
+├── streaming.go      # 流式输出组件（逐字输出、spinner 动画）
+└── statusbar.go      # 状态栏组件（模型名、token、MCP 状态）
+```
+
+**Bubble Tea 架构**：
+
+```
+App (Bubble Tea Model)
+  ├── InputView     — 输入区（tea.Model 子组件）
+  ├── StatusBarView — 状态栏（纯渲染组件）
+  ├── StreamingView — 流式输出（纯渲染组件）
+  └── MessageView   — 消息渲染器（非 tea 组件，纯函数）
+```
+
+**App 主结构体**：
+
+```go
+// App 是 TUI 应用的主结构体，实现了 Bubble Tea Model 接口
+type App struct {
+    Messages  []Message       // 消息历史
+    Input     *InputView      // 输入子组件
+    StatusBar *StatusBarView  // 状态栏子组件
+    Streaming *StreamingView  // 流式子组件
+    Width     int             // 终端宽度
+    Height    int             // 终端高度
+    IsStreaming bool          // 是否正在流式输出
+}
+```
+
+**消息类型定义**：
+
+```go
+// UserInputMsg 表示用户输入消息
+type UserInputMsg struct { Text string }
+
+// AgentResponseMsg 表示 Agent 响应消息
+type AgentResponseMsg struct { Text string }
+
+// ToolCallMsg 表示工具调用消息
+type ToolCallMsg struct {
+    ToolName string
+    Args     string
+    Result   string
+    IsError  bool
+}
+
+// ErrorMsg 表示错误消息
+type ErrorMsg struct { Err error }
+```
+
+**组件通信模式**：
+- 按键事件 → `App.Update()` → 分发到子组件
+- 用户按 Enter → `App.Update()` 返回 `UserInputMsg`
+- 外部 Agent 输出 → 通过 `AddUserMessage()` / `AddAssistantMessage()` 等方法添加
+- 流式更新 → `StartStreaming()` / `UpdateStreamingText()` / `StopStreaming()`
+
+**输入区组件（InputView）**：
+
+```go
+type InputView struct {
+    lines      []string    // 多行输入缓冲区
+    history    []string    // 输入历史（上下键导航）
+    completions []string   // Tab 补全候选
+    prompt     string      // 提示符
+}
+```
+
+**状态栏组件（StatusBarView）**：
+
+```go
+type StatusBarView struct {
+    ModelName        string  // 当前模型名
+    Provider         string  // Provider 名称
+    SessionID        string  // 会话 ID
+    PromptTokens     int     // 输入 token 数
+    CompletionTokens int     // 输出 token 数
+    TotalTokens      int     // 总 token 数
+    MCPConnected     bool    // MCP 连接状态
+    IsBusy           bool    // 忙/闲状态
+}
+```
+
+**架构决策**：
+- **Bubble Tea v2**：使用最新版 Bubble Tea 框架，基于 tea.Model 接口
+- **子组件模式**：输入/状态栏/流式三个子组件各司其职，通过 `cmd/basework/tui.go` 的 callback 桥接 Agent
+- **Glamour Markdown**：使用 `charm.land/glamour/v2` 渲染 Markdown 响应（终端样式一致）
+- **Lip Gloss 样式**：使用 `charm.land/lipgloss/v2` 定义颜色和样式，支持主题
+- **无需 CGO**：所有依赖纯 Go
+
+### 26.11 会话增强 (`pkg/session/`)
+
+**SQLite Store（build tag: sqlite）**
+
+```
+pkg/session/
+├── sqlite.go       # SQLiteStore 实现（build tag: sqlite）
+├── filetrack.go    # FileTracker 文件追踪
+└── queue.go        # 会话消息队列
+```
+
+**SQLite 表结构**：
+
+```sql
+-- 会话表
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    provider TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    tracked_files TEXT NOT NULL DEFAULT '[]'  -- JSON 文件追踪记录
+);
+
+-- 事件表（事件溯源的核心表）
+CREATE TABLE events (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    data TEXT NOT NULL DEFAULT '',
+    seq INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- 消息表（平铺，便于 SQL 查询）
+CREATE TABLE messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    timestamp TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- 工具调用表
+CREATE TABLE tool_calls (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    arguments TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+);
+
+-- 工具结果表
+CREATE TABLE tool_results (
+    id TEXT PRIMARY KEY,
+    tool_call_id TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    is_error INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (tool_call_id) REFERENCES tool_calls(id) ON DELETE CASCADE
+);
+```
+
+**自动标题（AutoTitle）**：
+
+```go
+// pkg/config/config.go
+type AutoTitleConfig struct {
+    Enabled bool   `json:"enabled"`
+    Model   string `json:"model"` // 用于生成标题的小模型（空则用主模型）
+}
+```
+
+**会话队列（Queue）**：
+
+```go
+// pkg/session/queue.go
+// Queue 是一个线程安全的 FIFO 消息队列
+type Queue struct {
+    mu       sync.Mutex
+    messages []Message
+    maxSize  int  // 0 表示不限制
+}
+
+func (q *Queue) Enqueue(msg Message) bool   // 入队（队列满时返回 false）
+func (q *Queue) Dequeue() Message           // 出队（FIFO）
+func (q *Queue) Cancel(msgID string) bool   // 按 ID 取消消息
+func (q *Queue) Len() int                   // 当前队列大小
+func (q *Queue) IsEmpty() bool              // 是否为空
+```
+
+**文件追踪（FileTracker）**：
+
+```go
+// pkg/session/filetrack.go
+// FileTracker 追踪会话中访问或修改的文件
+type FileTracker struct {
+    readFiles  map[string]bool  // 读取的文件
+    writeFiles map[string]bool  // 写入的文件
+    editFiles  map[string]bool  // 编辑的文件
+    allFiles   map[string]bool  // 所有文件（去重）
+}
+
+func (ft *FileTracker) TrackRead(path string)
+func (ft *FileTracker) TrackWrite(path string)
+func (ft *FileTracker) TrackEdit(path string)
+func (ft *FileTracker) GetTrackedFiles() []string
+func (ft *FileTracker) GetModifiedFiles() []string  // 写入+编辑的文件
+```
+
+**架构决策**：
+- **Build Tag 控制**：SQLiteStore 通过 `sqlite` build tag 控制，不启用时使用 JSONLStore 作为默认
+- **双写策略**：事件溯源事件同时写入原始 events 表和平铺到关系表（messages/tool_calls/tool_results），兼顾可重放性和 SQL 查询效率
+- **WAL 模式**：使用 SQLite WAL 模式提升并发读写性能
+- **文件追踪持久化**：tracked_files 字段存储 JSON 数组到 sessions 表，会话间隔离
+
+### 26.12 Provider 扩展（`pkg/provider/`）
+
+**新增 5 个 Provider**：
+
+| Provider | 文件名 | 协议 | 认证方式 | 默认端点 |
+|----------|--------|------|---------|---------|
+| OpenCode Zen | `opencode.go` | OpenAI 兼容 | API Key | `https://opencode.ai/zen/v1` |
+| Amazon Bedrock | `bedrock.go` | AWS Converse API | AWS SigV4 签名 | `https://bedrock-runtime.{region}.amazonaws.com` |
+| Azure OpenAI | `azure.go` | OpenAI 兼容 | API Key (`api-key` 头) | `https://{resource}.openai.azure.com` |
+| GitHub Copilot | `copilot.go` | OpenAI 兼容 | OAuth 设备授权 | `https://api.githubcopilot.com` |
+| Ollama | `ollama.go` | OpenAI 兼容 | 无需认证 | `http://localhost:11434` |
+
+**OpenCode Zen Provider**：
+
+```go
+// pkg/provider/opencode.go
+// 基于 OpenAI 兼容协议，复用 compatModel 的 HTTP 客户端
+// 免费模型: big-pickle, deepseek-v4-flash-free, mimo-v2.5-free
+// 默认模型: big-pickle
+type OpenCodeProvider struct {
+    model   *compatModel
+    apiKey  string
+    modelID string
+}
+```
+
+**Amazon Bedrock Provider**：
+
+```go
+// pkg/provider/bedrock.go
+// 使用原生 HTTP + AWS SigV4 签名（不依赖 AWS SDK）
+// 支持模型: Claude 3.5 Sonnet, Claude 3 Opus, Llama 3.1, Mistral Large
+// 通过 AWS Converse API 非流式 + Converse Stream API 流式
+type BedrockProvider struct {
+    accessKey string
+    secretKey string
+    region    string
+    modelID   string
+    // 内置 SigV4 签名器
+}
+```
+
+**Azure OpenAI Provider**：
+
+```go
+// pkg/provider/azure.go
+// 端点格式: https://{resource}.openai.azure.com/openai/deployments/{deployment}
+// 认证: api-key 请求头
+// 复用 openai.go 的请求构建和流式解析函数
+type AzureProvider struct {
+    resource    string
+    deployment  string
+    apiKey      string
+    apiVersion  string
+    modelID     string
+}
+```
+
+**GitHub Copilot Provider**：
+
+```go
+// pkg/provider/copilot.go
+// 端点: https://api.githubcopilot.com/chat/completions
+// 认证: OAuth 设备授权流程（用户访问 github.com 输入 code）
+// token 持久化到 ~/.config/basework/copilot_token.json
+// 支持模型: gpt-4, gpt-4o, claude-3.5-sonnet, gemini-2.0-flash
+type CopilotProvider struct {
+    model     string
+    token     *oauth2.Token
+    tokenPath string
+    // 内置设备授权流程 (Authenticate 方法)
+}
+```
+
+**Ollama Provider**：
+
+```go
+// pkg/provider/ollama.go
+// 端点: http://localhost:11434/v1/chat/completions
+// 无需认证
+// 自动发现: 调用 /api/tags 获取本地模型列表
+// 未指定模型时自动选择第一个可用模型
+type OllamaProvider struct {
+    endpoint string
+    modelID  string
+    models   []string      // 自动发现的本地模型
+}
+```
+
+**Factory 集成**：
+
+```go
+// pkg/provider/factory.go — 新增 5 分支
+var protocols = map[string]protocolMeta{
+    // ... 原有 provider ...
+    "opencode": {defaultBaseURL: "https://opencode.ai/zen/v1", allowEmptyKey: false},
+    "bedrock":  {defaultBaseURL: "", allowEmptyKey: true},
+    "azure":    {defaultBaseURL: "", allowEmptyKey: false},
+    "copilot":  {defaultBaseURL: "", allowEmptyKey: true},
+    "ollama":   {defaultBaseURL: "http://localhost:11434", allowEmptyKey: true},
+}
+
+// Create 方法新增 case 分支
+switch cfg.Type {
+case "bedrock":  return newBedrock(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+case "azure":    return newAzure(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+case "copilot":  return newCopilot(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+case "opencode": return newOpenCode(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+case "ollama":   return newOllama(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+}
+```
+
+**架构决策**：
+- **无 AWS SDK 依赖**：Bedrock 使用原生 HTTP 实现 SigV4 签名，避免 15MB SDK 依赖
+- **代码复用**：OpenCode、Ollama 走 openai-compat 路径；Azure 复用 OpenAI 请求构建和流式解析
+- **不同认证策略**：每个 Provider 的认证方式不同（API Key / SigV4 / OAuth / 无认证），各自独立实现
+- **allowEmptyKey 标记**：Bedrock（用 access_key/secret_key）、Copilot（OAuth）、Ollama（无认证）允许空 API Key
+- **本地模型自动发现**：Ollama 通过 `/api/tags` 端点自动获取可用模型列表

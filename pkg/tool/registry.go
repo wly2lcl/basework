@@ -101,6 +101,21 @@ func (r *Registry) Materialize() []llm.ToolDefinition {
 	return defs
 }
 
+// MaterializeAsTools 返回已注册的工具列表（排除 disabled）
+func (r *Registry) MaterializeAsTools() []Tool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	toolsList := make([]Tool, 0, len(r.tools))
+	for _, t := range r.tools {
+		if r.disabled[t.Name()] {
+			continue
+		}
+		toolsList = append(toolsList, t)
+	}
+	return toolsList
+}
+
 // Disable 禁用工具
 func (r *Registry) Disable(name string) {
 	r.mu.Lock()

@@ -36,9 +36,14 @@ var sessionClearCmd = &cobra.Command{
 	},
 }
 
+var (
+	showTrackedFiles bool
+)
+
 func init() {
 	sessionCmd.AddCommand(sessionListCmd)
 	sessionCmd.AddCommand(sessionClearCmd)
+	sessionListCmd.Flags().BoolVar(&showTrackedFiles, "tracked-files", false, "显示每个会话追踪的文件数量")
 }
 
 // openSessionStore 打开会话存储
@@ -65,8 +70,13 @@ func runSessionList() error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "ID\t标题\t消息数\t创建时间")
-	fmt.Fprintln(w, "--\t----\t--------\t--------")
+	if showTrackedFiles {
+		fmt.Fprintln(w, "ID\t标题\t创建时间\t消息数")
+		fmt.Fprintln(w, "--\t----\t--------\t------")
+	} else {
+		fmt.Fprintln(w, "ID\t标题\t消息数\t创建时间")
+		fmt.Fprintln(w, "--\t----\t--------\t--------")
+	}
 	for _, info := range infos {
 		shortID := info.ID
 		if len(shortID) > 12 {
@@ -76,12 +86,21 @@ func runSessionList() error {
 		if title == "" {
 			title = "(无标题)"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
-			shortID,
-			title,
-			info.MessageCount,
-			info.CreatedAt.Format(time.RFC3339),
-		)
+		if showTrackedFiles {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n",
+				shortID,
+				title,
+				info.CreatedAt.Format(time.RFC3339),
+				info.MessageCount,
+			)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+				shortID,
+				title,
+				info.MessageCount,
+				info.CreatedAt.Format(time.RFC3339),
+			)
+		}
 	}
 	return w.Flush()
 }

@@ -54,28 +54,38 @@ func runAgentE(cmd *cobra.Command, args []string) error {
 	}
 	cfg := store.Get()
 
-	if verbose {
-		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s\n", cfg.Provider, cfg.Model)
+	// 环境变量覆盖 Provider 选择
+	providerType := cfg.Provider
+	if envProvider := os.Getenv("BASEWORK_PROVIDER"); envProvider != "" {
+		providerType = envProvider
 	}
 
-	// 2. 创建 LLM 模型
+	if verbose {
+		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s\n", providerType, cfg.Model)
+	}
+
+	// 2. 构建 provider 选项
+	opts := buildProviderOptions(cfg)
+
+	// 3. 创建 LLM 模型
 	model, err := provider.Create(provider.Config{
-		Type:    cfg.Provider,
+		Type:    providerType,
 		ModelID: cfg.Model,
-		APIKey:  lookupAPIKey(cfg.Provider),
+		APIKey:  lookupAPIKey(providerType),
+		Options: opts,
 	})
 	if err != nil {
 		return fmt.Errorf("创建 LLM 模型失败: %w", err)
 	}
 
-	// 3. 创建 Session 存储
+	// 4. 创建 Session 存储
 	sessionDir := getSessionDir()
 	sess, err := session.NewJSONLStore(sessionDir)
 	if err != nil {
 		return fmt.Errorf("创建会话存储失败: %w", err)
 	}
 
-	// 4. 创建 Agent
+	// 5. 创建 Agent
 	agt, err := agent.New(
 		agent.WithModel(model),
 		agent.WithSession(sess),
@@ -87,7 +97,7 @@ func runAgentE(cmd *cobra.Command, args []string) error {
 	}
 	defer agt.Close()
 
-	// 5. 判断模式：一次性消息 vs REPL
+	// 6. 判断模式：一次性消息 vs REPL
 	if message != "" {
 		return handleOneShot(cmd.Context(), agt, message)
 	}
@@ -189,12 +199,75 @@ func lookupAPIKey(providerType string) string {
 		if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
 			return key
 		}
+	case "opencode":
+		if key := os.Getenv("OPENCODE_API_KEY"); key != "" {
+			return key
+		}
+		if key := os.Getenv("OPENAI_API_KEY"); key != "" {
+			return key
+		}
+	case "bedrock":
+		return os.Getenv("AWS_ACCESS_KEY_ID")
+	case "azure":
+		if key := os.Getenv("AZURE_API_KEY"); key != "" {
+			return key
+		}
+	case "copilot":
+		return ""
+	case "ollama":
+		return ""
 	}
 	// 通用 fallback
 	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 		return key
 	}
 	return ""
+}
+
+// buildProviderOptions 根据配置构建 provider 的 Options map
+func buildProviderOptions(cfg *config.Config) map[string]any {
+	opts := make(map[string]any)
+
+	switch cfg.Provider {
+	case "bedrock":
+		opts["access_key"] = cfg.Bedrock.AccessKey
+		if opts["access_key"] == "" {
+			opts["access_key"] = os.Getenv("AWS_ACCESS_KEY_ID")
+		}
+		opts["secret_key"] = cfg.Bedrock.SecretKey
+		if opts["secret_key"] == "" {
+			opts["secret_key"] = os.Getenv("AWS_SECRET_ACCESS_KEY")
+		}
+		opts["region"] = cfg.Bedrock.Region
+		if opts["region"] == "" {
+			opts["region"] = os.Getenv("AWS_REGION")
+		}
+		if opts["region"] == "" {
+			opts["region"] = "us-east-1"
+		}
+
+	case "azure":
+		opts["resource"] = cfg.Azure.Resource
+		opts["deployment"] = cfg.Azure.Deployment
+		opts["api_version"] = cfg.Azure.APIVersion
+		if opts["api_version"] == "" {
+			opts["api_version"] = "2024-02-01"
+		}
+		opts["api_key"] = cfg.Azure.APIKey
+
+	case "copilot":
+		opts["token_path"] = cfg.Copilot.TokenPath
+
+	case "ollama":
+		opts["endpoint"] = cfg.Ollama.Endpoint
+
+	case "opencode":
+		if cfg.OpenCode.APIKey != "" {
+			opts["api_key"] = cfg.OpenCode.APIKey
+		}
+	}
+
+	return opts
 }
 
 // getSessionDir 返回会话存储目录
