@@ -16,7 +16,7 @@ basework 默认使用 **big-pickle 免费模型**，无需配置 API Key 即可�
 
 ### 支持哪些 Provider？
 
-basework 原生支持 **10 个 Provider**，同时兼容所有标准 OpenAI API 格式的 Provider：
+basework 原生支持 **15+ 个 Provider**，同时兼容所有标准 OpenAI API 格式的 Provider：
 
 | Provider | 原生支持 |
 |----------|----------|
@@ -89,10 +89,10 @@ basework 支持两种方式配置 API Key，优先级从上到下递减：
 # 列出可用模型
 basework model list
 
-# 设置默认模型（Phase 20 — 即将推出）
+# 设置默认模型
 basework model set <model-id>
 
-# 查看当前默认模型（Phase 20 — 即将推出）
+# 查看当前默认模型
 basework model default
 ```
 
@@ -108,7 +108,7 @@ basework model default
 # Agent 模式（纯 CLI 交互）
 basework agent
 
-# TUI 模式（终端界面，Phase 18 — 即将推出）
+# TUI 模式（终端界面）
 basework tui
 ```
 
@@ -166,13 +166,22 @@ import (
 )
 
 func main() {
-    p, _ := provider.Create("anthropic", provider.Config{
-        APIKey: os.Getenv("ANTHROPIC_API_KEY"),
+    p := provider.New(provider.Config{
+        Type:     "anthropic",
+        APIKey:   os.Getenv("ANTHROPIC_API_KEY"),
+        Model:    "claude-3-5-sonnet-20241022",
+        BaseURL:  "https://api.anthropic.com/v1",
     })
     
-    a := agent.New(agent.Config{
-        Provider: p,
+    model := llm.NewModel(llm.ModelConfig{
+        Provider: "anthropic",
+        Model:    "claude-3-5-sonnet-20241022",
+        APIKey:   os.Getenv("ANTHROPIC_API_KEY"),
     })
+    a := agent.New(
+        agent.WithModel(model),
+        agent.WithTools(tool.DefaultRegistry()),
+    )
     
     resp, _ := a.Run(ctx, "写一个 Go 反转字符串函数")
     fmt.Println(resp)
@@ -184,15 +193,19 @@ func main() {
 实现 `tool.Tool` 接口：
 
 ```go
-import "github.com/wly2lcl/basework/pkg/tool"
+import (
+    "encoding/json"
+    "github.com/wly2lcl/basework/pkg/tool"
+)
 
 type MyTool struct{}
 
-func (t *MyTool) Name() string        { return "my_tool" }
-func (t *MyTool) Description() string { return "我的自定义工具" }
-func (t *MyTool) Run(ctx context.Context, params map[string]any) (any, error) {
+func (t *MyTool) Name() string                           { return "my_tool" }
+func (t *MyTool) Description() string                    { return "我的自定义工具" }
+func (t *MyTool) Parameters() json.RawMessage            { return nil }
+func (t *MyTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Result, error) {
     // 工具逻辑
-    return "结果", nil
+    return &tool.Result{Content: "结果"}, nil
 }
 ```
 
@@ -265,7 +278,7 @@ basework logs
 # 查看最近 50 行
 basework logs --tail 50
 
-# 实时跟踪（Phase 21 — 即将推出）
+# 实时跟踪
 basework logs --follow
 ```
 
@@ -282,7 +295,7 @@ basework logs --follow
 
 ### 上下文窗口满了怎么办？
 
-basework 会在上下文接近满时触发自动压缩策略（Phase 13 — 即将推出），智能保留关键信息、压缩或丢弃不重要的内容。你也可以手动重启会话以清空上下文。
+basework 会在上下文接近满时触发自动压缩策略，智能保留关键信息、压缩或丢弃不重要的内容。你也可以手动重启会话以清空上下文。
 
 ### 如何限制 token 使用？
 

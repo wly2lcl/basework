@@ -1,0 +1,27 @@
+run:
+  timeout: 5m
+  go: '1.26'
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+  disable:
+    - exhaustive  # 太严格
+
+linters-settings:
+  govet:
+    check-shadowing: false
+  staticcheck:
+    checks: ['all']
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck  # 测试代码中忽略未检查的 error

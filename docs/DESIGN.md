@@ -19,7 +19,7 @@ Basework 是一个 **Go 语言的可嵌入 AI Agent 框架**。与 opencode（�
 | **可扩展** | Hook + Plugin + Skill 三层扩展点 |
 | **类型安全** | 统一类型系统，一套 Message/ToolCall 贯穿始终 |
 | **可观测** | 事件溯源 Session + PubSub 事件总线 |
-| **可选复杂度** | Build Tag 控制可选模块（memory, bedrock, isolation） |
+| **可选复杂度** | Build Tag 控制可选模块（memory, sqlite, tui, otel） |
 
 ### 非目标
 
@@ -803,6 +803,7 @@ description: "做什么用的"
 | `memory` | 关 | SQLite 上下文管理（FTS5 全文搜索） |
 | `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
 | `tui` | 关 | TUI 界面（Bubble Tea） |
+| `otel` | 关 | OpenTelemetry 追踪导出 |
 
 无 `slim`、`bedrock`、`isolation` 标签。所有可选模块默认关闭，需要时显式开启。
 
@@ -1980,7 +1981,7 @@ func (p *Pipeline) shouldCompact(estimatedTokens int, maxContextTokens int) bool
 │ L3: 输出清洗                                 │
 │      → 工具输出截断（防止上下文溢出）          │
 ├─────────────────────────────────────────────┤
-│ L4: 沙箱（可选，build tag: isolation）        │
+│ L4: 沙箱（进程级隔离）                        │
 │      → 进程级隔离                             │
 └─────────────────────────────────────────────┘
 ```
@@ -2148,7 +2149,7 @@ var DefaultRules = []hook.Rule{
 
 > 统一的错误分类、重试和恢复机制。
 
-### 17.1 错误分类
+### 23.1 错误分类
 
 ```go
 // pkg/llm/error.go 中定义
@@ -2172,7 +2173,7 @@ const (
 )
 ```
 
-### 17.2 重试策略
+### 23.2 重试策略
 
 ```go
 // pkg/agent/retry.go
@@ -2202,7 +2203,7 @@ func shouldRetry(err error) bool {
 func retryWithBackoff(ctx context.Context, cfg RetryConfig, fn func() error) error
 ```
 
-### 17.3 各层错误处理职责
+### 23.3 各层错误处理职责
 
 | 层 | 职责 |
 |---|------|
@@ -2212,7 +2213,7 @@ func retryWithBackoff(ctx context.Context, cfg RetryConfig, fn func() error) err
 | **Session** | 事件写入失败 → 重试 1 次后返回 error（不丢数据） |
 | **宿主应用** | 最终错误处理和用户提示 |
 
-### 17.4 不可恢复错误处理
+### 23.4 不可恢复错误处理
 
 ```
 不可恢复错误流程:
@@ -2228,7 +2229,7 @@ func retryWithBackoff(ctx context.Context, cfg RetryConfig, fn func() error) err
 
 > Agent 关闭时的资源清理顺序。
 
-### 18.1 关闭顺序
+### 24.1 关闭顺序
 
 ```
 AgentLoop.Close()
@@ -2258,7 +2259,7 @@ AgentLoop.Close()
     └── 10. 关闭 PubSub Broker
 ```
 
-### 18.2 Close 接口
+### 24.2 Close 接口
 
 ```go
 // AgentLoop.Close 实现
@@ -2289,7 +2290,7 @@ func (a *AgentLoop) Close() error {
 }
 ```
 
-### 18.3 Context 传播
+### 24.3 Context 传播
 
 ```
 AgentLoop 持有 root context

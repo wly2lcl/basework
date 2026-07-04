@@ -36,7 +36,7 @@ basework agent -m "写一个 Go 反转字符串函数"
 # 使用特定模型
 basework agent -m "解释这段代码" --model anthropic/claude-sonnet-4-20250514
 
-# 使用 TUI 模式（Phase 18 — 即将推出）
+# 使用 TUI 模式（✅ 已实现）
 basework tui
 ```
 
@@ -102,10 +102,10 @@ basework init
 # 列出所有可用模型
 basework model list
 
-# 设置默认模型 — 即将推出（Phase 20）
+# 设置默认模型（✅ 已实现）
 basework model set anthropic/claude-sonnet-4-20250514
 
-# 显示当前默认模型 — 即将推出（Phase 20）
+# 显示当前默认模型（✅ 已实现）
 basework model default
 ```
 
@@ -122,13 +122,13 @@ basework session list
 # 清除所有会话
 basework session clear
 
-# 恢复指定会话 — 即将推出（Phase 19）
+# 恢复指定会话（✅ 已实现）
 basework session resume <session-id>
 
-# 导出会话为文件 — 即将推出（Phase 19）
+# 导出会话为文件（✅ 已实现）
 basework session export <session-id>
 
-# 搜索会话内容 — 即将推出（Phase 19）
+# 搜索会话内容（✅ 已实现）
 basework session search "关键词"
 ```
 
@@ -136,7 +136,7 @@ basework session search "关键词"
 
 ### basework tui
 
-启动 TUI（终端用户界面）模式，提供更丰富的交互体验（Phase 18 — 即将推出）。
+启动 TUI（终端用户界面）模式，提供更丰富的交互体验（✅ 已实现）。
 
 ```bash
 # 启动 TUI
@@ -153,7 +153,7 @@ TUI 模式提供分屏布局、语法高亮、文件树等增强功能。
 
 ### basework permission
 
-权限管理命令（Phase 15 — 即将推出），管理 Agent 的文件系统、网络等操作权限。
+权限管理命令（✅ 已实现），管理 Agent 的文件系统、网络等操作权限。
 
 ```bash
 # 列出所有权限规则
@@ -168,7 +168,7 @@ basework permission remove "allow read /home/user/project/*"
 
 ### basework auth
 
-认证管理命令（Phase 25 — 即将推出），用于管理 OAuth 登录状态。
+认证管理命令（✅ 已实现），用于管理 OAuth 登录状态。
 
 ```bash
 # OAuth 登录 Provider
@@ -203,7 +203,7 @@ basework config show
 
 ### basework migrate
 
-数据迁移命令（Phase 19 — 即将推出），用于将旧格式数据迁移到新格式。
+数据迁移命令（✅ 已实现），用于将旧格式数据迁移到新格式。
 
 ```bash
 # 将会话数据从 JSONL 迁移到 SQLite
@@ -212,7 +212,7 @@ basework migrate sessions
 
 ### basework logs
 
-日志查看命令（Phase 21 — 即将推出），用于排查问题。
+日志查看命令（✅ 已实现），用于排查问题。
 
 ```bash
 # 查看日志
@@ -360,4 +360,4 @@ cat main.go | basework agent -m "审查这段代码"
 
 ### 长任务处理
 
-对于耗时较长的任务，建议使用交互模式以便持续观察进度。如果任务意外中断，后续可通过会话恢复功能继续（Phase 19 — 即将推出）。
+对于耗时较长的任务，建议使用交互模式以便持续观察进度。如果任务意外中断，后续可通过会话恢复功能继续（✅ 已实现）。

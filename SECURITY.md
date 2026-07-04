@@ -15,7 +15,7 @@
 
 ### 首选方式：GitHub Issues
 
-1. 前往 [GitHub Issues](https://github.com/basework/basework/issues)
+1. 前往 [GitHub Issues](https://github.com/wly2lcl/basework/issues)
 2. 创建新的 Issue，标题以 `[SECURITY]` 开头
 3. 详细描述漏洞内容和复现步骤
 4. **请勿**在公开 Issue 中包含敏感信息（如凭证泄露）
@@ -51,7 +51,7 @@ Basework 作为一个 AI Agent 框架，在设计上存在以下安全考量：
 - **缓解措施**:
   - 建议在沙箱或容器环境中运行
   - 生产环境应限制 Agent 的系统权限
-  - 后续版本将引入权限白名单机制 (Phase 14)
+  - 权限系统已在 Phase 15 实现，支持规则引擎（allow/deny/ask）、交互提示、YOLO 模式。命令黑名单已在 Phase 23 实现，内置 12+ 危险模式拦截。
 
 ### LLM Provider API Key
 

@@ -4,7 +4,7 @@
 
 TUI（Terminal User Interface）提供完整的终端编程助手体验，基于 [Bubble Tea](https://github.com/charmbracelet/bubbletea) 构建。相比简单 REPL 模式，TUI 支持 Markdown 渲染、语法高亮、命令面板、会话管理等高级特性。
 
-> **注意**：TUI 当前为开发中功能（Phase 18），尚未正式发布。
+> **注意**：TUI 基于 Bubble Tea 构建，为正式发布功能（Phase 18）。
 
 ## 启动 TUI
 

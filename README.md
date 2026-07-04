@@ -23,7 +23,7 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **OAuth 2.0** — PKCE 流程、令牌刷新、凭证安全存储
 - **Prompt 缓存** — 自动注入 `cache_control` 标记，减少 50-90% 重复 token 计费（Anthropic/OpenAI/Gemini）
 - **命令黑名单** — 12+ 内置危险命令模式 + 自定义扩展，支持交互/YOLO 权限模式
-- **10+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
+- **15+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
 - **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
 - **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
 - **MCP 支持** — Model Context Protocol 外部工具服务器、资源读取、提示模板获取
@@ -133,7 +133,7 @@ func main() {
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
 │  ├── llm/          类型系统 + 错误分类                   │
-│  ├── tool/         工具接口 + 8 个内置工具               │
+│  ├── tool/         工具接口 + 6 个内置工具               │
 │  ├── hook/         Hook 系统 + PubSub                   │
 │  ├── session/      会话管理 + 事件溯源                   │
 │  ├── agent/        Agent 循环 + 流式处理                 │
@@ -260,6 +260,7 @@ description: "代码审查最佳实践"
 |-----|------|------|
 | `memory` | 关 | SQLite 持久化记忆 + FTS5 全文搜索 |
 | `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
+| `tui` | 关 | Bubble Tea 终端 UI |
 | `otel` | 关 | OpenTelemetry 追踪导出 |
 
 ```bash
@@ -268,6 +269,9 @@ go build -tags memory ./...
 
 # 启用 SQLite 会话存储
 go build -tags sqlite ./...
+
+# 启用终端 UI
+go build -tags tui ./...
 
 # 启用 OpenTelemetry 追踪
 go build -tags otel ./...

@@ -20,11 +20,11 @@
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
 │  ├── llm/          类型系统 + 错误分类                   │
-│  ├── tool/         工具接口 + 注册表 + 8 个内置工具      │
+│  ├── tool/         工具接口 + 注册表 + 6 个内置工具      │
 │  ├── hook/         Hook 系统 + PubSub                   │
 │  ├── session/      会话管理 + 事件溯源                   │
 │  ├── agent/        Agent 循环 + 流式处理                 │
-│  ├── provider/     Provider 工厂（10 个 Provider）       │
+│  ├── provider/     Provider 工厂（15+ 个 Provider）       │
 │  ├── lsp/          LSP 集成                              │
 │  ├── mcp/          MCP 集成                              │
 │  ├── memory/       记忆系统（FTS5, build tag）           │

@@ -6,13 +6,13 @@
 
 ## 概述
 
-basework 支持 10+ LLM 提供商，通过 `pkg/provider` 统一接口访问。每个 Provider 只需提供类型标识和 API Key 即可使用，无需额外的 SDK 依赖。
+basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。每个 Provider 只需提供类型标识和 API Key 即可使用，无需额外的 SDK 依赖。
 
 所有支持的 Provider 分为三类：
 
 - **原生支持** — 使用各自原生协议（OpenAI chat/completions API、Anthropic Messages API、Gemini API）
 - **OpenAI 兼容** — 使用 OpenAI 协议，仅更换端点和认证信息
-- **计划中** — 将在后续版本中添加
+- **✅ 已实现** — 后续新增的 Provider
 
 ---
 
@@ -39,15 +39,15 @@ basework 支持 10+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 | xAI | `"xai"` | `https://api.x.ai/v1` | `XAI_API_KEY` |
 | Mistral | `"mistral"` | `https://api.mistral.ai/v1` | `MISTRAL_API_KEY` |
 
-### 计划中（Phase 20）
+### ✅ 已实现
 
-| Provider | 说明 |
-|----------|------|
-| OpenCode Zen | big-pickle 免费模型 |
-| Amazon Bedrock | AWS Converse API |
-| Azure OpenAI | Azure 端点 |
-| GitHub Copilot | OAuth 认证 |
-| Ollama | 本地模型（llama、qwen 等） |
+| Provider | 类型值 | 端点 | 环境变量 |
+|----------|--------|------|----------|
+| OpenCode Zen | `"opencode"` | `https://opencode.ai/zen/v1` | `OG_API_KEY` |
+| Amazon Bedrock | `"bedrock"` | AWS Converse API | AWS 凭证 |
+| Azure OpenAI | `"azure"` | `https://{resource}.openai.azure.com` | `AZURE_OPENAI_API_KEY` |
+| GitHub Copilot | `"copilot"` | `https://api.githubcopilot.com` | OAuth 认证 |
+| Ollama | `"ollama"` | `http://localhost:11434/v1` | 无（本地） |
 
 ---
 

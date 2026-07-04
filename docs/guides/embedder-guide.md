@@ -30,6 +30,11 @@ basework 支持以下 LLM Provider：
 | xAI         | `"xai"`             | `https://api.x.ai/v1` |
 | Mistral     | `"mistral"`         | `https://api.mistral.ai/v1` |
 | OpenAI 兼容 | `"openai-compat"`   | 自定义 |
+| OpenCode Zen | `"opencode"`        | `https://opencode.ai/zen/v1` |
+| Amazon Bedrock | `"bedrock"`       | AWS Converse API |
+| Azure OpenAI | `"azure"`           | `https://{resource}.openai.azure.com` |
+| GitHub Copilot | `"copilot"`       | `https://api.githubcopilot.com` |
+| Ollama | `"ollama"`           | `http://localhost:11434/v1` |
 
 ### OpenAI
 

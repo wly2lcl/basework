@@ -35,8 +35,9 @@
 配置文件搜索顺序（按优先级从高到低）：
 
 1. **当前目录** — `./config.json`
-2. **父目录** — 逐级向上搜索
-3. **用户目录** — `~/.config/basework/config.json`
+2. **项目级配置** — `.basework/config.json`（当前工作目录下）
+3. **父目录** — 逐级向上搜索
+4. **用户目录** — `~/.config/basework/config.json`
 
 均不存在时，使用默认配置，保存路径为 `~/.config/basework/config.json`。
 
@@ -67,6 +68,11 @@ Provider 直接通过 Go 代码中的 `provider.Create()` 配置，也可以通�
 | `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` |
 | `xai` | xAI | `https://api.x.ai/v1` |
 | `mistral` | Mistral AI | `https://api.mistral.ai/v1` |
+| `opencode` | OpenCode Zen | `https://api.opencode.ai/v1` |
+| `bedrock` | Amazon Bedrock | AWS Converse API |
+| `azure` | Azure OpenAI | `https://{resource}.openai.azure.com` |
+| `copilot` | GitHub Copilot | `https://api.githubcopilot.com` |
+| `ollama` | Ollama | `http://localhost:11434/v1` |
 
 ### 代码配置参数
 

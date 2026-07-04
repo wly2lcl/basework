@@ -52,7 +52,7 @@
   - `mcp_prompts_integration_test.go` — 提示获取 + Context 取消（7 个测试）
   - `mcp_resilience_integration_test.go` — 自动重连 + 变量展开（10 个测试）
 
-[0.2.0]: https://github.com/basework/basework/releases/tag/v0.2.0
+[0.2.0]: https://github.com/wly2lcl/basework/releases/tag/v0.2.0
 
 ## [0.1.0] - 2025-07-03
 
@@ -109,4 +109,4 @@
 - **3 份开发者指南** (`docs/guides/`) — Embedder 指南、配置指南、扩展指南
 - **新增依赖**: cobra v1.10.2, modernc.org/sqlite
 
-[0.1.0]: https://github.com/basework/basework/releases/tag/v0.1.0
+[0.1.0]: https://github.com/wly2lcl/basework/releases/tag/v0.1.0
