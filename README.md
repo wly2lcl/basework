@@ -21,10 +21,13 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **子代理** — 任务委托、隔离子会话、成本传播
 - **循环检测** — SHA-256 签名 + 模式匹配，防止工具调用死循环
 - **OAuth 2.0** — PKCE 流程、令牌刷新、凭证安全存储
+- **Prompt 缓存** — 自动注入 `cache_control` 标记，减少 50-90% 重复 token 计费（Anthropic/OpenAI/Gemini）
+- **命令黑名单** — 12+ 内置危险命令模式 + 自定义扩展，支持交互/YOLO 权限模式
 - **10+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
 - **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
 - **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
-- **MCP 支持** — Model Context Protocol 外部工具服务器
+- **MCP 支持** — Model Context Protocol 外部工具服务器、资源读取、提示模板获取
+- **MCP 增强** — 自动重连（指数退避）、Shell 变量展开（`$HOME`/`${VAR}`）
 - **会话持久化** — 事件溯源，支持回放
 - **会话增强** — SQLite 存储、文件追踪、自动标题、会话队列
 - **终端 UI** — Bubble Tea 构建的完整 TUI

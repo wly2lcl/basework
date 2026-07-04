@@ -115,7 +115,7 @@ func (p *OllamaProvider) Chat(ctx context.Context, req *llm.Request) (*llm.Respo
 		}
 	}
 
-	body := buildOpenAIRequest(req, false, modelID)
+	body := buildOpenAIRequest(req, false, modelID, false)
 	url := p.chatURL()
 
 	respBody, statusCode, err := jsonRequest(ctx, p.client, url, nil, body)
@@ -148,7 +148,7 @@ func (p *OllamaProvider) ChatStream(ctx context.Context, req *llm.Request) (<-ch
 		}
 	}
 
-	body := buildOpenAIRequest(req, true, modelID)
+	body := buildOpenAIRequest(req, true, modelID, false)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

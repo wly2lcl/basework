@@ -12,7 +12,15 @@ import (
 )
 
 // BashTool 执行 shell 命令
-type BashTool struct{}
+type BashTool struct {
+	// PermissionMode 控制黑名单的权限行为：
+	//   "yolo"       - 跳过黑名单检查
+	//   "interactive" - 黑名单命中时允许（由调用方负责确认交互）
+	//   "default"    - 直接拒绝
+	PermissionMode string
+	// BlockedCommands 是用户自定义的额外黑名单正则模式
+	BlockedCommands []string
+}
 
 func (b *BashTool) Name() string { return "bash" }
 
@@ -40,6 +48,32 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 
 	if params.Command == "" {
 		return &tool.Result{Content: "命令不能为空", IsError: true}, nil
+	}
+
+	// 黑名单检查（YOLO 模式跳过）
+	mode := b.PermissionMode
+	if mode == "" {
+		mode = "default"
+	}
+	if mode != "yolo" {
+		matched, pattern, err := CheckBlacklist(params.Command, b.BlockedCommands)
+		if err != nil {
+			return &tool.Result{Content: fmt.Sprintf("黑名单检查失败: %v", err), IsError: true}, nil
+		}
+		if matched {
+			if mode == "interactive" {
+				// 交互模式：返回带有确认信息的错误，由调用方处理确认逻辑
+				return &tool.Result{
+					Content: fmt.Sprintf("命令被黑名单拦截: %s\n匹配模式: %s\n输入 CONFIRM 确认执行", params.Command, pattern),
+					IsError: true,
+				}, nil
+			}
+			// default 模式：直接拒绝
+			return &tool.Result{
+				Content: fmt.Sprintf("命令被黑名单拦截: %s 属于危险操作", params.Command),
+				IsError: true,
+			}, nil
+		}
 	}
 
 	// 默认超时 30s

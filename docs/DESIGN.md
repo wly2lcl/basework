@@ -2878,3 +2878,261 @@ case "ollama":   return newOllama(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 - **不同认证策略**：每个 Provider 的认证方式不同（API Key / SigV4 / OAuth / 无认证），各自独立实现
 - **allowEmptyKey 标记**：Bedrock（用 access_key/secret_key）、Copilot（OAuth）、Ollama（无认证）允许空 API Key
 - **本地模型自动发现**：Ollama 通过 `/api/tags` 端点自动获取可用模型列表
+
+### 26.13 Prompt 缓存设计（`pkg/provider/cache.go`）
+
+**文件结构**：
+```
+pkg/provider/
+├── cache.go       # 缓存标记逻辑
+└── cache_test.go  # 缓存标记单元测试
+```
+
+**设计目标**：
+- Anthropic Provider 自动标记 system + user 消息前 1-2 块为 `cache_control: {"type": "ephemeral"}`
+- OpenAI/Gemini Provider 添加 `cache_control` 字段支持
+- 缓存标记在 Provider 层完成，对上层透明
+
+**缓存标记策略**：
+
+| Provider | 标记对象 | 规则 |
+|----------|---------|------|
+| Anthropic | system + 第一条 user 消息 | system 转为带 `cache_control` 的对象数组；user 前 2 个 text block 标记 |
+| OpenAI | 第一条 user 消息 | 前 2 个 text parts 添加 `cache_control` |
+| Gemini | 第一条 user 消息 | 前 2 个 user contents 添加缓存标记 |
+
+**标记规则**：
+- 仅标记 `text` 类型的内容块，`tool_result`、`image`、`image_url` 不标记
+- 仅第一条 user 消息被标记，后续轮次的 user 消息跳过
+- system 消息转为 `[{type: "text", text: "...", cache_control: {type: "ephemeral"}}]`
+- 字符串类型的 content 自动转为 block 数组再标记
+
+**核心函数**：
+
+```go
+// 检查缓存是否启用
+func shouldCachePrompt(cfg *config.Config) bool
+
+// system 标记
+func markSystemContentForCache(systemText string) []map[string]any
+
+// user content blocks 标记（前 maxBlocks 个 text block）
+func markUserContentBlocksForCache(blocks []map[string]any, maxBlocks int)
+
+// Anthropic 消息序列完整标记
+func markAnthropicMessagesForCache(system string, messages []map[string]any, cacheEnabled bool) ([]map[string]any, string, []map[string]any)
+
+// OpenAI 格式标记
+func markOpenAIContentForCache(parts []llm.ContentPart) []map[string]any
+```
+
+**配置选项**（`config.PromptCacheConfig`）：
+```go
+type PromptCacheConfig struct {
+    Enabled bool `json:"enabled"` // 是否启用（默认 true）
+}
+```
+
+**Provider 差异**：
+- **Anthropic**：system 消息转为带 cache_control 的对象数组；user content 支持字符串和 block 数组两种格式
+- **OpenAI**：user content 始终为 block 数组，免疫 `image_url` 类型
+- **Gemini**：使用 `maxUserContentsToCache` 常量控制标记数量
+
+**架构决策**：
+- **Provider 侧缓存**：不维护本地 LRU 缓存状态，Provider 侧自动管理（ephemeral 缓存 5 分钟 TTL）
+- **保守策略**：仅在 system + 第一条 user 消息的前 1-2 块标记，避免标记过多导致性能下降
+- **默认启用**：缓存默认开启，可通过 `config.yaml` 关闭
+
+### 26.14 命令黑名单设计（`pkg/tool/builtin/blacklist.go`）
+
+**文件结构**：
+```
+pkg/tool/builtin/
+├── blacklist.go      # 黑名单检查逻辑
+├── blacklist_test.go # 黑名单单元测试
+└── bash.go           # BashTool（集成黑名单检查）
+```
+
+**设计目标**：
+- 在 `BashTool.Execute` 中拦截危险 shell 命令
+- 12+ 内置高危模式，支持用户自定义扩展
+- 与权限系统集成（YOLO/Interactive/Default 模式）
+
+**默认黑名单模式（12 个）**：
+
+| # | 模式 | 正则 | 示例 |
+|---|------|------|------|
+| 1 | 删根 | `rm\s+-rf\s+/\*?$` | `rm -rf /`, `rm -rf /*` |
+| 2 | 格式化 | `mkfs` | `mkfs.ext4 /dev/sda1` |
+| 3 | 设备读取 | `dd\s+if=/dev/` | `dd if=/dev/zero` |
+| 4 | 权限清空 | `chmod.*000\s+.*/` | `chmod 000 /etc/passwd` |
+| 5 | Fork 炸弹 | `:\(\)\{.*:\|:.*\};:` | `:(){ :|:& };:` |
+| 6 | 管道到 Shell | `\|\s*(sh|bash|zsh)\s*$` | `curl ... \| sh` |
+| 7 | 远程下载执行 | `(wget|curl)\s+.*\|\s*(sh|bash)` | `wget ... \| bash` |
+| 8 | 直接写入磁盘 | `>/dev/(sd[a-z]\|nvme\|hd[a-z])` | `echo >/dev/sda1` |
+| 9 | 创建交换分区 | `mkswap\s+/dev/` | `mkswap /dev/sda1` |
+| 10 | 系统关机 | `^(halt\|poweroff\|reboot\|shutdown)\s*$` | `halt`, `reboot` |
+| 11 | 设备写入 | `dd\s+of=/dev/` | `dd of=/dev/sda` |
+| 12 | 重定向到磁盘 | `>\s*/dev/sd[a-z]` | `cat data > /dev/sdb` |
+
+**权限集成**：
+
+```go
+type BashTool struct {
+    PermissionMode  string   // "default" | "interactive" | "yolo"
+    BlockedCommands []string // 用户自定义正则模式
+}
+```
+
+| 模式 | 黑名单行为 |
+|------|-----------|
+| `default` | 直接拒绝，返回错误信息 |
+| `interactive` | 返回确认提示（由调用方处理确认逻辑） |
+| `yolo` | 跳过黑名单检查 |
+
+**核心函数**：
+
+```go
+// CheckBlacklist 检查命令是否匹配黑名单模式
+func CheckBlacklist(cmd string, extraPatterns []string) (matched bool, matchedPattern string, err error)
+```
+
+**架构决策**：
+- **正则匹配**：足够灵活（支持 `rm\s+-rf\s+/` 等模式），无需 AST 解析
+- **单点检查**：在 `BashTool.Execute` 中集中检查，所有 bash 调用必经之路
+- **用户可扩展**：通过 `config.yaml` 的 `blocked_commands` 添加自定义模式
+- **内置 + 自定义分层**：内置模式始终生效，自定义模式用于补充
+
+### 26.15 MCP 增强设计（`pkg/mcp/`）
+
+**文件结构**：
+```
+pkg/mcp/
+├── resource.go         # 资源列出/读取（resources/list, resources/read）
+├── resource_test.go    # 资源单元测试
+├── prompt.go           # 提示模板获取（prompts/list, prompts/get）
+├── prompt_test.go      # 提示模板单元测试
+├── reconnect.go        # 自动重连（指数退避）
+├── reconnect_test.go   # 重连单元测试
+├── config_expand.go    # Shell 变量展开
+├── config_expand_test.go # 变量展开单元测试
+├── manager.go          # Manager（集成资源/提示/重连）
+└── manager_test.go     # Manager 单元测试
+```
+
+**设计目标**：
+- 实现 MCP resources 协议（`resources/list`, `resources/read`），暴露为 `mcp_read` 工具
+- 实现 MCP prompts 协议（`prompts/list`, `prompts/get`），暴露为 `mcp_prompt` 工具
+- 实现 ping 失败时的指数退避自动重连
+- 实现 MCP 配置中的 Shell 变量展开
+
+#### 26.15.1 资源协议
+
+**协议映射**：
+| MCP 方法 | 内部函数 | Agent 工具 |
+|----------|---------|-----------|
+| `resources/list` | `Manager.Resources(serverName)` | — |
+| `resources/read` | `Manager.ReadResource(ctx, serverName, uri)` | `mcp_read` |
+
+**数据结构**：
+```go
+type mcpResource struct {
+    URI         string `json:"uri"`
+    Name        string `json:"name"`
+    Description string `json:"description,omitempty"`
+    MimeType    string `json:"mimeType,omitempty"`
+    Size        int    `json:"size,omitempty"`
+}
+
+type ResourceContent struct {
+    URI      string `json:"uri"`
+    MimeType string `json:"mimeType,omitempty"`
+    Text     string `json:"text,omitempty"`
+    Blob     string `json:"blob,omitempty"`
+}
+
+type ReadResourceResult struct {
+    Contents  []ResourceContent `json:"contents"`
+    Truncated bool              `json:"truncated,omitempty"`
+}
+```
+
+**大小限制**：默认 10MB，可通过 `SetMaxResourceSize()` 配置（0 表示不限制）
+
+#### 26.15.2 提示模板协议
+
+**协议映射**：
+| MCP 方法 | 内部函数 | Agent 工具 |
+|----------|---------|-----------|
+| `prompts/list` | `Manager.Prompts(serverName)` | — |
+| `prompts/get` | `Manager.GetPrompt(ctx, serverName, name)` | `mcp_prompt` |
+
+**数据结构**：
+```go
+type mcpPrompt struct {
+    Name        string         `json:"name"`
+    Description string         `json:"description,omitempty"`
+    Arguments   []mcpPromptArg `json:"arguments,omitempty"`
+}
+
+type PromptMessage struct {
+    Role    string          `json:"role"`
+    Content json.RawMessage `json:"content"`
+}
+
+type GetPromptResult struct {
+    Messages  []PromptMessage `json:"messages"`
+    Truncated bool            `json:"truncated,omitempty"`
+}
+```
+
+#### 26.15.3 自动重连
+
+**重连策略**：指数退避重试（1s, 2s, 4s, 8s...），最大重试 3 次（可配置）
+
+**状态机**：
+```
+Available → Reconnecting → Available（成功）
+                         → Unavailable（超过最大重试）
+```
+
+**核心函数**：
+```go
+// Reconnect 执行指数退避重连
+func (m *Manager) Reconnect(ctx context.Context, serverName string) error
+
+// 状态管理
+func (s *ServerConnection) setStatus(status ServerStatus)
+func (s *ServerConnection) Status() ServerStatus
+func (s *ServerConnection) IsAvailable() bool
+```
+
+**配置**：
+```go
+type ServerConfig struct {
+    MaxRetries int `json:"max_retries,omitempty"` // 默认 3
+}
+```
+
+#### 26.15.4 Shell 变量展开
+
+**展开时机**：在 `ServerConfig.LoadConfig()` 中一次性展开（启动时）
+
+**展开字段**：`command`, `args`, `env` 三个字段
+
+**语法支持**：
+| 语法 | 示例 | 说明 |
+|------|------|------|
+| `$VAR` | `$HOME/bin/tool` | 简单变量 |
+| `${VAR}` | `${HOME}/config.yaml` | 带花括号的变量 |
+
+**核心函数**：
+```go
+// expandConfig 对 ServerConfig 中的 command/args/env 执行 Shell 变量展开
+func expandConfig(cfg *ServerConfig) *ServerConfig
+```
+
+**架构决策**：
+- **降级设计**：`resources/list` 和 `prompts/list` 失败时不中断连接，仅返回空列表
+- **非破坏性**：现有 MCP 配置无需修改，环境变量展开是可选的
+- **隔离性**：一个服务器 unavailable 不影响其他服务器

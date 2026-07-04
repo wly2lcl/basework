@@ -21,6 +21,18 @@ type ServerConfig struct {
 	// http 传输
 	URL     string            `json:"url,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
+
+	// 重连配置
+	MaxRetries int `json:"max_retries,omitempty"`
+}
+
+// LoadConfig 加载并展开 MCP 服务器配置。
+// 在加载阶段对 command、args、env 执行 Shell 变量展开（os.ExpandEnv）。
+func (c *ServerConfig) LoadConfig() {
+	expanded := expandConfig(c)
+	if expanded != nil {
+		*c = *expanded
+	}
 }
 
 // TransportType 返回实际使用的传输类型（自动检测）。

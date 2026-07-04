@@ -16,11 +16,12 @@ import (
 
 // anthropicModel implements llm.Model for Anthropic Messages API
 type anthropicModel struct {
-	baseURL      string
-	apiKey       string
-	modelID      string
-	client       *http.Client
-	capabilities map[llm.Capability]bool
+	baseURL            string
+	apiKey             string
+	modelID            string
+	client             *http.Client
+	capabilities       map[llm.Capability]bool
+	promptCacheEnabled bool
 }
 
 // newAnthropic creates a new Anthropic model provider
@@ -36,6 +37,13 @@ func newAnthropic(baseURL, apiKey, modelID string, opts map[string]any) (llm.Mod
 		baseURL = "https://api.anthropic.com"
 	}
 
+	promptCacheEnabled := true
+	if opts != nil {
+		if v, ok := opts["prompt_cache_enabled"]; ok {
+			promptCacheEnabled, _ = v.(bool)
+		}
+	}
+
 	return &anthropicModel{
 		baseURL: baseURL,
 		apiKey:  apiKey,
@@ -46,6 +54,7 @@ func newAnthropic(baseURL, apiKey, modelID string, opts map[string]any) (llm.Mod
 			llm.CapVision:    true,
 			llm.CapStreaming: true,
 		},
+		promptCacheEnabled: promptCacheEnabled,
 	}, nil
 }
 
@@ -69,7 +78,8 @@ func (m *anthropicModel) anthropicHeaders() map[string]string {
 // Generate sends a synchronous request and returns the full response
 func (m *anthropicModel) Generate(ctx context.Context, req *llm.Request) (*llm.Response, error) {
 	system, anthropicMessages := toAnthropicMessages(req.Messages)
-	body := buildAnthropicRequest(m.modelID, req, system, anthropicMessages, false)
+	systemBlocks, systemText, anthropicMessages := markAnthropicMessagesForCache(system, anthropicMessages, m.promptCacheEnabled)
+	body := buildAnthropicRequest(m.modelID, req, systemBlocks, systemText, anthropicMessages, false)
 
 	url := m.baseURL + "/v1/messages"
 	respBody, statusCode, err := jsonRequest(ctx, m.client, url, m.anthropicHeaders(), body)
@@ -87,7 +97,8 @@ func (m *anthropicModel) Generate(ctx context.Context, req *llm.Request) (*llm.R
 // Stream sends a streaming request and returns a channel of stream events
 func (m *anthropicModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.StreamEvent, error) {
 	system, anthropicMessages := toAnthropicMessages(req.Messages)
-	body := buildAnthropicRequest(m.modelID, req, system, anthropicMessages, true)
+	systemBlocks, systemText, anthropicMessages := markAnthropicMessagesForCache(system, anthropicMessages, m.promptCacheEnabled)
+	body := buildAnthropicRequest(m.modelID, req, systemBlocks, systemText, anthropicMessages, true)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -357,7 +368,7 @@ func toAnthropicTools(tools []llm.ToolDefinition) []map[string]any {
 }
 
 // buildAnthropicRequest builds the JSON request body for the Anthropic Messages API
-func buildAnthropicRequest(modelID string, req *llm.Request, system string, messages []map[string]any, stream bool) map[string]any {
+func buildAnthropicRequest(modelID string, req *llm.Request, systemBlocks []map[string]any, systemText string, messages []map[string]any, stream bool) map[string]any {
 	maxTokens := req.MaxTokens
 	if maxTokens == 0 {
 		maxTokens = 4096
@@ -370,8 +381,12 @@ func buildAnthropicRequest(modelID string, req *llm.Request, system string, mess
 		"messages":   messages,
 	}
 
-	if system != "" {
-		result["system"] = system
+	if len(systemBlocks) > 0 {
+		// 缓存启用时，system 使用对象数组格式
+		result["system"] = systemBlocks
+	} else if systemText != "" {
+		// 缓存未启用时，system 使用普通字符串格式
+		result["system"] = systemText
 	}
 
 	if tools := toAnthropicTools(req.Tools); len(tools) > 0 {
@@ -404,8 +419,10 @@ func fromAnthropicResponse(body []byte) (*llm.Response, error) {
 		} `json:"content"`
 		StopReason string `json:"stop_reason"`
 		Usage      struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
+			InputTokens            int `json:"input_tokens"`
+			OutputTokens           int `json:"output_tokens"`
+			CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+			CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 		} `json:"usage"`
 	}
 
@@ -414,9 +431,11 @@ func fromAnthropicResponse(body []byte) (*llm.Response, error) {
 	}
 
 	usage := llm.Usage{
-		PromptTokens:     raw.Usage.InputTokens,
-		CompletionTokens: raw.Usage.OutputTokens,
-		TotalTokens:      raw.Usage.InputTokens + raw.Usage.OutputTokens,
+		PromptTokens:              raw.Usage.InputTokens,
+		CompletionTokens:          raw.Usage.OutputTokens,
+		TotalTokens:               raw.Usage.InputTokens + raw.Usage.OutputTokens,
+		CacheCreationInputTokens:  raw.Usage.CacheCreationInputTokens,
+		CacheReadInputTokens:      raw.Usage.CacheReadInputTokens,
 	}
 
 	var textBuilder strings.Builder
@@ -526,17 +545,21 @@ func parseAnthropicStream(ctx context.Context, resp *http.Response) <-chan llm.S
 						Type    string `json:"type"`
 						Message struct {
 							Usage struct {
-								InputTokens  int `json:"input_tokens"`
-								OutputTokens int `json:"output_tokens"`
+								InputTokens              int `json:"input_tokens"`
+								OutputTokens             int `json:"output_tokens"`
+								CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+								CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 							} `json:"usage"`
 						} `json:"message"`
 					}
 					if err := json.Unmarshal([]byte(data), &msgStart); err == nil {
 						if msgStart.Message.Usage.InputTokens > 0 || msgStart.Message.Usage.OutputTokens > 0 {
 							usage := &llm.Usage{
-								PromptTokens:     msgStart.Message.Usage.InputTokens,
-								CompletionTokens: msgStart.Message.Usage.OutputTokens,
-								TotalTokens:      msgStart.Message.Usage.InputTokens + msgStart.Message.Usage.OutputTokens,
+								PromptTokens:              msgStart.Message.Usage.InputTokens,
+								CompletionTokens:          msgStart.Message.Usage.OutputTokens,
+								TotalTokens:               msgStart.Message.Usage.InputTokens + msgStart.Message.Usage.OutputTokens,
+								CacheCreationInputTokens:  msgStart.Message.Usage.CacheCreationInputTokens,
+								CacheReadInputTokens:      msgStart.Message.Usage.CacheReadInputTokens,
 							}
 							ch <- llm.StreamEvent{
 								Type:  llm.StreamEventUsage,

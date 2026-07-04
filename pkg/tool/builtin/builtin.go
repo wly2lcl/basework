@@ -7,7 +7,9 @@ import (
 // All 返回所有内置工具实例
 func All() []tool.Tool {
 	return []tool.Tool{
-		&BashTool{},
+		&BashTool{
+			PermissionMode: "default",
+		},
 		&ReadTool{},
 		&WriteTool{},
 		&EditTool{},

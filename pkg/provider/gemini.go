@@ -18,11 +18,12 @@ const defaultGeminiBaseURL = "https://generativelanguage.googleapis.com"
 
 // geminiModel implements llm.Model for Google Gemini API
 type geminiModel struct {
-	baseURL      string
-	apiKey       string
-	modelID      string
-	client       *http.Client
-	capabilities map[llm.Capability]bool
+	baseURL            string
+	apiKey             string
+	modelID            string
+	client             *http.Client
+	capabilities       map[llm.Capability]bool
+	promptCacheEnabled bool
 }
 
 // newGemini creates a new Gemini model provider
@@ -44,12 +45,20 @@ func newGemini(baseURL, apiKey, modelID string, opts map[string]any) (llm.Model,
 		llm.CapStreaming: true,
 	}
 
+	promptCacheEnabled := true
+	if opts != nil {
+		if v, ok := opts["prompt_cache_enabled"]; ok {
+			promptCacheEnabled, _ = v.(bool)
+		}
+	}
+
 	return &geminiModel{
-		baseURL:      strings.TrimRight(baseURL, "/"),
-		apiKey:       apiKey,
-		modelID:      modelID,
-		client:       newHTTPClient(60 * time.Second),
-		capabilities: capabilities,
+		baseURL:            strings.TrimRight(baseURL, "/"),
+		apiKey:            apiKey,
+		modelID:           modelID,
+		client:            newHTTPClient(60 * time.Second),
+		capabilities:      capabilities,
+		promptCacheEnabled: promptCacheEnabled,
 	}, nil
 }
 
@@ -67,8 +76,8 @@ func (m *geminiModel) Supports(cap llm.Capability) bool {
 func (m *geminiModel) Generate(ctx context.Context, req *llm.Request) (*llm.Response, error) {
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", m.baseURL, m.modelID, m.apiKey)
 
-	contents, systemInstruction := toGeminiContents(req.Messages)
-	body := buildGeminiRequest(req, systemInstruction)
+	contents, systemInstruction := toGeminiContents(req.Messages, m.promptCacheEnabled)
+	body := buildGeminiRequest(req, systemInstruction, m.promptCacheEnabled)
 	body["contents"] = contents
 
 	respBody, statusCode, err := jsonRequest(ctx, m.client, url, nil, body)
@@ -87,8 +96,8 @@ func (m *geminiModel) Generate(ctx context.Context, req *llm.Request) (*llm.Resp
 func (m *geminiModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.StreamEvent, error) {
 	url := fmt.Sprintf("%s/v1beta/models/%s:streamGenerateContent?alt=sse&key=%s", m.baseURL, m.modelID, m.apiKey)
 
-	contents, systemInstruction := toGeminiContents(req.Messages)
-	body := buildGeminiRequest(req, systemInstruction)
+	contents, systemInstruction := toGeminiContents(req.Messages, m.promptCacheEnabled)
+	body := buildGeminiRequest(req, systemInstruction, m.promptCacheEnabled)
 	body["contents"] = contents
 
 	jsonBody, err := json.Marshal(body)
@@ -118,9 +127,10 @@ func (m *geminiModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.
 
 // toGeminiContents converts internal ChatMessage slice to Gemini API contents array
 // and extracts system instruction.
-func toGeminiContents(msgs []llm.ChatMessage) ([]map[string]any, string) {
+func toGeminiContents(msgs []llm.ChatMessage, cacheEnabled bool) ([]map[string]any, string) {
 	var contents []map[string]any
 	var systemParts []string
+	userContentCount := 0
 
 	for _, msg := range msgs {
 		switch msg.Role {
@@ -150,10 +160,16 @@ func toGeminiContents(msgs []llm.ChatMessage) ([]map[string]any, string) {
 				}
 			}
 			if len(parts) > 0 {
-				contents = append(contents, map[string]any{
+				content := map[string]any{
 					"role":  "user",
 					"parts": parts,
-				})
+				}
+				// 缓存标记：前 maxUserContentsToCache 条 user content 添加 cachedContent
+				if cacheEnabled && userContentCount < maxUserContentsToCache {
+					content["cachedContent"] = true
+					userContentCount++
+				}
+				contents = append(contents, content)
 			}
 
 		case llm.RoleAssistant:
@@ -242,14 +258,18 @@ func toGeminiTools(tools []llm.ToolDefinition) []map[string]any {
 }
 
 // buildGeminiRequest constructs the Gemini API request body from an internal request.
-func buildGeminiRequest(req *llm.Request, systemInstruction string) map[string]any {
+func buildGeminiRequest(req *llm.Request, systemInstruction string, cacheEnabled bool) map[string]any {
 	body := map[string]any{}
 
 	if systemInstruction != "" {
+		sysParts := []map[string]any{
+			{"text": systemInstruction},
+		}
+		if cacheEnabled {
+			sysParts[0]["cachedContent"] = true
+		}
 		body["systemInstruction"] = map[string]any{
-			"parts": []map[string]any{
-				{"text": systemInstruction},
-			},
+			"parts": sysParts,
 		}
 	}
 

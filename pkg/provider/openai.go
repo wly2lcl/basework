@@ -16,15 +16,22 @@ import (
 
 // openAIModel implements llm.Model for OpenAI Chat Completions API
 type openAIModel struct {
-	baseURL      string
-	apiKey       string
-	modelID      string
-	client       *http.Client
-	capabilities map[llm.Capability]bool
+	baseURL            string
+	apiKey             string
+	modelID            string
+	client             *http.Client
+	capabilities       map[llm.Capability]bool
+	promptCacheEnabled bool
 }
 
 // newOpenAI creates a new OpenAI model instance
 func newOpenAI(baseURL, apiKey, modelID string, opts map[string]any) (llm.Model, error) {
+	promptCacheEnabled := true
+	if opts != nil {
+		if v, ok := opts["prompt_cache_enabled"]; ok {
+			promptCacheEnabled, _ = v.(bool)
+		}
+	}
 	return &openAIModel{
 		baseURL: baseURL,
 		apiKey:  apiKey,
@@ -35,6 +42,7 @@ func newOpenAI(baseURL, apiKey, modelID string, opts map[string]any) (llm.Model,
 			llm.CapVision:    true,
 			llm.CapStreaming: true,
 		},
+		promptCacheEnabled: promptCacheEnabled,
 	}, nil
 }
 
@@ -50,7 +58,7 @@ func (m *openAIModel) Supports(cap llm.Capability) bool {
 
 // Generate sends a non-streaming chat completion request
 func (m *openAIModel) Generate(ctx context.Context, req *llm.Request) (*llm.Response, error) {
-	body := buildOpenAIRequest(req, false, m.modelID)
+	body := buildOpenAIRequest(req, false, m.modelID, m.promptCacheEnabled)
 	headers := map[string]string{
 		"Authorization": "Bearer " + m.apiKey,
 	}
@@ -74,7 +82,7 @@ func (m *openAIModel) Generate(ctx context.Context, req *llm.Request) (*llm.Resp
 
 // Stream sends a streaming chat completion request and returns a channel of events
 func (m *openAIModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.StreamEvent, error) {
-	body := buildOpenAIRequest(req, true, m.modelID)
+	body := buildOpenAIRequest(req, true, m.modelID, m.promptCacheEnabled)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -118,7 +126,7 @@ func (m *openAIModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.
 // ---------------------------------------------------------------------------
 
 // toOpenAIMessages converts internal ChatMessage slice to OpenAI API message format
-func toOpenAIMessages(msgs []llm.ChatMessage) []map[string]any {
+func toOpenAIMessages(msgs []llm.ChatMessage, cacheEnabled bool) []map[string]any {
 	result := make([]map[string]any, len(msgs))
 	for i, msg := range msgs {
 		m := map[string]any{
@@ -148,7 +156,9 @@ func toOpenAIMessages(msgs []llm.ChatMessage) []map[string]any {
 			}
 
 		case llm.RoleUser:
-			if hasImageContent(msg.Content) {
+			if cacheEnabled {
+				m["content"] = markOpenAIContentForCache(msg.Content)
+			} else if hasImageContent(msg.Content) {
 				m["content"] = toOpenAIContentParts(msg.Content)
 			} else {
 				m["content"] = joinContentText(msg.Content)
@@ -235,10 +245,10 @@ func toOpenAITools(tools []llm.ToolDefinition) []map[string]any {
 // ---------------------------------------------------------------------------
 
 // buildOpenAIRequest builds the full request body map for OpenAI Chat API
-func buildOpenAIRequest(req *llm.Request, stream bool, modelID string) map[string]any {
+func buildOpenAIRequest(req *llm.Request, stream bool, modelID string, cacheEnabled bool) map[string]any {
 	body := map[string]any{
 		"model":    modelID,
-		"messages": toOpenAIMessages(req.Messages),
+		"messages": toOpenAIMessages(req.Messages, cacheEnabled),
 		"stream":   stream,
 	}
 
@@ -289,9 +299,11 @@ type openAIResponse struct {
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-		TotalTokens      int `json:"total_tokens"`
+		PromptTokens              int `json:"prompt_tokens"`
+		CompletionTokens          int `json:"completion_tokens"`
+		TotalTokens               int `json:"total_tokens"`
+		CacheCreationInputTokens  int `json:"cache_creation_input_tokens,omitempty"`
+		CacheReadInputTokens      int `json:"cache_read_input_tokens,omitempty"`
 	} `json:"usage"`
 }
 
@@ -334,9 +346,11 @@ func fromOpenAIResponse(body []byte) (*llm.Response, error) {
 
 	if resp.Usage != nil {
 		result.Usage = llm.Usage{
-			PromptTokens:     resp.Usage.PromptTokens,
-			CompletionTokens: resp.Usage.CompletionTokens,
-			TotalTokens:      resp.Usage.TotalTokens,
+			PromptTokens:              resp.Usage.PromptTokens,
+			CompletionTokens:          resp.Usage.CompletionTokens,
+			TotalTokens:               resp.Usage.TotalTokens,
+			CacheCreationInputTokens:  resp.Usage.CacheCreationInputTokens,
+			CacheReadInputTokens:      resp.Usage.CacheReadInputTokens,
 		}
 	}
 
@@ -407,9 +421,11 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 					FinishReason *string `json:"finish_reason"`
 				} `json:"choices"`
 				Usage *struct {
-					PromptTokens     int `json:"prompt_tokens"`
-					CompletionTokens int `json:"completion_tokens"`
-					TotalTokens      int `json:"total_tokens"`
+					PromptTokens              int `json:"prompt_tokens"`
+					CompletionTokens          int `json:"completion_tokens"`
+					TotalTokens               int `json:"total_tokens"`
+					CacheCreationInputTokens  int `json:"cache_creation_input_tokens,omitempty"`
+					CacheReadInputTokens      int `json:"cache_read_input_tokens,omitempty"`
 				} `json:"usage"`
 			}
 
@@ -423,9 +439,11 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 				ch <- llm.StreamEvent{
 					Type: llm.StreamEventUsage,
 					Usage: &llm.Usage{
-						PromptTokens:     sseEvent.Usage.PromptTokens,
-						CompletionTokens: sseEvent.Usage.CompletionTokens,
-						TotalTokens:      sseEvent.Usage.TotalTokens,
+						PromptTokens:              sseEvent.Usage.PromptTokens,
+						CompletionTokens:          sseEvent.Usage.CompletionTokens,
+						TotalTokens:               sseEvent.Usage.TotalTokens,
+						CacheCreationInputTokens:  sseEvent.Usage.CacheCreationInputTokens,
+						CacheReadInputTokens:      sseEvent.Usage.CacheReadInputTokens,
 					},
 				}
 			}

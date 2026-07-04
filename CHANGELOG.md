@@ -5,21 +5,54 @@
 
 ## [Unreleased]
 
-### 即将推出 (Phase 13-25 规划)
+### 即将推出（Phase 25+ 规划）
 
-- **上下文压缩** — 长对话自动摘要与上下文窗口管理
-- **重试与退避** — LLM 调用失败自动重试 + 指数退避策略
-- **权限系统** — 工具执行的细粒度权限控制
-- **TUI 界面** — 基于 Bubble Tea 的终端交互界面
-- **插件系统** — 支持外部插件动态加载
 - **多模态支持** — 图片/音频输入处理
 - **工作流引擎** — 多步骤任务编排与 DAG 执行
 - **评估框架** — LLM 输出质量评估与回归测试
 - **远程 Agent** — 分布式 Agent 通信与协作
-- **缓存层** — LLM 响应缓存与相似度匹配
-- **可观测性** — OpenTelemetry 集成，指标/追踪/日志
 - **多语言支持** — Agent 回复语言自适应切换
-- **安全审计** — 提示注入检测与敏感信息过滤
+
+## [0.2.0] - 2026-07-04
+
+### 新增
+
+#### Phase 23: Prompt 缓存 + 命令黑名单
+
+- **Prompt 缓存** (`pkg/provider/cache.go`) — Anthropic/OpenAI/Gemini 自动注入 `cache_control` 标记：
+  - Anthropic: system 消息转为带 `cache_control` 的对象数组，第一条 user 消息前 2 个 text block 标记
+  - OpenAI: 第一条 user 消息前 2 个 text parts 添加 `cache_control` 标记
+  - Gemini: 前 2 个 user contents 添加缓存标记
+  - 配置项: `prompt_cache.enabled`（默认 true）
+- **命令黑名单** (`pkg/tool/builtin/blacklist.go`) — 12+ 内置危险命令模式：
+  - 支持 `rm -rf /`、`mkfs`、`dd if=/dev/`、fork 炸弹、管道下载执行等
+  - 用户自定义扩展（`config.yaml` 的 `blocked_commands`）
+  - 权限集成：default（拒绝）/ interactive（确认）/ yolo（跳过）
+
+#### Phase 24: MCP 增强
+
+- **MCP 资源支持** (`pkg/mcp/resource.go`) — 实现 `resources/list`、`resources/read` 协议
+  - 暴露为 `mcp_read` 工具，支持资源 URI 自动路由
+  - 大小限制（默认 10MB），超大资源自动截断标记
+- **MCP 提示支持** (`pkg/mcp/prompt.go`) — 实现 `prompts/list`、`prompts/get` 协议
+  - 暴露为 `mcp_prompt` 工具，支持 prompt 名称自动查找
+  - 大小限制与截断保护
+- **MCP 自动重连** (`pkg/mcp/reconnect.go`) — 指数退避重连（1s, 2s, 4s, 8s...）
+  - 状态机：available → reconnecting → available / unavailable
+  - 最大重试次数可配置（默认 3 次）
+  - 隔离性：一个服务器 unavailable 不影响其他
+- **MCP 变量展开** (`pkg/mcp/config_expand.go`) — Shell 变量展开支持
+  - 支持 `$VAR` 和 `${VAR}` 两种语法
+  - 展开字段：`command`、`args`、`env`
+  - 启动时一次性展开，运行时零开销
+- **集成测试** (`tests/`) — 5 个新集成测试文件（28 个测试用例）：
+  - `prompt_cache_integration_test.go` — 缓存标记 + 命中统计（6 个测试）
+  - `command_blacklist_integration_test.go` — 黑名单拦截 + 权限绕过（8 个测试）
+  - `mcp_resources_integration_test.go` — 资源读取 + 大小限制（6 个测试）
+  - `mcp_prompts_integration_test.go` — 提示获取 + Context 取消（7 个测试）
+  - `mcp_resilience_integration_test.go` — 自动重连 + 变量展开（10 个测试）
+
+[0.2.0]: https://github.com/basework/basework/releases/tag/v0.2.0
 
 ## [0.1.0] - 2025-07-03
 

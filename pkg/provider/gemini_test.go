@@ -432,7 +432,7 @@ func TestGemini_MessageFormat(t *testing.T) {
 			{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "You are helpful."}}},
 			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hello"}}},
 		}
-		contents, systemInstruction := toGeminiContents(msgs)
+		contents, systemInstruction := toGeminiContents(msgs, false)
 
 		if systemInstruction != "You are helpful." {
 			t.Errorf("expected 'You are helpful.', got '%s'", systemInstruction)
@@ -449,7 +449,7 @@ func TestGemini_MessageFormat(t *testing.T) {
 		msgs := []llm.ChatMessage{
 			{Role: llm.RoleAssistant, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Sure!"}}},
 		}
-		contents, _ := toGeminiContents(msgs)
+		contents, _ := toGeminiContents(msgs, false)
 
 		if len(contents) != 1 {
 			t.Fatalf("expected 1 content, got %d", len(contents))
@@ -463,7 +463,7 @@ func TestGemini_MessageFormat(t *testing.T) {
 		msgs := []llm.ChatMessage{
 			{Role: llm.RoleTool, Name: "bash", Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "file1.txt\nfile2.txt"}}},
 		}
-		contents, _ := toGeminiContents(msgs)
+		contents, _ := toGeminiContents(msgs, false)
 
 		if len(contents) != 1 {
 			t.Fatalf("expected 1 content, got %d", len(contents))
@@ -494,7 +494,7 @@ func TestGemini_MessageFormat(t *testing.T) {
 				},
 			},
 		}
-		contents, _ := toGeminiContents(msgs)
+		contents, _ := toGeminiContents(msgs, false)
 
 		if len(contents) != 1 {
 			t.Fatalf("expected 1 content, got %d", len(contents))
@@ -526,7 +526,7 @@ func TestGemini_MessageFormat(t *testing.T) {
 				},
 			},
 		}
-		contents, _ := toGeminiContents(msgs)
+		contents, _ := toGeminiContents(msgs, false)
 
 		if len(contents) != 1 {
 			t.Fatalf("expected 1 content, got %d", len(contents))
@@ -605,4 +605,95 @@ func TestGemini_ToolDefinition(t *testing.T) {
 	if params["type"] != "object" {
 		t.Errorf("expected params type 'object', got '%v'", params["type"])
 	}
+}
+
+// ============================================================
+// TestGemini_CacheInjection - 验证 Gemini 缓存标记（3 个场景）
+// ============================================================
+
+func TestGemini_CacheInjection(t *testing.T) {
+	t.Run("systemInstruction with cachedContent when cache enabled", func(t *testing.T) {
+		req := &llm.Request{
+			Messages: []llm.ChatMessage{
+				{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "You are Gemini."}}},
+				{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hi"}}},
+			},
+		}
+		contents, systemInstruction := toGeminiContents(req.Messages, true)
+		body := buildGeminiRequest(req, systemInstruction, true)
+
+		sysInst, ok := body["systemInstruction"].(map[string]any)
+		if !ok {
+			t.Fatal("expected systemInstruction in body")
+		}
+		parts, ok := sysInst["parts"].([]map[string]any)
+		if !ok {
+			t.Fatalf("expected parts []map[string]any, got %T", sysInst["parts"])
+		}
+		if len(parts) != 1 {
+			t.Fatalf("expected 1 part, got %d", len(parts))
+		}
+		if parts[0]["cachedContent"] != true {
+			t.Error("expected cachedContent: true on systemInstruction part")
+		}
+		_ = contents
+	})
+
+	t.Run("first 2 user contents get cachedContent when cache enabled", func(t *testing.T) {
+		msgs := []llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "First"}}},
+			{Role: llm.RoleAssistant, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Response"}}},
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Second"}}},
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Third"}}},
+		}
+		contents, _ := toGeminiContents(msgs, true)
+
+		// First user content (index 0) should have cachedContent
+		user1 := contents[0]
+		if user1["cachedContent"] != true {
+			t.Error("expected cachedContent: true on first user content")
+		}
+
+		// Second user content is at index 2 (after assistant)
+		user2 := contents[2]
+		if user2["cachedContent"] != true {
+			t.Error("expected cachedContent: true on second user content")
+		}
+
+		// Third user content (index 3) - should NOT have cachedContent
+		user3 := contents[3]
+		if user3["cachedContent"] != nil {
+			t.Error("expected no cachedContent on third user content")
+		}
+	})
+
+	t.Run("cache disabled - no cachedContent on systemInstruction or user content", func(t *testing.T) {
+		req := &llm.Request{
+			Messages: []llm.ChatMessage{
+				{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "You are Gemini."}}},
+				{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hi"}}},
+			},
+		}
+		contents, systemInstruction := toGeminiContents(req.Messages, false)
+		body := buildGeminiRequest(req, systemInstruction, false)
+
+		// systemInstruction should NOT have cachedContent
+		sysInst, ok := body["systemInstruction"].(map[string]any)
+		if ok {
+			parts, _ := sysInst["parts"].([]map[string]any)
+			if len(parts) > 0 {
+				if parts[0]["cachedContent"] != nil {
+					t.Error("expected no cachedContent on systemInstruction when cache disabled")
+				}
+			}
+		}
+
+		// User content should NOT have cachedContent
+		if len(contents) > 0 {
+			userContent := contents[0]
+			if userContent["cachedContent"] != nil {
+				t.Error("expected no cachedContent on user content when cache disabled")
+			}
+		}
+	})
 }

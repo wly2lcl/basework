@@ -20,9 +20,10 @@ const (
 
 // ContentPart 支持多模态内容，可以是纯文本或图片
 type ContentPart struct {
-	Type     ContentType
-	Text     string
-	ImageURL string
+	Type        ContentType
+	Text        string
+	ImageURL    string
+	CacheControl *CacheControl // Prompt 缓存控制标记，可选
 }
 
 // ChatMessage 是 LLM 对话的基本单元

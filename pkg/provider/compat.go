@@ -75,7 +75,7 @@ func (m *compatModel) buildHeaders() map[string]string {
 
 // Generate sends a non-streaming chat completion request
 func (m *compatModel) Generate(ctx context.Context, req *llm.Request) (*llm.Response, error) {
-	body := buildOpenAIRequest(req, false, m.modelID)
+	body := buildOpenAIRequest(req, false, m.modelID, false)
 	headers := m.buildHeaders()
 
 	url := m.baseURL + "/chat/completions"
@@ -97,7 +97,7 @@ func (m *compatModel) Generate(ctx context.Context, req *llm.Request) (*llm.Resp
 
 // Stream sends a streaming chat completion request and returns a channel of events
 func (m *compatModel) Stream(ctx context.Context, req *llm.Request) (<-chan llm.StreamEvent, error) {
-	body := buildOpenAIRequest(req, true, m.modelID)
+	body := buildOpenAIRequest(req, true, m.modelID, false)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

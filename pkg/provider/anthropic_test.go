@@ -98,6 +98,7 @@ func TestAnthropic_Headers(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools:     true,
 			llm.CapVision:    true,
@@ -148,6 +149,7 @@ func TestAnthropic_Generate(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -201,6 +203,7 @@ func TestAnthropic_Generate_WithTools(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -254,6 +257,7 @@ func TestAnthropic_Stream(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -312,6 +316,7 @@ func TestAnthropic_Stream_WithToolCalls(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -380,6 +385,7 @@ func TestAnthropic_Error_RateLimit(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -409,6 +415,7 @@ func TestAnthropic_Error_ContextOverflow(t *testing.T) {
 		apiKey:  "sk-ant-test123",
 		modelID: "claude-sonnet-4-20250514",
 		client:  ts.Client(),
+		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
 		},
@@ -664,3 +671,128 @@ const (
 	expectedVisionSupport    = "expected vision support"
 	expectedStreamingSupport = "expected streaming support"
 )
+
+// ============================================================
+// TestAnthropic_CacheInjection - 验证 Anthropic 缓存注入（5 个场景）
+// ============================================================
+
+func TestAnthropic_CacheInjection(t *testing.T) {
+	t.Run("system caching - string to blocks with cache_control", func(t *testing.T) {
+		system, messages := toAnthropicMessages([]llm.ChatMessage{
+			{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "You are Claude."}}},
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hi"}}},
+		})
+		systemBlocks, _, markedMessages := markAnthropicMessagesForCache(system, messages, true)
+
+		if len(systemBlocks) != 1 {
+			t.Fatalf("expected 1 system block, got %d", len(systemBlocks))
+		}
+		if systemBlocks[0]["type"] != "text" {
+			t.Errorf("expected type 'text', got '%v'", systemBlocks[0]["type"])
+		}
+		if _, ok := systemBlocks[0]["cache_control"]; !ok {
+			t.Error("expected cache_control on system block")
+		}
+		// Verify the request body using buildAnthropicRequest
+		body := buildAnthropicRequest("claude-sonnet-4", &llm.Request{MaxTokens: 100}, systemBlocks, system, markedMessages, false)
+		sysField, ok := body["system"]
+		if !ok {
+			t.Fatal("expected system field in request body")
+		}
+		if _, isArray := sysField.([]map[string]any); !isArray {
+			t.Errorf("expected system to be []map[string]any when caching, got %T", sysField)
+		}
+	})
+
+	t.Run("first user message blocks get cache_control", func(t *testing.T) {
+		// Use image to force content blocks format (not string)
+		system, messages := toAnthropicMessages([]llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{
+				{Type: llm.ContentTypeText, Text: "Hello"},
+				{Type: llm.ContentTypeImage, ImageURL: "data:image/jpeg;base64,/9j/4AAQ=="},
+				{Type: llm.ContentTypeText, Text: "World"},
+			}},
+		})
+		_, _, markedMessages := markAnthropicMessagesForCache(system, messages, true)
+
+		if len(markedMessages) != 1 {
+			t.Fatalf("expected 1 message, got %d", len(markedMessages))
+		}
+		content := markedMessages[0]["content"].([]map[string]any)
+		if len(content) != 3 {
+			t.Fatalf("expected 3 content blocks, got %d", len(content))
+		}
+		// First text block should have cache_control
+		if content[0]["cache_control"] == nil {
+			t.Error("expected cache_control on first text block")
+		}
+		// Image block should NOT have cache_control
+		if content[1]["cache_control"] != nil {
+			t.Error("expected no cache_control on image block")
+		}
+		// Second text block should have cache_control (max=2, image skipped)
+		if content[2]["cache_control"] == nil {
+			t.Error("expected cache_control on second text block")
+		}
+	})
+
+	t.Run("tool_result blocks skipped", func(t *testing.T) {
+		system, messages := toAnthropicMessages([]llm.ChatMessage{
+			{Role: llm.RoleTool, ToolCallID: "toolu_1", Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Result"}}},
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Thanks"}}},
+		})
+		_, _, markedMessages := markAnthropicMessagesForCache(system, messages, true)
+
+		// First message is tool_result, should not have content blocks with cache_control
+		firstContent := markedMessages[0]["content"].([]map[string]any)
+		if len(firstContent) > 0 && firstContent[0]["type"] == "tool_result" {
+			if firstContent[0]["cache_control"] != nil {
+				t.Error("expected no cache_control on tool_result block")
+			}
+		}
+	})
+
+	t.Run("image blocks skipped", func(t *testing.T) {
+		system, messages := toAnthropicMessages([]llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{
+				{Type: llm.ContentTypeImage, ImageURL: "data:image/jpeg;base64,/9j/4AAQ=="},
+				{Type: llm.ContentTypeText, Text: "What is this?"},
+			}},
+		})
+		_, _, markedMessages := markAnthropicMessagesForCache(system, messages, true)
+
+		content := markedMessages[0]["content"].([]map[string]any)
+		// Image block should NOT have cache_control
+		if content[0]["type"] == "image" && content[0]["cache_control"] != nil {
+			t.Error("expected no cache_control on image block")
+		}
+		// Text block should have cache_control
+		if content[1]["cache_control"] == nil {
+			t.Error("expected cache_control on text block after image")
+		}
+	})
+
+	t.Run("cache disabled - system remains string", func(t *testing.T) {
+		system, messages := toAnthropicMessages([]llm.ChatMessage{
+			{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Be helpful."}}},
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hi"}}},
+		})
+		systemBlocks, systemText, _ := markAnthropicMessagesForCache(system, messages, false)
+
+		if systemBlocks != nil {
+			t.Error("expected nil systemBlocks when cache disabled")
+		}
+		// Build the request to verify system is a plain string
+		body := buildAnthropicRequest("claude-sonnet-4", &llm.Request{MaxTokens: 100}, systemBlocks, systemText, messages, false)
+		sysField, ok := body["system"]
+		if !ok {
+			t.Fatal("expected system field")
+		}
+		if _, isStr := sysField.(string); !isStr {
+			t.Errorf("expected system to be string when cache disabled, got %T", sysField)
+		}
+		if sysField != "Be helpful." {
+			t.Errorf("expected system text 'Be helpful.', got '%v'", sysField)
+		}
+	})
+}

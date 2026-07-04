@@ -77,7 +77,7 @@ func (p *AzureProvider) Name() string {
 
 // Chat 发送非流式聊天请求
 func (p *AzureProvider) Chat(ctx context.Context, req *llm.Request) (*llm.Response, error) {
-	body := buildOpenAIRequest(req, false, p.modelID)
+	body := buildOpenAIRequest(req, false, p.modelID, false)
 	headers := map[string]string{
 		"api-key": p.apiKey,
 	}
@@ -101,7 +101,7 @@ func (p *AzureProvider) Chat(ctx context.Context, req *llm.Request) (*llm.Respon
 
 // ChatStream 发送流式聊天请求
 func (p *AzureProvider) ChatStream(ctx context.Context, req *llm.Request) (<-chan llm.StreamEvent, error) {
-	body := buildOpenAIRequest(req, true, p.modelID)
+	body := buildOpenAIRequest(req, true, p.modelID, false)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

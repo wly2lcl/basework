@@ -20,7 +20,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 	t.Run("system message", func(t *testing.T) {
 		msgs := toOpenAIMessages([]llm.ChatMessage{
 			{Role: llm.RoleSystem, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "You are a helpful assistant."}}},
-		})
+		}, false)
 		if len(msgs) != 1 {
 			t.Fatalf("expected 1 message, got %d", len(msgs))
 		}
@@ -35,7 +35,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 	t.Run("user message text only", func(t *testing.T) {
 		msgs := toOpenAIMessages([]llm.ChatMessage{
 			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hello"}}},
-		})
+		}, false)
 		content, ok := msgs[0]["content"].(string)
 		if !ok {
 			t.Fatalf("expected content to be string, got %T", msgs[0]["content"])
@@ -54,7 +54,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 					{Type: llm.ContentTypeImage, ImageURL: "https://example.com/img.jpg"},
 				},
 			},
-		})
+		}, false)
 		parts, ok := msgs[0]["content"].([]map[string]any)
 		if !ok {
 			t.Fatalf("expected content to be []map[string]any, got %T", msgs[0]["content"])
@@ -73,7 +73,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 	t.Run("assistant message with text", func(t *testing.T) {
 		msgs := toOpenAIMessages([]llm.ChatMessage{
 			{Role: llm.RoleAssistant, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Sure!"}}},
-		})
+		}, false)
 		if msgs[0]["role"] != "assistant" {
 			t.Errorf("expected role 'assistant', got %v", msgs[0]["role"])
 		}
@@ -91,7 +91,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 					{ID: "call_1", Name: "get_weather", ArgsJSON: `{"city":"Beijing"}`},
 				},
 			},
-		})
+		}, false)
 		tcs, ok := msgs[0]["tool_calls"].([]map[string]any)
 		if !ok {
 			t.Fatalf("expected tool_calls to be []map[string]any, got %T", msgs[0]["tool_calls"])
@@ -115,7 +115,7 @@ func TestOpenAI_MessageFormat(t *testing.T) {
 				ToolCallID: "call_1",
 				Content:    []llm.ContentPart{{Type: llm.ContentTypeText, Text: `{"temp":22}`}},
 			},
-		})
+		}, false)
 		if msgs[0]["role"] != "tool" {
 			t.Errorf("expected role 'tool', got %v", msgs[0]["role"])
 		}
@@ -516,4 +516,76 @@ func TestOpenAI_Error_Auth(t *testing.T) {
 	if llmErr.Type != llm.ErrorTypeAuth {
 		t.Errorf("expected auth error, got type=%s: %v", llmErr.Type, err)
 	}
+}
+
+// ============================================================
+// TestOpenAI_CacheInjection - 验证 OpenAI 缓存字段（3 个场景）
+// ============================================================
+
+func TestOpenAI_CacheInjection(t *testing.T) {
+	t.Run("text-only user message with cache enabled - uses content parts", func(t *testing.T) {
+		msgs := toOpenAIMessages([]llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hello"}}},
+		}, true)
+
+		// Should use content parts format instead of string
+		content, ok := msgs[0]["content"].([]map[string]any)
+		if !ok {
+			t.Fatalf("expected content to be []map[string]any when cache enabled, got %T", msgs[0]["content"])
+		}
+		if len(content) != 1 {
+			t.Fatalf("expected 1 content part, got %d", len(content))
+		}
+		if content[0]["type"] != "text" {
+			t.Errorf("expected type 'text', got '%v'", content[0]["type"])
+		}
+		if content[0]["cache_control"] == nil {
+			t.Error("expected cache_control on text content part")
+		}
+	})
+
+	t.Run("multi-modal user message with cache enabled - text gets cache_control", func(t *testing.T) {
+		msgs := toOpenAIMessages([]llm.ChatMessage{
+			{
+				Role: llm.RoleUser,
+				Content: []llm.ContentPart{
+					{Type: llm.ContentTypeText, Text: "Describe this"},
+					{Type: llm.ContentTypeImage, ImageURL: "https://example.com/img.jpg"},
+				},
+			},
+		}, true)
+
+		parts, ok := msgs[0]["content"].([]map[string]any)
+		if !ok {
+			t.Fatalf("expected content to be []map[string]any")
+		}
+		if len(parts) != 2 {
+			t.Fatalf("expected 2 parts, got %d", len(parts))
+		}
+		// Text part should have cache_control
+		if parts[0]["cache_control"] == nil {
+			t.Error("expected cache_control on text part")
+		}
+		// Image part should NOT have cache_control
+		if parts[1]["cache_control"] != nil {
+			t.Error("expected no cache_control on image part")
+		}
+		if parts[1]["type"] != "image_url" {
+			t.Errorf("expected type 'image_url', got '%v'", parts[1]["type"])
+		}
+	})
+
+	t.Run("cache disabled - user text remains string", func(t *testing.T) {
+		msgs := toOpenAIMessages([]llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hello"}}},
+		}, false)
+
+		content, ok := msgs[0]["content"].(string)
+		if !ok {
+			t.Fatalf("expected content to be string when cache disabled, got %T", msgs[0]["content"])
+		}
+		if content != "Hello" {
+			t.Errorf("expected content 'Hello', got '%s'", content)
+		}
+	})
 }

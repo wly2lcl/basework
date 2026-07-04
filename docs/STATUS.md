@@ -48,7 +48,7 @@
 
 ---
 
-## 已完成功能（Phase 1-22 + 25）
+## 已完成功能（Phase 1-25）
 
 ### ✅ 核心框架
 
@@ -62,6 +62,10 @@
 | `pkg/provider/` | ✅ 完成 | 工厂模式、10 个 Provider |
 | `pkg/lsp/` | ✅ 完成 | LSP 客户端、自动发现、6 个工具 |
 | `pkg/mcp/` | ✅ 完成 | MCP 客户端、stdio/HTTP 传输、工具注入 |
+| `pkg/mcp/resource.go` | ✅ 完成（Phase 24） | MCP 资源协议：resources/list、resources/read |
+| `pkg/mcp/prompt.go` | ✅ 完成（Phase 24） | MCP 提示协议：prompts/list、prompts/get |
+| `pkg/mcp/config_expand.go` | ✅ 完成（Phase 24） | Shell 变量展开：$VAR 和 ${VAR} 语法支持 |
+| `pkg/mcp/reconnect.go` | ✅ 完成（Phase 24） | 自动重连：指数退避、状态机、最大重试配置 |
 | `pkg/memory/` | ✅ 完成 | 4 层文件映射、FTS5 检索（build tag） |
 | `pkg/config/` | ✅ 完成 | JSON 配置、CoW 模式、热重载 |
 | `pkg/skill/` | ✅ 完成 | 技能加载、同名去重 |
@@ -118,12 +122,14 @@
 | `internal/compaction/` | ✅ 完成（Phase 13） | 上下文压缩：自动摘要、滑动窗口、选择性保留 |
 | `internal/retry/` | ✅ 完成（Phase 14） | 重试机制：指数退避、错误分类、Retry-After 支持 |
 | `internal/loopdetect/` | ✅ 完成（Phase 22） | 循环检测：SHA-256 签名追踪、模式匹配、工具融合 |
+| `pkg/provider/cache.go` | ✅ 完成（Phase 23） | Prompt 缓存：Anthropic/OpenAI/Gemini cache_control 自动注入 |
 
 ### ✅ 安全与权限
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
 | `internal/permission/` | ✅ 完成（Phase 15） | 权限系统：规则引擎、交互提示、YOLO 模式 |
+| `pkg/tool/builtin/blacklist.go` | ✅ 完成（Phase 23） | 命令黑名单：12+ 内置危险模式、自定义扩展、权限集成 |
 | `internal/oauth/` | ✅ 完成（Phase 25） | OAuth 2.0：PKCE 流程、令牌刷新、凭证安全存储 |
 
 ### ✅ 子代理系统
@@ -167,28 +173,17 @@
 
 ---
 
-## 待完成功能（Phase 23-24）
+## 待完成功能（Phase 25+）
 
-### 🔲 生产韧性
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| Prompt 缓存 | P1 | Anthropic CacheHint 自动注入 |
-
-### 🔲 安全与权限
+### 🔲 未来规划
 
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 命令黑名单 | P1 | bash 工具禁用危险命令 |
-
-### 🔲 MCP 增强
-
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 资源支持 | P1 | 列出/读取 MCP 资源 |
-| 提示支持 | P1 | 获取 MCP 提示消息 |
-| 自动重连 | P2 | ping 失败时重建连接 |
-| Shell 变量展开 | P2 | MCP 配置中的 $VAR 展开 |
+| 多模态支持 | P2 | 图片/音频输入处理 |
+| 工作流引擎 | P2 | 多步骤任务编排与 DAG 执行 |
+| 评估框架 | P3 | LLM 输出质量评估与回归测试 |
+| 远程 Agent | P3 | 分布式 Agent 通信与协作 |
+| 多语言支持 | P3 | Agent 回复语言自适应切换 |
 
 ---
 
@@ -203,7 +198,7 @@
 | **权限系统** | ✅ | ✅ 规则引擎 | ✅ 交互提示 |
 | **子代理** | ✅ | ✅ task 工具 | ✅ agent 工具 |
 | **循环检测** | ✅ | 🔲 | ✅ SHA-256 |
-| **Prompt 缓存** | 🔲 | ✅ CacheHint | ✅ 自动标记 |
+| **Prompt 缓存** | ✅ CacheHint + OpenAI/Gemini | ✅ CacheHint | ✅ 自动标记 |
 | **结构化日志** | ✅ | ✅ + OpenTelemetry | ✅ slog |
 | **成本追踪** | ✅ | ✅ | ✅ |
 | **OAuth** | ✅ | ✅ | ✅ |
@@ -493,7 +488,7 @@ type Agent interface {
 | 18 TUI | ✅ 已完成 | 单元（渲染逻辑） | > 60% |
 | 19 会话增强 | ✅ 已完成 | 单元 + 集成 | > 70% |
 | 20 Provider 扩展 | ✅ 已完成 | 单元 + 集成 | > 70% |
-| 23-24 | 🔲 | 待定 | > 70% |
+| 23-24 Prompt 缓存 + MCP 增强 | ✅ 已完成 | 集成测试 | > 70% |
 
 ### Mock 策略
 
@@ -538,8 +533,8 @@ go test ./internal/retry/... -v
 
 ## 下一步
 
-1. **Phase 23**: Prompt 缓存（Anthropic CacheHint 自动注入）
-2. **Phase 24**: MCP 增强（资源支持、提示支持、自动重连）
-3. **Phase 25**: OAuth 2.0（已完成—PKCE 流程、令牌刷新、凭证安全存储）
+1. **Phase 25**: OAuth 2.0（已完成—PKCE 流程、令牌刷新、凭证安全存储）
+2. **Phase 26+**: 多模态支持、工作流引擎、评估框架
+3. **长期**: 远程 Agent、多语言支持
 
 详见 [TASKS.md](./TASKS.md)。

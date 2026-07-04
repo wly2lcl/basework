@@ -209,7 +209,7 @@ func (p *CopilotProvider) Chat(ctx context.Context, req *llm.Request) (*llm.Resp
 		}
 	}
 
-	body := buildOpenAIRequest(req, false, p.model)
+	body := buildOpenAIRequest(req, false, p.model, false)
 	headers := p.buildCopilotHeaders()
 
 	respBody, statusCode, err := jsonRequest(ctx, p.client, copilotEndpoint, headers, body)
@@ -237,7 +237,7 @@ func (p *CopilotProvider) ChatStream(ctx context.Context, req *llm.Request) (<-c
 		}
 	}
 
-	body := buildOpenAIRequest(req, true, p.model)
+	body := buildOpenAIRequest(req, true, p.model, false)
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

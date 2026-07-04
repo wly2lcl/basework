@@ -75,6 +75,8 @@ type Config struct {
 	LoopDetect LoopDetectConfig `json:"loop_detect,omitempty"`
 	// 可观测性配置
 	Observability ObservabilityConfig `json:"observability,omitempty"`
+	// Prompt 缓存配置
+	PromptCache PromptCacheConfig `json:"prompt_cache,omitempty"`
 	// OAuth 配置
 	OAuth OAuthConfig `json:"oauth,omitempty"`
 	// 工具配置
@@ -110,6 +112,14 @@ type RetryConfig struct {
 type PermissionConfig struct {
 	Enabled bool   `json:"enabled"`
 	Mode    string `json:"mode"` // interactive / yolo / deny-all
+	// CommandBlacklist 是命令黑名单配置
+	CommandBlacklist CommandBlacklistConfig `json:"command_blacklist,omitempty"`
+}
+
+// CommandBlacklistConfig 是命令黑名单的配置
+type CommandBlacklistConfig struct {
+	// BlockedCommands 是用户自定义的黑名单正则模式列表，与内置黑名单合并检查
+	BlockedCommands []string `json:"blocked_commands,omitempty"`
 }
 
 // SubAgentConfig 是子代理系统的配置
@@ -141,6 +151,11 @@ type OAuthConfig struct {
 	Enabled        bool   `json:"enabled"`
 	StorageBackend string `json:"storage_backend"` // file / keychain
 	CallbackPort   int    `json:"callback_port"`   // 默认 8080
+}
+
+// PromptCacheConfig 是 Prompt 缓存功能的配置
+type PromptCacheConfig struct {
+	Enabled bool `json:"enabled"` // 是否启用 Prompt 缓存，默认 true
 }
 
 // ToolsConfig 是内置工具的配置
@@ -243,6 +258,10 @@ func defaultConfig() *Config {
 				Enabled: true,
 				MaxSize: 100,
 			},
+		},
+		// Prompt 缓存：默认启用
+		PromptCache: PromptCacheConfig{
+			Enabled: true,
 		},
 		// OAuth：默认不启用
 		OAuth: OAuthConfig{
