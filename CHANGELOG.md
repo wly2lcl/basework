@@ -13,6 +13,52 @@
 - **远程 Agent** — 分布式 Agent 通信与协作
 - **多语言支持** — Agent 回复语言自适应切换
 
+## [0.3.0] - 2026-07-06
+
+### 新增
+
+#### Phase 26: 会话稳定性加固
+
+- **SQLite WAL 模式** (`pkg/session/sqlite.go`) — Write-Ahead Logging 提升并发读写性能 2-3x：
+  - 配置项: `database.mode`（`wal` 或 `delete`，默认 `wal`）
+  - 支持并发读取和写入（读不阻塞写）
+- **文件锁机制** (`pkg/session/lock_unix.go`, `pkg/session/lock_windows.go`) — 操作系统级跨进程锁：
+  - Unix: `syscall.Flock`，Windows: `LockFileEx`
+  - 非阻塞模式 + 超时机制（默认 5 秒）
+  - `basework session unlock <id>` 强制解锁命令
+- **会话恢复** (`pkg/session/recovery.go`) — 损坏检测与自动恢复：
+  - `PRAGMA integrity_check` 完整性检查
+  - 从 WAL 文件自动恢复
+  - `basework session status --check-integrity` 批量检查
+- **长会话压缩** (`pkg/session/compress.go`) — Snappy/Gzip 压缩存储：
+  - 超过 1000 条消息自动触发
+  - 配置项: `session.compression.enabled`
+  - 透明解压，对上层 API 无感
+- **会话状态监控** — `basework session status` 命令：
+  - 显示会话 ID、标题、消息数、创建/更新时间
+  - 支持 `--check-integrity` 完整性检查
+
+#### Phase 27: CI/CD + 发布流程
+
+- **GitHub Actions CI/CD** (`.github/workflows/ci.yml`) — 完整自动化流程：
+  - PR 触发：lint + 测试 + 覆盖率
+  - Tag 触发：跨平台构建 + GitHub Release + Homebrew + Docker
+- **goreleaser 跨平台构建** (`.goreleaser.yml`) — 自动化分发：
+  - Linux (amd64/arm64)、macOS (amd64/arm64)、Windows (amd64)
+  - 自动生成 checksum、changelog
+  - Homebrew Formula 自动更新
+- **Docker 镜像** (`Dockerfile`) — 容器化部署：
+  - 基于 `gcr.io/distroless/static-debian11`（< 30MB）
+  - 发布到 `ghcr.io/wly2lcl/basework`
+  - 标签: `latest`、版本号、主版本号
+- **版本信息** (`cmd/basework/version.go`) — `basework version` 命令：
+  - 显示版本号、Git commit、构建时间、Go 版本、平台
+
+### 文档
+
+- `docs/installation.md` — 完整安装指南（Homebrew/Docker/go install/二进制）
+- `docs/docker.md` — Docker 使用指南
+
 ## [0.2.0] - 2026-07-04
 
 ### 新增

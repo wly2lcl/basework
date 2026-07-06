@@ -1,0 +1,101 @@
+# GoReleaser 配置文件
+# 文档: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test -tags "sqlite memory" ./...
+
+builds:
+  - id: basework
+    binary: basework
+    main: ./cmd/basework
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    tags:
+      - sqlite
+      - memory
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: wly2lcl
+    name: basework
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+
+brews:
+  - name: basework
+    repository:
+      owner: wly2lcl
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    homepage: "https://github.com/wly2lcl/basework"
+    description: "AI Agent 框架和独立终端产品"
+    license: "MIT"
+    test: |
+      system "#{bin}/basework --version"
+    install: |
+      bin.install "basework"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/wly2lcl/basework:{{ .Tag }}"
+      - "ghcr.io/wly2lcl/basework:{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/wly2lcl/basework:{{ .Major }}"
+      - "ghcr.io/wly2lcl/basework:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"

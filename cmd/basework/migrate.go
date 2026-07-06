@@ -4,6 +4,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wly2lcl/basework/pkg/session"
+	_ "modernc.org/sqlite"
 )
 
 // migrateCmd 表示 migrate 子命令
@@ -33,12 +35,37 @@ var migrateSessionsCmd = &cobra.Command{
 	},
 }
 
+// migrateWalCmd 表示 migrate --to-wal 子命令
+var migrateWalCmd = &cobra.Command{
+	Use:   "to-wal",
+	Short: "将会话数据库迁移到 WAL 模式",
+	Long: `将 SQLite 会话数据库从 DELETE 模式迁移到 WAL (Write-Ahead Logging) 模式。
+WAL 模式支持并发读写，显著提升性能。
+迁移前会自动备份数据库。`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runMigrateToWAL()
+	},
+}
+
+// migrateRollbackCmd 表示 migrate --rollback 子命令
+var migrateRollbackCmd = &cobra.Command{
+	Use:   "rollback",
+	Short: "回滚 WAL 模式迁移",
+	Long: `从 WAL 模式回滚到 DELETE 模式。
+如果存在备份文件，会从备份恢复。`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runMigrateRollback()
+	},
+}
+
 var (
 	migrateSQLitePath string
 )
 
 func init() {
 	migrateCmd.AddCommand(migrateSessionsCmd)
+	migrateCmd.AddCommand(migrateWalCmd)
+	migrateCmd.AddCommand(migrateRollbackCmd)
 	migrateSessionsCmd.Flags().StringVar(&migrateSQLitePath, "sqlite-path", "", "SQLite 数据库路径（默认 ~/.basework/sessions/sessions.db）")
 }
 
@@ -169,6 +196,144 @@ func runMigrateSessions() error {
 	fmt.Printf("  ❌ 失败: %d\n", failed)
 	fmt.Printf("  📁 目标数据库: %s\n", sqlitePath)
 	fmt.Printf("  📂 源目录: %s\n", sessionDir)
+
+	return nil
+}
+
+// runMigrateToWAL 将会话数据库迁移到 WAL 模式。
+func runMigrateToWAL() error {
+	// 确定 SQLite 数据库路径
+	sqlitePath := migrateSQLitePath
+	if sqlitePath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
+		sqlitePath = filepath.Join(home, ".basework", "sessions", "sessions.db")
+	}
+
+	// 检查数据库是否存在
+	if _, err := os.Stat(sqlitePath); os.IsNotExist(err) {
+		return fmt.Errorf("数据库 %s 不存在", sqlitePath)
+	}
+
+	// 1. 备份数据库
+	backupPath := sqlitePath + ".backup-" + fmt.Sprintf("%d", os.Getpid())
+	fmt.Printf("📦 备份数据库到 %s\n", backupPath)
+	
+	backupData, err := os.ReadFile(sqlitePath)
+	if err != nil {
+		return fmt.Errorf("读取数据库失败: %w", err)
+	}
+	
+	if err := os.WriteFile(backupPath, backupData, 0644); err != nil {
+		return fmt.Errorf("创建备份失败: %w", err)
+	}
+
+	// 2. 打开数据库并切换到 WAL 模式
+	db, err := sql.Open("sqlite", sqlitePath)
+	if err != nil {
+		return fmt.Errorf("打开数据库失败: %w", err)
+	}
+	defer db.Close()
+
+	// 3. 检查当前模式
+	var currentMode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&currentMode); err != nil {
+		return fmt.Errorf("检查当前模式失败: %w", err)
+	}
+
+	if currentMode == "wal" {
+		fmt.Println("✅ 数据库已经是 WAL 模式")
+		// 删除备份
+		os.Remove(backupPath)
+		return nil
+	}
+
+	fmt.Printf("🔄 当前模式: %s，迁移到 WAL...\n", currentMode)
+
+	// 4. 切换到 WAL 模式
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		// 迁移失败，恢复备份
+		fmt.Printf("❌ 迁移失败，恢复备份...\n")
+		os.WriteFile(sqlitePath, backupData, 0644)
+		os.Remove(backupPath)
+		return fmt.Errorf("切换到 WAL 模式失败: %w", err)
+	}
+
+	// 5. 验证迁移成功
+	var newMode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&newMode); err != nil {
+		return fmt.Errorf("验证模式失败: %w", err)
+	}
+
+	if newMode != "wal" {
+		fmt.Printf("❌ 迁移失败，恢复备份...\n")
+		os.WriteFile(sqlitePath, backupData, 0644)
+		os.Remove(backupPath)
+		return fmt.Errorf("验证失败：期望 wal，实际 %s", newMode)
+	}
+
+	fmt.Printf("✅ 成功迁移到 WAL 模式\n")
+	fmt.Printf("📦 备份保留在: %s\n", backupPath)
+	fmt.Printf("💡 如果确认迁移成功，可以手动删除备份文件\n")
+
+	return nil
+}
+
+// runMigrateRollback 从 WAL 模式回滚到 DELETE 模式。
+func runMigrateRollback() error {
+	// 确定 SQLite 数据库路径
+	sqlitePath := migrateSQLitePath
+	if sqlitePath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
+		sqlitePath = filepath.Join(home, ".basework", "sessions", "sessions.db")
+	}
+
+	// 1. 查找最新的备份文件
+	backupPattern := sqlitePath + ".backup-*"
+	matches, err := filepath.Glob(backupPattern)
+	if err != nil || len(matches) == 0 {
+		return fmt.Errorf("未找到备份文件（模式: %s）", backupPattern)
+	}
+
+	// 使用最新的备份
+	latestBackup := matches[len(matches)-1]
+	fmt.Printf("📦 找到备份文件: %s\n", latestBackup)
+
+	// 2. 从备份恢复
+	backupData, err := os.ReadFile(latestBackup)
+	if err != nil {
+		return fmt.Errorf("读取备份失败: %w", err)
+	}
+
+	if err := os.WriteFile(sqlitePath, backupData, 0644); err != nil {
+		return fmt.Errorf("恢复备份失败: %w", err)
+	}
+
+	// 3. 删除 WAL 相关文件
+	walFile := sqlitePath + "-wal"
+	shmFile := sqlitePath + "-shm"
+	os.Remove(walFile)
+	os.Remove(shmFile)
+
+	// 4. 验证恢复
+	db, err := sql.Open("sqlite", sqlitePath)
+	if err != nil {
+		return fmt.Errorf("打开数据库失败: %w", err)
+	}
+	defer db.Close()
+
+	var mode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
+		return fmt.Errorf("验证模式失败: %w", err)
+	}
+
+	fmt.Printf("✅ 成功回滚到 %s 模式\n", mode)
+	fmt.Printf("🗑 已删除 WAL 文件\n")
 
 	return nil
 }

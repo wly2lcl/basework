@@ -83,6 +83,8 @@ type Config struct {
 	Tools ToolsConfig `json:"tools,omitempty"`
 	// 会话配置
 	Session SessionConfig `json:"session,omitempty"`
+	// 数据库配置
+	Database DatabaseConfig `json:"database,omitempty"`
 
 	// Provider 特定配置
 	OpenCode OpenCodeConfig `json:"opencode,omitempty"`
@@ -177,6 +179,11 @@ type SessionConfig struct {
 	Queue      QueueConfig     `json:"queue"`
 }
 
+// DatabaseConfig 是数据库的配置
+type DatabaseConfig struct {
+	Mode string `json:"mode"` // "wal" 或 "delete"，默认 "wal"
+}
+
 // AutoTitleConfig 是自动标题生成的配置
 type AutoTitleConfig struct {
 	Enabled bool   `json:"enabled"`
@@ -258,6 +265,10 @@ func defaultConfig() *Config {
 				Enabled: true,
 				MaxSize: 100,
 			},
+		},
+		// 数据库：默认 WAL 模式
+		Database: DatabaseConfig{
+			Mode: "wal",
 		},
 		// Prompt 缓存：默认启用
 		PromptCache: PromptCacheConfig{

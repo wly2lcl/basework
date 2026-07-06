@@ -188,3 +188,40 @@ store.Save()
 - [嵌入指南](embedder-guide.md) — 如何将 basework 嵌入到应用中
 - [扩展指南](extending.md) — Hook、Plugin、Skill 扩展
 - [设计文档](../DESIGN.md) — 架构和接口定义
+
+---
+
+## 数据库配置
+
+### `database.mode`
+
+SQLite 日志模式，影响并发读写性能。
+
+| 值 | 说明 |
+|---|---|
+| `wal` | Write-Ahead Logging，支持并发读写（默认） |
+| `delete` | 传统模式，写入时阻塞读取 |
+
+```json
+{
+  "database": {
+    "mode": "wal"
+  }
+}
+```
+
+## 会话压缩配置
+
+### `session.compression.enabled`
+
+是否启用长会话消息压缩（默认 `true`）。当会话消息数超过 1000 条时自动触发 Snappy 压缩。
+
+```json
+{
+  "session": {
+    "compression": {
+      "enabled": true
+    }
+  }
+}
+```

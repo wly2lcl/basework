@@ -33,20 +33,45 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **终端 UI** — Bubble Tea 构建的完整 TUI
 - **增强工具** — web_fetch、web_search、todowrite、apply_patch、question
 - **15+ LLM 提供商** — 含 Amazon Bedrock、Azure、GitHub Copilot、Ollama
+- **会话稳定性** — SQLite WAL 模式、文件锁、自动恢复、长会话压缩
 
 ## 安装
 
+### Homebrew (macOS/Linux)
+
 ```bash
-go get github.com/wly2lcl/basework
+brew tap wly2lcl/tap
+brew install basework
 ```
 
-或从源码构建：
+### Docker
+
+```bash
+docker pull ghcr.io/wly2lcl/basework:latest
+docker run -it -v ~/.config/basework:/root/.config/basework ghcr.io/wly2lcl/basework
+```
+
+### Go Install
+
+```bash
+go install -tags "sqlite memory" github.com/wly2lcl/basework/cmd/basework@latest
+```
+
+### 从源码构建
 
 ```bash
 git clone https://github.com/wly2lcl/basework.git
 cd basework
-make build
+go build -tags "sqlite memory" -o basework ./cmd/basework
 ```
+
+### 下载二进制文件
+
+从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的预编译二进制文件。
+
+支持平台：Linux (amd64/arm64)、macOS (amd64/arm64)、Windows (amd64)。
+
+详细安装说明请参阅 [安装指南](docs/installation.md)。
 
 ## 快速开始（CLI）
 
