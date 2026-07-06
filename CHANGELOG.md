@@ -5,13 +5,81 @@
 
 ## [Unreleased]
 
-### 即将推出（Phase 25+ 规划）
+### 即将推出（Phase 28+ 规划）
 
 - **多模态支持** — 图片/音频输入处理
 - **工作流引擎** — 多步骤任务编排与 DAG 执行
 - **评估框架** — LLM 输出质量评估与回归测试
 - **远程 Agent** — 分布式 Agent 通信与协作
 - **多语言支持** — Agent 回复语言自适应切换
+
+## [0.4.0] - 2026-07-06
+
+### 安全加固 + 性能基线（Phase 28）
+
+#### 权限持久化
+
+- **权限规则 SQLite 持久化** (`internal/permission/persist.go`) — 跨会话保留权限规则：
+  - 规则存储到 SQLite 数据库，重启后不丢失
+  - 支持 `always` 授权持久化
+  - 配置项: `security.permission_store`（`sqlite` / `memory`）
+- **权限审计日志** (`internal/permission/audit.go`) — 记录所有权限决策：
+  - 记录时间、工具名、参数、决策结果
+  - 配置保留天数（默认 30 天）
+  - `basework permission audit` 查询命令
+- **权限迁移工具** — `basework permission export/import` 命令：
+  - 导出当前权限规则为 JSON
+  - 从 JSON 文件导入权限规则
+
+#### 敏感路径保护
+
+- **路径检查** (`internal/permission/paths.go`) — 工具执行前路径安全检查：
+  - 默认保护 `.git/`、`~/.ssh/`、`~/.aws/`、`~/.gnupg/` 等敏感路径
+  - 支持白名单/黑名单配置
+  - 三种保护级别：`strict`（禁止）/ `warn`（记录）/ `off`（关闭）
+- **Agent 集成** (`internal/permission/hook.go`) — 通过 Hook 在工具执行前拦截：
+  - 与现有权限系统无缝集成
+  - 黑名单匹配时阻止执行
+  - 白名单覆盖黑名单
+
+#### 工具执行超时
+
+- **超时控制** (`internal/permission/timeout.go`) — 工具执行超时管理：
+  - 默认 30s 超时，bash 工具 60s，LSP 工具 10s
+  - 可配置覆盖：`tools.timeout.default`、`tools.timeout.overrides`
+  - 超时后优雅终止，发送超时事件通知
+- **配置示例**:
+  ```yaml
+  tools:
+    timeout:
+      default: 30
+      overrides:
+        bash: 60
+        read: 10
+  ```
+
+#### 性能分析
+
+- **pprof 集成** (`internal/observability/pprof.go`) — 性能分析支持：
+  - HTTP pprof 端点（默认 `127.0.0.1:6060`）
+  - CLI 命令：`basework profile cpu`、`basework profile memory`、`basework profile goroutine`
+  - goroutine 泄漏检测
+  - 配置项：`profiling.enabled`、`profiling.host`、`profiling.port`
+
+#### Benchmark 套件
+
+- **性能基准** (`tests/benchmark/`) — 77 项基准测试覆盖：
+  - token 计数性能基准
+  - 流式响应延迟测试
+  - 工具执行性能测试
+  - 会话读写性能测试
+
+### 文档
+
+- `docs/guides/security.md` — 安全配置指南（权限持久化、敏感路径保护、审计日志）
+- `docs/guides/profiling.md` — 性能分析指南（pprof、benchmark 套件）
+
+[0.4.0]: https://github.com/wly2lcl/basework/releases/tag/v0.4.0
 
 ## [0.3.0] - 2026-07-06
 

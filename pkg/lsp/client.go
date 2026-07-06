@@ -439,6 +439,11 @@ func (c *Client) handlePublishDiagnostics(params json.RawMessage) {
 	c.diagVersion++
 }
 
+// withTimeout 为 LSP 调用添加 10s 超时
+func (c *Client) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, 10*time.Second)
+}
+
 // Diagnostics 返回指定文件的缓存诊断信息和版本号。
 func (c *Client) Diagnostics(file string) ([]Diagnostic, uint64) {
 	uri := c.fileToURI(file)
@@ -458,7 +463,10 @@ func (c *Client) Diagnostics(file string) ([]Diagnostic, uint64) {
 func (c *Client) Definition(ctx context.Context, file string, pos Position) ([]Location, error) {
 	c.ensureOpen(file)
 
-	raw, err := c.conn.Send(ctx, "textDocument/definition", textDocumentPositionParams{
+	lspCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	raw, err := c.conn.Send(lspCtx, "textDocument/definition", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -473,7 +481,10 @@ func (c *Client) Definition(ctx context.Context, file string, pos Position) ([]L
 func (c *Client) References(ctx context.Context, file string, pos Position) ([]Location, error) {
 	c.ensureOpen(file)
 
-	raw, err := c.conn.Send(ctx, "textDocument/references", referencesParams{
+	lspCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	raw, err := c.conn.Send(lspCtx, "textDocument/references", referencesParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 		Context:      referenceContext{IncludeDeclaration: true},
@@ -489,7 +500,10 @@ func (c *Client) References(ctx context.Context, file string, pos Position) ([]L
 func (c *Client) Hover(ctx context.Context, file string, pos Position) (string, error) {
 	c.ensureOpen(file)
 
-	raw, err := c.conn.Send(ctx, "textDocument/hover", textDocumentPositionParams{
+	lspCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	raw, err := c.conn.Send(lspCtx, "textDocument/hover", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -516,7 +530,10 @@ func (c *Client) Hover(ctx context.Context, file string, pos Position) (string, 
 func (c *Client) DocumentSymbols(ctx context.Context, file string) ([]SymbolInfo, error) {
 	c.ensureOpen(file)
 
-	raw, err := c.conn.Send(ctx, "textDocument/documentSymbol", textDocumentParams{
+	lspCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	raw, err := c.conn.Send(lspCtx, "textDocument/documentSymbol", textDocumentParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 	})
 	if err != nil {
@@ -528,7 +545,10 @@ func (c *Client) DocumentSymbols(ctx context.Context, file string) ([]SymbolInfo
 
 // WorkspaceSymbols 在工作区中搜索符号。
 func (c *Client) WorkspaceSymbols(ctx context.Context, query string) ([]SymbolInfo, error) {
-	raw, err := c.conn.Send(ctx, "workspace/symbol", map[string]string{"query": query})
+	lspCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+
+	raw, err := c.conn.Send(lspCtx, "workspace/symbol", map[string]string{"query": query})
 	if err != nil {
 		return nil, err
 	}

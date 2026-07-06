@@ -34,6 +34,11 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **增强工具** — web_fetch、web_search、todowrite、apply_patch、question
 - **15+ LLM 提供商** — 含 Amazon Bedrock、Azure、GitHub Copilot、Ollama
 - **会话稳定性** — SQLite WAL 模式、文件锁、自动恢复、长会话压缩
+- **权限持久化** — SQLite 持久化权限规则、审计日志、权限迁移
+- **敏感路径保护** — 白名单/黑名单机制、三种保护级别
+- **工具超时控制** — 默认 30s 超时，支持按工具覆盖配置
+- **性能分析** — pprof HTTP 端点集成、CPU/内存/goroutine 分析
+- **Benchmark 套件** — token 计数、流式响应、工具执行基准测试
 
 ## 安装
 

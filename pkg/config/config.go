@@ -85,6 +85,10 @@ type Config struct {
 	Session SessionConfig `json:"session,omitempty"`
 	// 数据库配置
 	Database DatabaseConfig `json:"database,omitempty"`
+	// 安全配置
+	Security SecurityConfig `json:"security,omitempty"`
+	// 性能分析配置
+	Profiling ProfilingConfig `json:"profiling,omitempty"`
 
 	// Provider 特定配置
 	OpenCode OpenCodeConfig `json:"opencode,omitempty"`
@@ -162,13 +166,49 @@ type PromptCacheConfig struct {
 
 // ToolsConfig 是内置工具的配置
 type ToolsConfig struct {
-	WebSearch WebSearchConfig `json:"web_search,omitempty"`
+	WebSearch WebSearchConfig    `json:"web_search,omitempty"`
+	Timeout   ToolsTimeoutConfig `json:"timeout,omitempty"`
 }
 
 // WebSearchConfig 是 web_search 工具的配置
 type WebSearchConfig struct {
 	Backend string `json:"backend"` // "tavily" 或 "exa"
 	APIKey  string `json:"api_key,omitempty"`
+}
+
+// ToolsTimeoutConfig 是工具执行超时的配置
+type ToolsTimeoutConfig struct {
+	// Default 全局默认超时（秒），0 表示不超时
+	Default int `json:"default"` // 默认 30
+	// Overrides 按工具名称覆盖超时（秒）
+	Overrides map[string]int `json:"overrides,omitempty"`
+}
+
+// SecurityConfig 是安全相关配置
+type SecurityConfig struct {
+	// SensitivePaths 敏感路径保护配置
+	SensitivePaths SensitivePathsConfig `json:"sensitive_paths,omitempty"`
+	// ProtectionLevel 保护级别: strict（禁止）/ warn（记录）/ off（关闭）
+	ProtectionLevel string `json:"protection_level"` // 默认 "strict"
+	// PermissionStore 权限存储方式: sqlite / memory
+	PermissionStore string `json:"permission_store"` // 默认 "sqlite"
+	// AuditRetentionDays 审计日志保留天数
+	AuditRetentionDays int `json:"audit_retention_days"` // 默认 30
+}
+
+// SensitivePathsConfig 是敏感路径保护配置
+type SensitivePathsConfig struct {
+	// Block 额外的黑名单路径
+	Block []string `json:"block,omitempty"`
+	// Allow 白名单路径（覆盖默认黑名单）
+	Allow []string `json:"allow,omitempty"`
+}
+
+// ProfilingConfig 是性能分析配置
+type ProfilingConfig struct {
+	Enabled bool   `json:"enabled"` // 默认 false
+	Host    string `json:"host"`    // 默认 "127.0.0.1"
+	Port    int    `json:"port"`    // 默认 6060
 }
 
 // SessionConfig 是会话系统的配置
@@ -270,6 +310,29 @@ func defaultConfig() *Config {
 		Database: DatabaseConfig{
 			Mode: "wal",
 		},
+		// 安全：默认 strict 保护
+		Security: SecurityConfig{
+			SensitivePaths: SensitivePathsConfig{
+				Block: nil,
+				Allow: nil,
+			},
+			ProtectionLevel:    "strict",
+			PermissionStore:    "sqlite",
+			AuditRetentionDays: 30,
+		},
+		// 性能分析：默认关闭
+		Profiling: ProfilingConfig{
+			Enabled: false,
+			Host:    "127.0.0.1",
+			Port:    6060,
+		},
+		// 工具超时：默认 30s
+		Tools: ToolsConfig{
+			Timeout: ToolsTimeoutConfig{
+				Default:   30,
+				Overrides: map[string]int{"bash": 60},
+			},
+		},
 		// Prompt 缓存：默认启用
 		PromptCache: PromptCacheConfig{
 			Enabled: true,
@@ -303,6 +366,22 @@ func (c *Config) clone() *Config {
 	if cp.LoopDetect.CustomPatterns != nil {
 		cp.LoopDetect.CustomPatterns = make([]string, len(c.LoopDetect.CustomPatterns))
 		copy(cp.LoopDetect.CustomPatterns, c.LoopDetect.CustomPatterns)
+	}
+	// 深拷贝 Tools.Timeout.Overrides
+	if cp.Tools.Timeout.Overrides != nil {
+		cp.Tools.Timeout.Overrides = make(map[string]int, len(c.Tools.Timeout.Overrides))
+		for k, v := range c.Tools.Timeout.Overrides {
+			cp.Tools.Timeout.Overrides[k] = v
+		}
+	}
+	// 深拷贝 Security.SensitivePaths
+	if cp.Security.SensitivePaths.Block != nil {
+		cp.Security.SensitivePaths.Block = make([]string, len(c.Security.SensitivePaths.Block))
+		copy(cp.Security.SensitivePaths.Block, c.Security.SensitivePaths.Block)
+	}
+	if cp.Security.SensitivePaths.Allow != nil {
+		cp.Security.SensitivePaths.Allow = make([]string, len(c.Security.SensitivePaths.Allow))
+		copy(cp.Security.SensitivePaths.Allow, c.Security.SensitivePaths.Allow)
 	}
 	return &cp
 }

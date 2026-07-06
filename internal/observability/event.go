@@ -14,6 +14,8 @@ const (
 
 	EventLLMCallStart = "llm.call.start" // LLM 调用开始
 	EventLLMCallEnd   = "llm.call.end"   // LLM 调用结束
+
+	EventToolTimeout = "tool.timeout" // 工具执行超时
 )
 
 // Event 是可观测性事件的通用结构

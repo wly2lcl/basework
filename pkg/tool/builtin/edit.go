@@ -29,7 +29,7 @@ func (e *EditTool) Parameters() json.RawMessage {
 	}`)
 }
 
-func (e *EditTool) Execute(_ context.Context, args json.RawMessage) (*tool.Result, error) {
+func (e *EditTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Result, error) {
 	var params struct {
 		Path string `json:"path"`
 		Old  string `json:"old"`
@@ -37,6 +37,19 @@ func (e *EditTool) Execute(_ context.Context, args json.RawMessage) (*tool.Resul
 	}
 	if err := json.Unmarshal(args, &params); err != nil {
 		return &tool.Result{Content: fmt.Sprintf("参数解析失败: %v", err), IsError: true}, nil
+	}
+
+	// 工具级超时控制
+	timeout := getTimeoutConfig().GetTimeout("edit")
+	ctx, cancel := WithTimeout(ctx, "edit", timeout)
+	defer cancel()
+	_ = ctx // 为未来 context-aware 操作预留
+
+	// 敏感路径检查
+	if pc := getPathChecker(); pc != nil {
+		if allowed, reason := pc.CheckPath(params.Path); !allowed {
+			return &tool.Result{Content: fmt.Sprintf("访问被拒绝: %s (%s)", params.Path, reason), IsError: true}, nil
+		}
 	}
 
 	if params.Old == "" {

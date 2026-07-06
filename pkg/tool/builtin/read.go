@@ -29,7 +29,7 @@ func (r *ReadTool) Parameters() json.RawMessage {
 	}`)
 }
 
-func (r *ReadTool) Execute(_ context.Context, args json.RawMessage) (*tool.Result, error) {
+func (r *ReadTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Result, error) {
 	var params struct {
 		Path   string `json:"path"`
 		Offset int    `json:"offset"`
@@ -37,6 +37,19 @@ func (r *ReadTool) Execute(_ context.Context, args json.RawMessage) (*tool.Resul
 	}
 	if err := json.Unmarshal(args, &params); err != nil {
 		return &tool.Result{Content: fmt.Sprintf("参数解析失败: %v", err), IsError: true}, nil
+	}
+
+	// 工具级超时控制
+	timeout := getTimeoutConfig().GetTimeout("read")
+	ctx, cancel := WithTimeout(ctx, "read", timeout)
+	defer cancel()
+	_ = ctx // 为未来 context-aware 操作预留
+
+	// 敏感路径检查
+	if pc := getPathChecker(); pc != nil {
+		if allowed, reason := pc.CheckPath(params.Path); !allowed {
+			return &tool.Result{Content: fmt.Sprintf("访问被拒绝: %s (%s)", params.Path, reason), IsError: true}, nil
+		}
 	}
 
 	data, err := os.ReadFile(params.Path)

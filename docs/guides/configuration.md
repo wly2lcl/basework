@@ -187,6 +187,8 @@ store.Save()
 
 - [嵌入指南](embedder-guide.md) — 如何将 basework 嵌入到应用中
 - [扩展指南](extending.md) — Hook、Plugin、Skill 扩展
+- [安全配置指南](security.md) — 权限持久化、敏感路径保护、审计日志
+- [性能分析指南](profiling.md) — pprof 集成、benchmark 套件
 - [设计文档](../DESIGN.md) — 架构和接口定义
 
 ---
@@ -225,3 +227,105 @@ SQLite 日志模式，影响并发读写性能。
   }
 }
 ```
+
+---
+
+## 安全配置
+
+### 敏感路径保护
+
+敏感路径保护在工具执行前检查文件路径，防止 Agent 意外访问或修改敏感文件。
+
+**保护级别**：
+
+| 级别 | 说明 |
+|------|------|
+| `strict` | 禁止访问敏感路径（默认） |
+| `warn` | 记录警告日志但允许访问 |
+| `off` | 关闭路径保护 |
+
+**配置示例**：
+
+```json
+{
+  "security": {
+    "protection_level": "strict",
+    "permission_store": "sqlite",
+    "audit_retention_days": 30,
+    "sensitive_paths": {
+      "block": ["/custom/secret/"],
+      "allow": ["~/.ssh/config"]
+    }
+  }
+}
+```
+
+- `protection_level` — 保护级别（`strict` / `warn` / `off`）
+- `permission_store` — 权限规则存储后端（`sqlite` / `memory`）
+- `audit_retention_days` — 审计日志保留天数（默认 30）
+- `sensitive_paths.block` — 额外黑名单路径
+- `sensitive_paths.allow` — 白名单路径（覆盖黑名单）
+
+### 默认保护路径
+
+以下路径默认受保护（strict 级别）：
+
+| 路径 | 说明 |
+|------|------|
+| `.git/` | Git 仓库元数据 |
+| `~/.ssh/` | SSH 密钥和配置 |
+| `~/.aws/` | AWS 凭证 |
+| `~/.gnupg/` | GPG 密钥 |
+| `~/.config/basework/` | Basework 自身配置 |
+
+---
+
+## 工具执行超时
+
+为每个工具设置独立的超时时间，防止长时间运行的命令阻塞 Agent。
+
+```json
+{
+  "tools": {
+    "timeout": {
+      "default": 30,
+      "overrides": {
+        "bash": 60,
+        "read": 10,
+        "write": 15,
+        "edit": 15,
+        "grep": 10,
+        "web_fetch": 30,
+        "web_search": 20
+      }
+    }
+  }
+}
+```
+
+- `tools.timeout.default` — 全局默认超时（秒），0 表示不超时
+- `tools.timeout.overrides` — 按工具名覆盖超时时间
+
+---
+
+## 性能分析
+
+通过 pprof 集成，可以实时分析 Agent 运行时的 CPU、内存和 goroutine 状态。
+
+```json
+{
+  "profiling": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 6060
+  }
+}
+```
+
+- `enabled` — 是否启用 pprof HTTP 端点（默认 false）
+- `host` — 监听地址，默认仅本地（127.0.0.1）
+- `port` — 监听端口（默认 6060）
+
+启动后可通过 `http://127.0.0.1:6060/debug/pprof/` 访问 pprof 页面。
+
+详细用法请参考 [性能分析指南](profiling.md)。

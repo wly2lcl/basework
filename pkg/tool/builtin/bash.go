@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/wly2lcl/basework/pkg/tool"
@@ -76,14 +77,29 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 		}
 	}
 
+	// 敏感路径检查
+	if pc := getPathChecker(); pc != nil {
+		paths := extractPathsFromCommand(params.Command)
+		for _, p := range paths {
+			if allowed, reason := pc.CheckPath(p); !allowed {
+				return &tool.Result{Content: fmt.Sprintf("访问被拒绝: %s (%s)", p, reason), IsError: true}, nil
+			}
+		}
+	}
+
+	// 工具级超时控制（来自 TimeoutConfig）
+	toolTimeout := getTimeoutConfig().GetTimeout("bash")
+	ctx, toolCancel := WithTimeout(ctx, "bash", toolTimeout)
+	defer toolCancel()
+
 	// 默认超时 30s
 	timeout := params.Timeout
 	if timeout <= 0 {
 		timeout = 30
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
-	defer cancel()
+	execCtx, execCancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer execCancel()
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(execCtx, "sh", "-c", params.Command)
@@ -124,4 +140,54 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 	}
 
 	return &tool.Result{Content: content}, nil
+}
+
+// extractPathsFromCommand 从 shell 命令中提取可能的文件路径。
+// 覆盖常见场景，不做完美解析。
+func extractPathsFromCommand(cmd string) []string {
+	var paths []string
+	seen := make(map[string]bool)
+
+	// 按空格分割命令
+	parts := strings.Fields(cmd)
+	for _, part := range parts {
+		// 跳过选项（以 - 开头）
+		if strings.HasPrefix(part, "-") {
+			continue
+		}
+
+		// 跳过重定向符号
+		if part == ">" || part == ">>" || part == "<" || part == "2>" || part == "|" {
+			continue
+		}
+
+		// 检查是否看起来像路径
+		if looksLikePath(part) && !seen[part] {
+			seen[part] = true
+			paths = append(paths, part)
+		}
+	}
+
+	return paths
+}
+
+// looksLikePath 检查字符串是否看起来像文件路径。
+func looksLikePath(s string) bool {
+	// 以 /、./、../、~/ 开头
+	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") ||
+		strings.HasPrefix(s, "../") || strings.HasPrefix(s, "~/") {
+		return true
+	}
+
+	// 包含路径分隔符
+	if strings.Contains(s, "/") {
+		return true
+	}
+
+	// 包含文件扩展名（如 .txt, .go, .json 等）
+	if strings.Contains(s, ".") && !strings.Contains(s, "=") {
+		return true
+	}
+
+	return false
 }
