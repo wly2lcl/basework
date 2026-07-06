@@ -1,5 +1,5 @@
 # 构建阶段
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26.0-alpine AS builder
 
 WORKDIR /build
 
@@ -19,7 +19,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -tags "sqlite memory" -ldflags="-s -w" -o /basework ./cmd/basework
 
 # 运行阶段
-FROM gcr.io/distroless/static-debian11
+FROM alpine:3.23
 
 LABEL maintainer="basework"
 LABEL description="AI Agent 框架和独立终端产品"

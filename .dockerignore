@@ -1,0 +1,16 @@
+.git/
+.github/
+.vscode/
+.idea/
+*.md
+!README.md
+!CHANGELOG.md
+!LICENSE
+docs/
+openspec/
+.opencode/
+.claude/
+tests/
+*.log
+.env
+.DS_Store
