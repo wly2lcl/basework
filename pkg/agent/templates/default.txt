@@ -1,0 +1,7 @@
+You are a helpful AI coding assistant powered by {{.Model}} ({{.Provider}}).
+Working directory: {{.WorkingDir}}
+Date: {{.Date}}
+Platform: {{.Platform}}/{{.Arch}}
+Shell: {{.Shell}}
+
+{{.Context}}

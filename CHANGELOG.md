@@ -5,13 +5,49 @@
 
 ## [Unreleased]
 
-### 即将推出（Phase 28+ 规划）
+### 即将推出
 
-- **多模态支持** — 图片/音频输入处理
 - **工作流引擎** — 多步骤任务编排与 DAG 执行
 - **评估框架** — LLM 输出质量评估与回归测试
 - **远程 Agent** — 分布式 Agent 通信与协作
 - **多语言支持** — Agent 回复语言自适应切换
+
+## [0.5.0] - 2026-07-06
+
+### Phase 29-30: TUI 增强 + 模板系统 + 多模态 + 插件生态
+
+**TUI 增强**
+- 主题系统：亮/暗主题切换、自定义主题、终端自适应
+- 斜杠命令面板：/触发、fuzzy 搜索、命令补全
+- 键盘绑定：三层绑定模型、可配置快捷键
+- 对话框系统：管理器、堆栈、模态/非模态
+
+**模板系统**
+- Provider 感知系统提示模板
+- 内置 anthropic/openai/gemini/default 模板
+- 用户自定义模板 + 热重载
+- 环境动态注入（工作目录、Git、平台信息）
+
+**多模态 + 插件**
+- 图片输入支持（JPEG/PNG/WebP）
+- Hook 系统扩展（PreStep/PostStep/OnToolError/OnCompaction）
+- Provider 插件化
+- TUI 插件插槽
+
+### 新配置项
+
+- `theme.name` — TUI 主题选择（dark/light/dracula/monokai）
+- `theme.custom_path` — 自定义主题目录
+- `keybindings.path` — 键盘绑定配置文件路径
+- `templates.custom_dir` — 用户自定义模板目录
+- `templates.default_provider` — 默认模板 Provider
+
+### 文档
+
+- `docs/guides/theme.md` — 主题配置指南
+- `docs/guides/templates.md` — 模板系统指南
+
+[0.5.0]: https://github.com/wly2lcl/basework/releases/tag/v0.5.0
 
 ## [0.4.0] - 2026-07-06
 

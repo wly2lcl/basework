@@ -3,6 +3,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // TestNewInputView 测试创建输入组件
@@ -28,7 +30,7 @@ func TestInputViewInit(t *testing.T) {
 // TestInputViewRender 测试渲染
 func TestInputViewRender(t *testing.T) {
 	iv := NewInputView()
-	result := iv.Render(80)
+	result := iv.Render(80, theme.DefaultTheme)
 	if result == "" {
 		t.Fatal("Render() 返回了空内容")
 	}
@@ -107,8 +109,8 @@ func TestFindPathCompletions(t *testing.T) {
 func TestInputViewRenderWidth(t *testing.T) {
 	iv := NewInputView()
 	iv.SetText("test")
-	r1 := iv.Render(40)
-	r2 := iv.Render(100)
+	r1 := iv.Render(40, theme.DefaultTheme)
+	r2 := iv.Render(100, theme.DefaultTheme)
 	if r1 == "" || r2 == "" {
 		t.Fatal("Render 返回了空内容")
 	}

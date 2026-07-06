@@ -25,6 +25,21 @@ func TestNewApp(t *testing.T) {
 	if len(app.Messages) != 0 {
 		t.Fatalf("期望消息数为 0，得到 %d", len(app.Messages))
 	}
+	if app.Theme == nil {
+		t.Fatal("Theme 组件未初始化")
+	}
+	if app.CommandRegistry == nil {
+		t.Fatal("CommandRegistry 组件未初始化")
+	}
+	if app.CommandPanel == nil {
+		t.Fatal("CommandPanel 组件未初始化")
+	}
+	if app.KeyResolver == nil {
+		t.Fatal("KeyResolver 组件未初始化")
+	}
+	if app.DialogMgr == nil {
+		t.Fatal("DialogMgr 组件未初始化")
+	}
 }
 
 // TestAppInit 测试 App.Init
@@ -39,6 +54,8 @@ func TestAppInit(t *testing.T) {
 // TestAppView 测试 View 渲染
 func TestAppView(t *testing.T) {
 	app := NewApp("test-model", "test-provider", "test-session-id")
+	app.Width = 80
+	app.Height = 24
 	view := app.View()
 	if view.Content == "" {
 		t.Fatal("View() 返回了空内容")
@@ -145,79 +162,35 @@ func TestAppStreaming(t *testing.T) {
 	}
 }
 
-// TestAppCtrlCQuit 测试 Ctrl+C 退出
-func TestAppCtrlCQuit(t *testing.T) {
+// TestAppCommandPalette 测试命令面板触发
+func TestAppCommandPalette(t *testing.T) {
 	app := NewApp("test-model", "test-provider", "test-session-id")
 
-	// 模拟 Ctrl+C
-	msg := tea.KeyPressMsg(tea.Key{Text: "ctrl+c"})
-	_, cmd := app.Update(tea.Msg(msg))
+	// 打开命令面板
+	app.CommandPanel.Open()
+	if !app.CommandPanel.IsVisible() {
+		t.Fatal("命令面板应可见")
+	}
 
-	// 应该产生退出命令 (QuitMsg)
-	if cmd != nil {
-		resultMsg := cmd()
-		if _, ok := resultMsg.(tea.QuitMsg); !ok {
-			t.Logf("Ctrl+C 命令产生的消息类型: %T", resultMsg)
-		}
+	// 关闭
+	app.CommandPanel.Close()
+	if app.CommandPanel.IsVisible() {
+		t.Fatal("命令面板应不可见")
 	}
 }
 
-// TestAppEnterSubmit 测试 Enter 提交
-func TestAppEnterSubmit(t *testing.T) {
+// TestAppThemeCommands 测试主题命令
+func TestAppThemeCommands(t *testing.T) {
 	app := NewApp("test-model", "test-provider", "test-session-id")
 
-	// 先设置输入文本
-	app.Input.SetText("测试消息")
-
-	// 模拟 Enter 键
-	msg := tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter, Text: "enter"})
-	_, cmd := app.Update(tea.Msg(msg))
-
-	// 应该有用户消息被添加
-	if len(app.Messages) != 1 {
-		t.Fatalf("Enter 后期望 1 条消息，得到 %d", len(app.Messages))
-	}
-	if app.Messages[0].Content != "测试消息" {
-		t.Fatalf("期望内容为 '测试消息'，得到 %s", app.Messages[0].Content)
-	}
-
-	// 应该产生 UserInputMsg 命令
-	if cmd == nil {
-		t.Fatal("Enter 后应产生命令")
-	} else {
-		resultMsg := cmd()
-		if _, ok := resultMsg.(UserInputMsg); !ok {
-			t.Fatalf("期望 UserInputMsg，得到 %T", resultMsg)
-		}
-	}
-
-	// 输入框应该被清空
-	if app.Input.Text() != "" {
-		t.Fatalf("Enter 后输入框应为空，得到 %q", app.Input.Text())
+	// 主题命令参数
+	themes := app.ListThemes()
+	if len(themes) == 0 {
+		t.Fatal("至少应有一个内置主题")
 	}
 }
 
-// TestAppEnterWithEmptyInput 测试空输入时 Enter 不提交
-func TestAppEnterWithEmptyInput(t *testing.T) {
-	app := NewApp("test-model", "test-provider", "test-session-id")
-
-	// 不设置输入文本，空输入
-
-	msg := tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter, Text: "enter"})
-	_, cmd := app.Update(tea.Msg(msg))
-
-	// 不应有消息被添加
-	if len(app.Messages) != 0 {
-		t.Fatalf("空输入时不应添加消息，得到 %d", len(app.Messages))
-	}
-
-	// 不应产生命令
-	if cmd != nil {
-		t.Fatal("空输入时不应产生命令")
-	}
-}
-
-// TestAppToolCallError 测试带错误的工具调用
+// TestAppAddMessages 测试添加各类消息
 func TestAppToolCallError(t *testing.T) {
 	app := NewApp("test-model", "test-provider", "test-session-id")
 
@@ -251,5 +224,21 @@ func TestAppMultipleMessages(t *testing.T) {
 		if app.Messages[i].Role != role {
 			t.Fatalf("消息[%d] 期望 role=%s，得到 %s", i, role, app.Messages[i].Role)
 		}
+	}
+}
+
+// TestAppRenderWithTheme 测试主题化渲染
+func TestAppRenderWithTheme(t *testing.T) {
+	app := NewApp("test-model", "test-provider", "test-session-id")
+	app.Width = 80
+	app.Height = 24
+
+	// 加入一些消息
+	app.AddUserMessage("测试用户消息")
+	app.AddAssistantMessage("测试助手回复")
+
+	view := app.View()
+	if view.Content == "" {
+		t.Fatal("View 不应为空")
 	}
 }

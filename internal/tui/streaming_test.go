@@ -3,6 +3,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // TestNewStreamingView 测试创建流式渲染组件
@@ -78,7 +80,7 @@ func TestStreamingViewToolProgress(t *testing.T) {
 	sv.Start()
 
 	sv.SetToolInProgress("web_search")
-	render := sv.Render(80)
+	render := sv.Render(80, theme.DefaultTheme)
 	if render == "" {
 		t.Fatal("工具调用进度指示渲染不应为空")
 	}
@@ -90,7 +92,7 @@ func TestStreamingViewRenderStopped(t *testing.T) {
 	sv.Start()
 	sv.Stop()
 
-	render := sv.Render(80)
+	render := sv.Render(80, theme.DefaultTheme)
 	if render != "" {
 		t.Fatal("停止后的渲染应为空")
 	}

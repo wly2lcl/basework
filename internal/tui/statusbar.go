@@ -7,40 +7,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-)
 
-// 状态栏样式
-var (
-	styleStatusLeft = lipgloss.NewStyle().
-			Background(lipgloss.Color("63")).
-			Foreground(lipgloss.Color("255")).
-			Padding(0, 1)
-
-	styleStatusRight = lipgloss.NewStyle().
-				Background(lipgloss.Color("63")).
-				Foreground(lipgloss.Color("255")).
-				Padding(0, 1)
-
-	styleStatusMCPConnected = lipgloss.NewStyle().
-				Background(lipgloss.Color("63")).
-				Foreground(lipgloss.Color("120")). // 绿色
-				Padding(0, 1)
-
-	styleStatusMCPDisconnected = lipgloss.NewStyle().
-					Background(lipgloss.Color("63")).
-					Foreground(lipgloss.Color("196")). // 红色
-					Padding(0, 1)
-
-	styleStatusBusy = lipgloss.NewStyle().
-			Background(lipgloss.Color("63")).
-			Foreground(lipgloss.Color("228")). // 黄色
-			Bold(true).
-			Padding(0, 1)
-
-	styleStatusIdle = lipgloss.NewStyle().
-			Background(lipgloss.Color("63")).
-			Foreground(lipgloss.Color("120")). // 绿色
-			Padding(0, 1)
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // StatusBarView 是状态栏组件，显示模型名、Provider、token 用量、会话 ID 等
@@ -80,24 +48,56 @@ func NewStatusBarView(modelName, provider, sessionID string) *StatusBarView {
 }
 
 // Render 渲染状态栏
-func (sb *StatusBarView) Render(width int) string {
+func (sb *StatusBarView) Render(width int, t *theme.Theme) string {
 	// 缩短会话 ID
 	shortSessionID := sb.SessionID
 	if len(shortSessionID) > 8 {
 		shortSessionID = shortSessionID[:8]
 	}
 
+	// 创建主题感知样式
+	styleLeft := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorStatusFg))).
+		Padding(0, 1)
+
+	styleRight := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorStatusFg))).
+		Padding(0, 1)
+
+	styleMCPConnected := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorSuccess))).
+		Padding(0, 1)
+
+	styleMCPDisconnected := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorError))).
+		Padding(0, 1)
+
+	styleBusy := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorWarning))).
+		Bold(true).
+		Padding(0, 1)
+
+	styleIdle := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorSuccess))).
+		Padding(0, 1)
+
 	// 左侧信息：模型名 + Provider + token
 	leftParts := []string{}
 	if sb.ModelName != "" {
-		leftParts = append(leftParts, styleStatusLeft.Render(sb.ModelName))
+		leftParts = append(leftParts, styleLeft.Render(sb.ModelName))
 	}
 	if sb.Provider != "" {
-		leftParts = append(leftParts, styleStatusLeft.Render(sb.Provider))
+		leftParts = append(leftParts, styleLeft.Render(sb.Provider))
 	}
 	if sb.TotalTokens > 0 {
 		tokenStr := formatTokens(sb.TotalTokens)
-		leftParts = append(leftParts, styleStatusLeft.Render(tokenStr))
+		leftParts = append(leftParts, styleLeft.Render(tokenStr))
 	}
 	leftContent := strings.Join(leftParts, " ")
 
@@ -105,23 +105,23 @@ func (sb *StatusBarView) Render(width int) string {
 	rightParts := []string{}
 
 	if shortSessionID != "" {
-		rightParts = append(rightParts, styleStatusRight.Render("ID:"+shortSessionID))
+		rightParts = append(rightParts, styleRight.Render("ID:"+shortSessionID))
 	}
 
 	// MCP 连接状态
 	if sb.MCPConnected {
-		rightParts = append(rightParts, styleStatusMCPConnected.Render("MCP ✓"))
+		rightParts = append(rightParts, styleMCPConnected.Render("MCP ✓"))
 	} else {
-		rightParts = append(rightParts, styleStatusMCPDisconnected.Render("MCP ✗"))
+		rightParts = append(rightParts, styleMCPDisconnected.Render("MCP ✗"))
 	}
 
 	// 忙闲状态
 	if sb.IsBusy {
 		sb.spinnerIdx++
 		spinner := spinnerFrames[sb.spinnerIdx%len(spinnerFrames)]
-		rightParts = append(rightParts, styleStatusBusy.Render(spinner+" 忙"))
+		rightParts = append(rightParts, styleBusy.Render(spinner+" 忙"))
 	} else {
-		rightParts = append(rightParts, styleStatusIdle.Render("● 空闲"))
+		rightParts = append(rightParts, styleIdle.Render("● 空闲"))
 	}
 
 	rightContent := strings.Join(rightParts, " ")

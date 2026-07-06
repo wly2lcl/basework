@@ -8,25 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-)
 
-// 输入区样式
-var (
-	styleInputBox = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(0, 1)
-
-	styleInputPrefix = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("39")).
-				Bold(true)
-
-	styleHistoryLine = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("245"))
-
-	stylePrompt = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("39")).
-			Bold(true)
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // InputView 是输入区组件，支持多行输入、历史导航、Tab 补全
@@ -151,7 +134,22 @@ func (iv *InputView) Update(msg tea.Msg) (*InputView, tea.Cmd) {
 }
 
 // Render 渲染输入区
-func (iv *InputView) Render(width int) string {
+func (iv *InputView) Render(width int, t *theme.Theme) string {
+	// 创建主题感知样式
+	styleInputBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color(t.Get(theme.ColorBorder))).
+		Padding(0, 1)
+
+	styleInputPrefix := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorInputPrefix))).
+		Bold(true)
+
+	styleHistoryLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorThinking)))
+
+	_ = styleHistoryLine // 保留以备将来使用
+
 	// 计算输入框宽度（减去 prompt 和边框）
 	inputWidth := width - 4 // 边框占用 2 边，prompt 占 2
 	if inputWidth < 10 {
@@ -160,7 +158,7 @@ func (iv *InputView) Render(width int) string {
 
 	// 渲染当前行
 	line := iv.currentLineText()
-	display := iv.prompt + line
+	display := styleInputPrefix.Render(iv.prompt) + line
 
 	// 如果正在补全，显示补全列表
 	if iv.showCompletion && len(iv.completions) > 0 {

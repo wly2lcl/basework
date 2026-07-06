@@ -7,21 +7,11 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // 流式渲染样式
-var (
-	styleStreamText = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("255"))
-
-	styleThinkingStream = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("245")).
-				Italic(true)
-
-	styleToolIndicator = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("214")).
-				Bold(true)
-)
 
 // spinner 动画帧
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -98,10 +88,22 @@ func (sv *StreamingView) SetToolInProgress(toolName string) {
 }
 
 // Render 渲染流式输出区域
-func (sv *StreamingView) Render(width int) string {
+func (sv *StreamingView) Render(width int, t *theme.Theme) string {
 	if !sv.isRunning {
 		return ""
 	}
+
+	// 创建主题感知样式
+	styleStreamText := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorAssistMsg)))
+
+	styleThinkingStream := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorThinking))).
+		Italic(true)
+
+	styleToolIndicator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorToolCall))).
+		Bold(true)
 
 	var buf strings.Builder
 

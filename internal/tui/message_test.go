@@ -4,6 +4,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // TestNewMessageView 测试创建消息渲染器
@@ -17,7 +19,7 @@ func TestNewMessageView(t *testing.T) {
 // TestRenderUserMessage 测试用户消息渲染
 func TestRenderUserMessage(t *testing.T) {
 	mv := NewMessageView()
-	result := mv.RenderUserMessage("你好世界")
+	result := mv.RenderUserMessage("你好世界", theme.DefaultTheme)
 	if !strings.Contains(result, "你好世界") {
 		t.Fatalf("用户消息渲染应包含文本，得到: %s", result)
 	}
@@ -48,13 +50,13 @@ func TestRenderToolCall(t *testing.T) {
 	mv := NewMessageView()
 
 	// 成功调用
-	result := mv.RenderToolCall("web_fetch", "url=https://example.com", "获取成功", false)
+	result := mv.RenderToolCall("web_fetch", "url=https://example.com", "获取成功", false, theme.DefaultTheme)
 	if !strings.Contains(result, "web_fetch") {
 		t.Fatalf("工具调用渲染应包含工具名，得到: %s", result)
 	}
 
 	// 失败调用
-	errResult := mv.RenderToolCall("web_search", "query=golang", "超时错误", true)
+	errResult := mv.RenderToolCall("web_search", "query=golang", "超时错误", true, theme.DefaultTheme)
 	if !strings.Contains(errResult, "超时错误") {
 		t.Fatalf("错误工具调用应包含错误信息，得到: %s", errResult)
 	}
@@ -63,7 +65,7 @@ func TestRenderToolCall(t *testing.T) {
 // TestRenderError 测试错误消息渲染
 func TestRenderError(t *testing.T) {
 	mv := NewMessageView()
-	result := mv.RenderError("连接失败")
+	result := mv.RenderError("连接失败", theme.DefaultTheme)
 	if !strings.Contains(result, "连接失败") {
 		t.Fatalf("错误消息渲染应包含错误文本，得到: %s", result)
 	}
@@ -72,7 +74,7 @@ func TestRenderError(t *testing.T) {
 // TestRenderThinking 测试思考过程渲染
 func TestRenderThinking(t *testing.T) {
 	mv := NewMessageView()
-	result := mv.RenderThinking("分析用户问题中...")
+	result := mv.RenderThinking("分析用户问题中...", theme.DefaultTheme)
 	if !strings.Contains(result, "分析用户问题中...") {
 		t.Fatalf("思考过程渲染应包含文本，得到: %s", result)
 	}

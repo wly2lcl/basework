@@ -90,6 +90,13 @@ type Config struct {
 	// 性能分析配置
 	Profiling ProfilingConfig `json:"profiling,omitempty"`
 
+	// 主题配置
+	Theme ThemeConfig `json:"theme,omitempty"`
+	// 键盘绑定配置
+	Keybindings KeybindingsConfig `json:"keybindings,omitempty"`
+	// 模板配置
+	Templates TemplatesConfig `json:"templates,omitempty"`
+
 	// Provider 特定配置
 	OpenCode OpenCodeConfig `json:"opencode,omitempty"`
 	Bedrock  BedrockConfig  `json:"bedrock,omitempty"`
@@ -211,6 +218,23 @@ type ProfilingConfig struct {
 	Port    int    `json:"port"`    // 默认 6060
 }
 
+// ThemeConfig 是 TUI 主题配置
+type ThemeConfig struct {
+	Name       string `json:"name"`        // "dark", "light", "dracula", "monokai"
+	CustomPath string `json:"custom_path"` // 自定义主题目录
+}
+
+// KeybindingsConfig 是键盘绑定配置
+type KeybindingsConfig struct {
+	Path string `json:"path"` // keybindings.json 路径
+}
+
+// TemplatesConfig 是模板系统配置
+type TemplatesConfig struct {
+	CustomDir       string `json:"custom_dir"`        // 用户自定义模板目录
+	DefaultProvider string `json:"default_provider"`  // 默认模板 provider
+}
+
 // SessionConfig 是会话系统的配置
 type SessionConfig struct {
 	Store      string          `json:"store"`       // "jsonl" 或 "sqlite"
@@ -325,6 +349,14 @@ func defaultConfig() *Config {
 			Enabled: false,
 			Host:    "127.0.0.1",
 			Port:    6060,
+		},
+		// 主题：默认 dark
+		Theme: ThemeConfig{
+			Name: "dark",
+		},
+		// 模板：默认无自定义目录
+		Templates: TemplatesConfig{
+			DefaultProvider: "default",
 		},
 		// 工具超时：默认 30s
 		Tools: ToolsConfig{

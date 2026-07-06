@@ -39,6 +39,13 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **工具超时控制** — 默认 30s 超时，支持按工具覆盖配置
 - **性能分析** — pprof HTTP 端点集成、CPU/内存/goroutine 分析
 - **Benchmark 套件** — token 计数、流式响应、工具执行基准测试
+- **Provider 感知模板** — 根据 LLM Provider 自动选择优化系统提示（Anthropic/OpenAI/Gemini）
+- **用户自定义模板** — `.basework/prompts/` 目录加载，热重载支持
+- **环境动态注入** — 自动注入工作目录、Git 状态、平台信息、项目类型
+- **主题系统** — 亮/暗/Dracula/Monokai 主题切换，自定义主题支持
+- **键盘绑定** — 可配置快捷键，三层绑定模型
+- **斜杠命令面板** — `/` 触发，fuzzy 搜索，命令补全
+- **图片输入** — JPEG/PNG/WebP 多模态输入支持
 
 ## 安装
 
@@ -323,6 +330,8 @@ go build -tags otel ./...
 - [权限系统](docs/guides/permission-guide.md) — 权限规则、交互提示、YOLO 模式（Phase 15）
 - [子代理](docs/guides/subagent-guide.md) — 任务委托、隔离子会话、成本追踪（Phase 16）
 - [终端 UI](docs/guides/tui-guide.md) — TUI 启动、快捷键、主题配置（Phase 18）
+- [主题配置](docs/guides/theme.md) — 内置主题、自定义主题、终端自适应（Phase 29）
+- [模板系统](docs/guides/templates.md) — Provider 感知模板、自定义模板、环境注入（Phase 29）
 
 ### 常见问题
 - [FAQ](docs/FAQ.md) — 常见问题解答

@@ -4,6 +4,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // TestNewStatusBarView 测试创建状态栏
@@ -23,7 +25,7 @@ func TestNewStatusBarView(t *testing.T) {
 // TestStatusBarViewRender 测试渲染
 func TestStatusBarViewRender(t *testing.T) {
 	sb := NewStatusBarView("gpt-4", "openai", "sess-12345")
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if result == "" {
 		t.Fatal("Render 返回了空内容")
 	}
@@ -46,7 +48,7 @@ func TestStatusBarViewUpdateTokens(t *testing.T) {
 	}
 
 	// 渲染应包含 token 信息
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if !strings.Contains(result, "150") {
 		t.Fatalf("状态栏应包含 token 数，得到: %s", result)
 	}
@@ -58,14 +60,14 @@ func TestStatusBarViewBusyIdle(t *testing.T) {
 
 	// 空闲状态
 	sb.SetBusy(false)
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if !strings.Contains(result, "空闲") {
 		t.Fatalf("空闲状态应显示 '空闲'，得到: %s", result)
 	}
 
 	// 忙碌状态
 	sb.SetBusy(true)
-	result = sb.Render(80)
+	result = sb.Render(80, theme.DefaultTheme)
 	if !strings.Contains(result, "忙") {
 		t.Fatalf("忙碌状态应显示 '忙'，得到: %s", result)
 	}
@@ -77,14 +79,14 @@ func TestStatusBarViewMCPConnection(t *testing.T) {
 
 	// 已连接
 	sb.SetMCPConnected(true)
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if !strings.Contains(result, "MCP") {
 		t.Fatalf("MCP 状态应显示在状态栏，得到: %s", result)
 	}
 
 	// 断开
 	sb.SetMCPConnected(false)
-	result = sb.Render(80)
+	result = sb.Render(80, theme.DefaultTheme)
 	if !strings.Contains(result, "MCP") {
 		t.Fatalf("MCP 断开时也应显示，得到: %s", result)
 	}
@@ -142,15 +144,15 @@ func TestStatusBarViewRenderWidth(t *testing.T) {
 	sb.UpdateTokens(100, 50, 150)
 
 	// 在不同宽度下渲染不应崩溃
-	sb.Render(40)
-	sb.Render(80)
-	sb.Render(120)
+	sb.Render(40, theme.DefaultTheme)
+	sb.Render(80, theme.DefaultTheme)
+	sb.Render(120, theme.DefaultTheme)
 }
 
 // TestStatusBarViewEmptySessionID 测试空会话 ID
 func TestStatusBarViewEmptySessionID(t *testing.T) {
 	sb := NewStatusBarView("gpt-4", "openai", "")
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if result == "" {
 		t.Fatal("即使会话 ID 为空也应有渲染内容")
 	}
@@ -159,7 +161,7 @@ func TestStatusBarViewEmptySessionID(t *testing.T) {
 // TestStatusBarViewEmptyModelInfo 测试空模型信息
 func TestStatusBarViewEmptyModelInfo(t *testing.T) {
 	sb := NewStatusBarView("", "", "sess-12345")
-	result := sb.Render(80)
+	result := sb.Render(80, theme.DefaultTheme)
 	if result == "" {
 		t.Fatal("即使模型信息为空也应有渲染内容")
 	}

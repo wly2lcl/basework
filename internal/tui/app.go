@@ -7,6 +7,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/wly2lcl/basework/internal/tui/command"
+	"github.com/wly2lcl/basework/internal/tui/dialog"
+	"github.com/wly2lcl/basework/internal/tui/keymap"
+	"github.com/wly2lcl/basework/internal/tui/plugin"
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // 消息类型定义
@@ -40,30 +46,40 @@ const (
 	inputAreaHeight = 5
 )
 
-// 颜色样式
-var (
-	styleStatusBar = lipgloss.NewStyle().
-			Background(lipgloss.Color("63")).
-			Foreground(lipgloss.Color("255")).
-			Padding(0, 1)
+// 主题感知的样式创建函数
+func makeStatusBarStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
+		Foreground(lipgloss.Color(t.Get(theme.ColorStatusFg))).
+		Padding(0, 1)
+}
 
-	styleUserMsg = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("39")) // 蓝色
+func makeUserMsgStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorUserMsg)))
+}
 
-	styleAssistantMsg = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("255")) // 白色
+func makeAssistantMsgStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorAssistMsg)))
+}
 
-	styleToolCall = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")) // 橙色
+func makeToolCallStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorToolCall)))
+}
 
-	styleError = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")). // 红色
-			Bold(true)
+func makeErrorStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorError))).
+		Bold(true)
+}
 
-	styleThinking = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("245")). // 灰色
-			Italic(true)
-)
+func makeThinkingStyle(t *theme.Theme) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorThinking))).
+		Italic(true)
+}
 
 // Message 表示一条消息记录
 type Message struct {
@@ -89,18 +105,91 @@ type App struct {
 	// 状态
 	IsStreaming bool
 	ShowCursor  bool
+
+	// 主题系统
+	Theme *theme.Theme
+
+	// 命令面板
+	CommandRegistry *command.Registry
+	CommandPanel    *command.PanelModel
+
+	// 键盘绑定
+	KeyResolver *keymap.Resolver
+
+	// 对话框
+	DialogMgr *dialog.Manager
+
+	// 插件
+	MountedPlugins []plugin.TUIPlugin
 }
 
 // NewApp 创建新的 TUI 应用
 func NewApp(modelName, provider, sessionID string) *App {
-	return &App{
-		Messages:  make([]Message, 0),
-		Input:     NewInputView(),
-		StatusBar: NewStatusBarView(modelName, provider, sessionID),
-		Streaming: NewStreamingView(),
-		Width:     80,
-		Height:    24,
+	// 加载主题配置
+	themeCfg, err := theme.LoadThemeConfig()
+	activeTheme := theme.DefaultTheme
+	if err == nil {
+		if t, ok := theme.GetTheme(themeCfg.Name); ok {
+			activeTheme = t
+		}
 	}
+
+	// 检测终端颜色能力并适配
+	depth := theme.DetectColorDepth()
+	activeTheme = theme.AdaptTheme(activeTheme, depth)
+
+	// 创建命令注册表
+	cmdRegistry := command.NewRegistry()
+
+	app := &App{
+		Messages:        make([]Message, 0),
+		Input:           NewInputView(),
+		StatusBar:       NewStatusBarView(modelName, provider, sessionID),
+		Streaming:       NewStreamingView(),
+		Width:           80,
+		Height:          24,
+		Theme:           activeTheme,
+		CommandRegistry: cmdRegistry,
+		CommandPanel:    command.NewPanelModel(cmdRegistry),
+		KeyResolver:     keymap.NewResolver(keymap.DefaultBindings),
+		DialogMgr:       dialog.NewManager(),
+		MountedPlugins:  make([]plugin.TUIPlugin, 0),
+	}
+
+	// 注册内置命令
+	command.RegisterBuiltinCommands(cmdRegistry, app)
+
+	// 挂载已注册的插件
+	app.MountedPlugins = plugin.List()
+
+	return app
+}
+
+// 命令面板 App 接口实现
+
+// SetTheme 切换主题
+func (m *App) SetTheme(name string) error {
+	t, ok := theme.GetTheme(name)
+	if !ok {
+		return fmt.Errorf("未知主题: %s，可用主题: %s", name, strings.Join(theme.ListThemes(), ", "))
+	}
+	m.Theme = t
+	return theme.SetTheme(name)
+}
+
+// ListThemes 列出所有可用主题
+func (m *App) ListThemes() []string {
+	return theme.ListThemes()
+}
+
+// ClearMessages 清空消息历史
+func (m *App) ClearMessages() {
+	m.Messages = nil
+}
+
+// Quit 退出程序
+func (m *App) Quit() {
+	// 由外部通过 tea.Quit 处理
 }
 
 // Init 实现 Bubble Tea Model 接口
@@ -117,57 +206,101 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		// 更新 streaming view 宽度
 		m.Streaming.width = msg.Width
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// Ctrl+C 退出程序
-		if msg.String() == "ctrl+c" {
-			return m, tea.Quit
+		key := msg.String()
+
+		// 1. 先检查对话框（模态对话框拦截所有按键）
+		if m.DialogMgr.HasDialog() {
+			cmd := m.DialogMgr.Update(msg)
+			return m, cmd
 		}
 
-		// Ctrl+D 退出程序（仅当输入区为空时）
-		if msg.String() == "ctrl+d" {
-			if strings.TrimSpace(m.Input.Text()) == "" {
+		// 2. 检查命令面板
+		if m.CommandPanel.IsVisible() {
+			_, panelCmd := m.CommandPanel.Update(msg)
+			return m, panelCmd
+		}
+
+		// 3. 通过 KeyResolver 解析按键动作
+		if action, found := m.KeyResolver.Resolve(key, keymap.LayerApp); found {
+			switch action {
+			case keymap.ActionQuit:
 				return m, tea.Quit
-			}
-		}
 
-		// Enter 提交输入
-		if msg.String() == "enter" {
-			text := strings.TrimSpace(m.Input.Text())
-			if text != "" {
-				// 将用户消息加入历史
-				m.Messages = append(m.Messages, Message{
-					Role:    "user",
-					Content: text,
-				})
+			case keymap.ActionSubmit:
+				text := strings.TrimSpace(m.Input.Text())
+				if text != "" {
+					// 检查是否以 / 开头（命令）
+					if strings.HasPrefix(text, "/") {
+						cmdStr := strings.TrimPrefix(text, "/")
+						err := m.CommandRegistry.Execute(cmdStr)
+						if err != nil {
+							m.AddErrorMessage(err.Error())
+						}
+						m.Input.Reset()
+						return m, nil
+					}
 
-				// 清空输入区
-				m.Input.Reset()
+					m.Messages = append(m.Messages, Message{
+						Role:    "user",
+						Content: text,
+					})
+					m.Input.Reset()
+					return m, func() tea.Msg {
+						return UserInputMsg{Text: text}
+					}
+				}
+				return m, nil
 
-				// 返回用户输入消息，由外部处理
-				return m, func() tea.Msg {
-					return UserInputMsg{Text: text}
+			case keymap.ActionCommandPalette:
+				m.CommandPanel.Open()
+				return m, nil
+
+			case keymap.ActionEscape:
+				return m, nil
+
+			default:
+				// 将按键转发给输入组件
+				var inputCmd tea.Cmd
+				m.Input, inputCmd = m.Input.Update(msg)
+				if inputCmd != nil {
+					cmds = append(cmds, inputCmd)
 				}
 			}
-			return m, nil
+		} else {
+			// 未绑定——将按键转发给输入组件
+			var inputCmd tea.Cmd
+			m.Input, inputCmd = m.Input.Update(msg)
+			if inputCmd != nil {
+				cmds = append(cmds, inputCmd)
+			}
 		}
 
-		// 其他按键事件传给输入组件
-		var inputCmd tea.Cmd
-		m.Input, inputCmd = m.Input.Update(msg)
-		if inputCmd != nil {
-			cmds = append(cmds, inputCmd)
+	case command.ExecuteCommandMsg:
+		err := m.CommandRegistry.Execute(msg.Command + " " + msg.Args)
+		if err != nil {
+			m.AddErrorMessage(err.Error())
 		}
 
 	default:
-		// 将消息也传给输入组件
+		// 将消息传给输入组件
 		var inputCmd tea.Cmd
 		m.Input, inputCmd = m.Input.Update(msg)
 		if inputCmd != nil {
 			cmds = append(cmds, inputCmd)
+		}
+
+		// 将消息传给插件
+		for i, p := range m.MountedPlugins {
+			updated, cmd := p.Update(msg)
+			// 更新插件引用
+			m.MountedPlugins[i] = updated
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
 		}
 	}
 
@@ -182,21 +315,69 @@ func (m *App) View() tea.View {
 		msgAreaHeight = 1
 	}
 
+	// 计算顶层插件高度
+	topPluginHeight := 0
+	for _, p := range m.MountedPlugins {
+		if p.Slot() == plugin.SlotTop {
+			topPluginHeight++
+		}
+	}
+	msgAreaHeight -= topPluginHeight
+
 	// 渲染状态栏
-	statusBar := m.StatusBar.Render(m.Width)
+	statusBar := m.StatusBar.Render(m.Width, m.Theme)
+
+	// 渲染顶层插件
+	var topPluginContent string
+	if topPluginHeight > 0 {
+		var pluginBuf strings.Builder
+		for _, p := range m.MountedPlugins {
+			if p.Slot() == plugin.SlotTop {
+				pluginBuf.WriteString(p.View(m.Width, 1))
+				pluginBuf.WriteString("\n")
+			}
+		}
+		topPluginContent = strings.TrimRight(pluginBuf.String(), "\n")
+	}
 
 	// 渲染消息区
 	msgContent := m.renderMessages(msgAreaHeight)
 
 	// 渲染输入区
-	inputContent := m.Input.Render(m.Width)
+	inputContent := m.Input.Render(m.Width, m.Theme)
+
+	// 渲染底层插件
+	var bottomPluginContent string
+	for _, p := range m.MountedPlugins {
+		if p.Slot() == plugin.SlotBottom {
+			bottomPluginContent += p.View(m.Width, 1) + "\n"
+		}
+	}
 
 	// 组装布局
-	content := fmt.Sprintf("%s\n%s\n%s",
-		statusBar,
-		msgContent,
-		inputContent,
-	)
+	content := statusBar
+	if topPluginContent != "" {
+		content += "\n" + topPluginContent
+	}
+	content += "\n" + msgContent
+	if bottomPluginContent != "" {
+		content += "\n" + strings.TrimRight(bottomPluginContent, "\n")
+	}
+	content += "\n" + inputContent
+
+	// 命令面板叠加
+	if m.CommandPanel.IsVisible() {
+		panelView := m.CommandPanel.View(m.Width)
+		content += "\n" + panelView
+	}
+
+	// 对话框叠加
+	if m.DialogMgr.HasDialog() {
+		dialogView := m.DialogMgr.View(m.Width, m.Height)
+		if dialogView != "" {
+			content += "\n" + dialogView
+		}
+	}
 
 	return tea.NewView(content)
 }
@@ -205,19 +386,16 @@ func (m *App) View() tea.View {
 func (m *App) renderMessages(height int) string {
 	var buf strings.Builder
 
-	// 显示消息历史
 	for _, msg := range m.Messages {
 		buf.WriteString(m.renderMessage(msg))
 		buf.WriteString("\n")
 	}
 
-	// 如果正在流式输出，渲染 streaming view
 	if m.IsStreaming {
-		buf.WriteString(m.Streaming.Render(m.Width))
+		buf.WriteString(m.Streaming.Render(m.Width, m.Theme))
 		buf.WriteString("\n")
 	}
 
-	// 限制消息区高度，取最后 height 行
 	lines := strings.Split(buf.String(), "\n")
 	if len(lines) > height {
 		lines = lines[len(lines)-height:]
@@ -230,24 +408,24 @@ func (m *App) renderMessages(height int) string {
 func (m *App) renderMessage(msg Message) string {
 	switch msg.Role {
 	case "user":
-		return styleUserMsg.Render("> " + msg.Content)
+		return makeUserMsgStyle(m.Theme).Render("> " + msg.Content)
 	case "assistant":
-		return styleAssistantMsg.Render(msg.Content)
+		return makeAssistantMsgStyle(m.Theme).Render(msg.Content)
 	case "tool":
 		if msg.ToolMsg != nil {
 			tm := msg.ToolMsg
 			prefix := fmt.Sprintf("🔧 %s(%s)", tm.ToolName, tm.Args)
 			result := tm.Result
 			if tm.IsError {
-				return styleError.Render(prefix + " => " + result)
+				return makeErrorStyle(m.Theme).Render(prefix + " => " + result)
 			}
-			return styleToolCall.Render(prefix + " => " + result)
+			return makeToolCallStyle(m.Theme).Render(prefix + " => " + result)
 		}
-		return styleToolCall.Render(msg.Content)
+		return makeToolCallStyle(m.Theme).Render(msg.Content)
 	case "error":
-		return styleError.Render(msg.Content)
+		return makeErrorStyle(m.Theme).Render(msg.Content)
 	case "thinking":
-		return styleThinking.Render(msg.Content)
+		return makeThinkingStyle(m.Theme).Render(msg.Content)
 	default:
 		return msg.Content
 	}

@@ -6,27 +6,8 @@ import (
 
 	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
-)
 
-// 消息组件样式
-var (
-	styleUserPrefix = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("39")).
-			Bold(true)
-
-	styleToolName = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
-			Bold(true)
-
-	styleToolResult = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("114"))
-
-	styleToolError = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196"))
-
-	styleThinkingText = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("245")).
-				Italic(true)
+	"github.com/wly2lcl/basework/internal/tui/theme"
 )
 
 // MessageView 负责渲染各种类型的消息
@@ -48,8 +29,11 @@ func NewMessageView() *MessageView {
 }
 
 // RenderUserMessage 渲染用户消息
-func (mv *MessageView) RenderUserMessage(text string) string {
-	prefix := styleUserPrefix.Render("> ")
+func (mv *MessageView) RenderUserMessage(text string, t *theme.Theme) string {
+	style := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorUserMsg))).
+		Bold(true)
+	prefix := style.Render("> ")
 	return prefix + text
 }
 
@@ -66,7 +50,17 @@ func (mv *MessageView) RenderAssistantMessage(text string) string {
 }
 
 // RenderToolCall 渲染工具调用
-func (mv *MessageView) RenderToolCall(toolName, args, result string, isError bool) string {
+func (mv *MessageView) RenderToolCall(toolName, args, result string, isError bool, t *theme.Theme) string {
+	styleToolName := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorToolCall))).
+		Bold(true)
+
+	styleToolResult := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorSuccess)))
+
+	styleToolError := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorError)))
+
 	var buf strings.Builder
 
 	// 工具名 + 参数
@@ -88,13 +82,19 @@ func (mv *MessageView) RenderToolCall(toolName, args, result string, isError boo
 }
 
 // RenderError 渲染错误消息
-func (mv *MessageView) RenderError(text string) string {
-	return styleError.Render("✗ " + text)
+func (mv *MessageView) RenderError(text string, t *theme.Theme) string {
+	style := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorError))).
+		Bold(true)
+	return style.Render("✗ " + text)
 }
 
 // RenderThinking 渲染思考过程
-func (mv *MessageView) RenderThinking(text string) string {
-	return styleThinkingText.Render("… " + text)
+func (mv *MessageView) RenderThinking(text string, t *theme.Theme) string {
+	style := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Get(theme.ColorThinking))).
+		Italic(true)
+	return style.Render("… " + text)
 }
 
 // SetWidth 设置渲染宽度

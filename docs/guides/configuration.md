@@ -329,3 +329,59 @@ SQLite 日志模式，影响并发读写性能。
 启动后可通过 `http://127.0.0.1:6060/debug/pprof/` 访问 pprof 页面。
 
 详细用法请参考 [性能分析指南](profiling.md)。
+
+---
+
+## 主题配置
+
+TUI 主题系统，支持内置主题切换和自定义主题。
+
+```json
+{
+  "theme": {
+    "name": "dark",
+    "custom_path": "~/.config/basework/themes/"
+  }
+}
+```
+
+- `theme.name` — 主题名称（`dark` / `light` / `dracula` / `monokai`，默认 `dark`）
+- `theme.custom_path` — 自定义主题目录路径（可选）
+
+详细用法请参考 [主题配置指南](theme.md)。
+
+---
+
+## 键盘绑定配置
+
+键盘绑定配置文件路径，支持自定义快捷键。
+
+```json
+{
+  "keybindings": {
+    "path": "~/.config/basework/keybindings.json"
+  }
+}
+```
+
+- `keybindings.path` — 键盘绑定 JSON 配置文件路径（可选）
+
+---
+
+## 模板配置
+
+模板系统配置，支持用户自定义模板和默认 Provider 选择。
+
+```json
+{
+  "templates": {
+    "custom_dir": ".basework/prompts/",
+    "default_provider": "anthropic"
+  }
+}
+```
+
+- `templates.custom_dir` — 用户自定义模板目录（可选，指向 `.basework/prompts/`）
+- `templates.default_provider` — 默认模板 Provider 名称（默认 `"default"`）
+
+详细用法请参考 [模板系统指南](templates.md)。
