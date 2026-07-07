@@ -57,10 +57,15 @@ func (r *Resolver) GetBindings(layer Layer) map[string]Action {
 }
 
 // GetActionForKey 查找指定键在所有层中的动作
+// 按优先级：LayerApp > LayerExit > LayerGlobal
 func (r *Resolver) GetActionForKey(key string) (Action, Layer, bool) {
-	for layer, actions := range r.bindings {
-		if action, ok := actions[key]; ok {
-			return action, layer, true
+	// 按优先级顺序查找
+	layerOrder := []Layer{LayerApp, LayerExit, LayerGlobal}
+	for _, layer := range layerOrder {
+		if actions, ok := r.bindings[layer]; ok {
+			if action, found := actions[key]; found {
+				return action, layer, true
+			}
 		}
 	}
 	return "", "", false
