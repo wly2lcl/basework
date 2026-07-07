@@ -72,7 +72,7 @@ brews:
     repository:
       owner: wly2lcl
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      token: "{{ .Env.GITHUB_TOKEN }}"
     directory: Formula
     commit_author:
       name: goreleaserbot
