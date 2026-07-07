@@ -1,6 +1,6 @@
 # Basework 项目状态
 
-> 最后更新：2026-07-04
+> 最后更新：2026-07-07
 
 ## 项目概述
 
@@ -11,6 +11,33 @@
 - **代码规模**：~50,000 行 Go 代码
 - **测试覆盖**：1,372 个测试全部通过
 - **Go 版本**：1.26+
+
+---
+
+## 2026-07-07 审计结论与优化计划
+
+近期审计发现：底层模块实现较完整，但终端产品主路径存在 wiring 缺口。`cmd/basework agent` 未注册基础工具，`cmd/basework tui` 未把用户输入接入 agent，配置加载在用户提供局部 JSON 时会丢失默认值。这些问题会导致 README 中承诺的“终端 AI 编程助手”能力与实际 CLI/TUI 行为不一致。
+
+### 第一轮优化（P0，当前执行）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| 配置默认值合并 | ✅ 完成 | `Load/Reload` 以 `defaultConfig()` 打底，再用用户 JSON 覆盖，保留默认嵌套配置 |
+| 公共 agent 创建逻辑 | ✅ 完成 | `cmd/basework/runtime.go` 统一 provider/session/tools/security wiring |
+| CLI 基础工具接入 | ✅ 完成 | `basework agent` 默认注册 `bash/read/write/edit/grep/glob` |
+| 基础安全初始化 | ✅ 完成 | 初始化工具超时、Bash 黑名单、自定义黑名单、敏感路径保护 |
+| TUI 接入 agent | ✅ 完成 | TUI 用户输入调用 `Agent.HandleMessage`，并将回复写回消息区 |
+| 回归测试 | ✅ 完成 | 覆盖配置默认值合并、TUI 输入 handler |
+
+### 后续优化路线
+
+| 阶段 | 优先级 | 目标 |
+|------|--------|------|
+| 第二轮 | P0 | 接入增强工具：`web_fetch/web_search/todowrite/apply_patch/question`，修复 `web_search` nil config 和真实网络测试 |
+| 第三轮 | P0 | 接入 MCP/Skill/LSP 到 CLI/TUI 主路径，补端到端验收 |
+| 第四轮 | P1 | 完整权限交互与审计日志：TUI/REPL ask 流程、SQLite 权限规则、审计查询 |
+| 第五轮 | P1 | CI/CD 加强：lint、跨平台 build matrix、release dry-run/tag 策略 |
+| 第六轮 | P2 | README/安装文档与默认 provider 行为对齐 |
 
 ---
 

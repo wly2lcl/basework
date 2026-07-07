@@ -106,18 +106,18 @@ type Config struct {
 
 // CompactionConfig 是上下文压缩模块的配置
 type CompactionConfig struct {
-	Enabled   bool    `json:"enabled"`
-	Strategy  string  `json:"strategy"`   // sliding_window / summarization / selective
-	Threshold float64 `json:"threshold"`  // 自动触发阈值 0.0-1.0，默认 0.8
-	WindowSize int    `json:"window_size"` // 滑动窗口大小，默认 10
+	Enabled    bool    `json:"enabled"`
+	Strategy   string  `json:"strategy"`    // sliding_window / summarization / selective
+	Threshold  float64 `json:"threshold"`   // 自动触发阈值 0.0-1.0，默认 0.8
+	WindowSize int     `json:"window_size"` // 滑动窗口大小，默认 10
 }
 
 // RetryConfig 是重试机制的配置
 type RetryConfig struct {
-	Enabled     bool  `json:"enabled"`
-	MaxAttempts int   `json:"max_attempts"` // 最大重试次数，默认 3
-	BaseDelayMs int   `json:"base_delay_ms"` // 基础延迟（毫秒），默认 2000
-	MaxDelayMs  int   `json:"max_delay_ms"`  // 最大延迟（毫秒），默认 60000
+	Enabled     bool `json:"enabled"`
+	MaxAttempts int  `json:"max_attempts"`  // 最大重试次数，默认 3
+	BaseDelayMs int  `json:"base_delay_ms"` // 基础延迟（毫秒），默认 2000
+	MaxDelayMs  int  `json:"max_delay_ms"`  // 最大延迟（毫秒），默认 60000
 }
 
 // PermissionConfig 是权限系统的配置
@@ -153,8 +153,8 @@ type LoopDetectConfig struct {
 
 // ObservabilityConfig 是可观测性模块的配置
 type ObservabilityConfig struct {
-	Enabled  bool   `json:"enabled"`
-	LogLevel string `json:"log_level"`  // debug / info / warn / error
+	Enabled   bool   `json:"enabled"`
+	LogLevel  string `json:"log_level"`  // debug / info / warn / error
 	LogOutput string `json:"log_output"` // stdout / stderr 或文件路径
 }
 
@@ -237,8 +237,8 @@ type KeybindingsConfig struct {
 
 // TemplatesConfig 是模板系统配置
 type TemplatesConfig struct {
-	CustomDir       string `json:"custom_dir"`        // 用户自定义模板目录
-	DefaultProvider string `json:"default_provider"`  // 默认模板 provider
+	CustomDir       string `json:"custom_dir"`       // 用户自定义模板目录
+	DefaultProvider string `json:"default_provider"` // 默认模板 provider
 }
 
 // SessionConfig 是会话系统的配置
@@ -319,8 +319,8 @@ func defaultConfig() *Config {
 		},
 		// 可观测性：默认不启用
 		Observability: ObservabilityConfig{
-			Enabled:  false,
-			LogLevel: "info",
+			Enabled:   false,
+			LogLevel:  "info",
 			LogOutput: "stdout",
 		},
 		// 会话：默认 JSONL 存储，启用自动标题和队列
@@ -539,8 +539,8 @@ func (s *Store) Reload() error {
 		return fmt.Errorf("read config: %w", err)
 	}
 
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	cfg := defaultConfig()
+	if err := json.Unmarshal(data, cfg); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
@@ -549,7 +549,7 @@ func (s *Store) Reload() error {
 	}
 
 	s.mu.Lock()
-	s.config = &cfg
+	s.config = cfg
 	s.mu.Unlock()
 
 	return nil
@@ -566,8 +566,8 @@ func Load(path string) (*Store, error) {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	cfg := defaultConfig()
+	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 
@@ -576,7 +576,7 @@ func Load(path string) (*Store, error) {
 	}
 
 	return &Store{
-		config: &cfg,
+		config: cfg,
 		path:   path,
 	}, nil
 }

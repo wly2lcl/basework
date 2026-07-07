@@ -86,6 +86,51 @@ func TestConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadPartialConfigMergesDefaults(t *testing.T) {
+	dir, cleanup := tempConfigDir(t)
+	defer cleanup()
+
+	path := filepath.Join(dir, "config.json")
+	data := []byte(`{
+		"provider": "anthropic",
+		"tools": {
+			"timeout": {
+				"overrides": {
+					"bash": 10
+				}
+			}
+		}
+	}`)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	store, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg := store.Get()
+
+	if cfg.Provider != "anthropic" {
+		t.Fatalf("expected provider override, got %q", cfg.Provider)
+	}
+	if cfg.Model != "gpt-4" {
+		t.Fatalf("expected default model to be preserved, got %q", cfg.Model)
+	}
+	if cfg.MaxIterations != 10 {
+		t.Fatalf("expected default max_iterations=10, got %d", cfg.MaxIterations)
+	}
+	if cfg.Tools.Timeout.Default != 30 {
+		t.Fatalf("expected default tool timeout=30, got %d", cfg.Tools.Timeout.Default)
+	}
+	if cfg.Tools.Timeout.Overrides["bash"] != 10 {
+		t.Fatalf("expected bash timeout override=10, got %d", cfg.Tools.Timeout.Overrides["bash"])
+	}
+	if cfg.Security.ProtectionLevel != "strict" {
+		t.Fatalf("expected default protection level strict, got %q", cfg.Security.ProtectionLevel)
+	}
+}
+
 // TestConfigGet 验证 Get() 返回配置的深拷贝。
 func TestConfigGet(t *testing.T) {
 	store := NewStore("")

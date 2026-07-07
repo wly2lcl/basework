@@ -16,8 +16,6 @@ import (
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
-	"github.com/wly2lcl/basework/pkg/provider"
-	"github.com/wly2lcl/basework/pkg/session"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
 
@@ -55,50 +53,34 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 	}
 	cfg := store.Get()
 
-	if verbose {
-		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s\n", cfg.Provider, cfg.Model)
-	}
-
-	// 2. 创建 LLM 模型
-	model, err := provider.Create(provider.Config{
-		Type:    cfg.Provider,
-		ModelID: cfg.Model,
-		APIKey:  lookupAPIKey(cfg.Provider),
-	})
+	rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{})
 	if err != nil {
-		return fmt.Errorf("创建 LLM 模型失败: %w", err)
+		return err
 	}
-
-	// 3. 创建 Session 存储
-	sessionDir := getSessionDir()
-	sess, err := session.NewJSONLStore(sessionDir)
-	if err != nil {
-		return fmt.Errorf("创建会话存储失败: %w", err)
-	}
-
-	// 4. 创建 Agent
-	agt, err := agent.New(
-		agent.WithModel(model),
-		agent.WithSession(sess),
-		agent.WithSystemPrompt(cfg.SystemPrompt),
-		agent.WithMaxSteps(cfg.MaxIterations),
-	)
-	if err != nil {
-		return fmt.Errorf("创建 Agent 失败: %w", err)
-	}
+	agt := rt.Agent
 	defer agt.Close()
 
-	// 5. 判断模式：TUI vs REPL
+	if verbose {
+		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s tools=%d\n", rt.ProviderName, rt.ModelName, len(agt.Tools()))
+	}
+
 	if noTUI {
 		return runSimpleREPL(cmd.Context(), agt)
 	}
-	return runTUI(cmd.Context(), agt, cfg.Model, cfg.Provider)
+	return runTUI(cmd.Context(), agt, rt.ModelName, rt.ProviderName)
 }
 
 // runTUI 启动 TUI 模式
 func runTUI(ctx context.Context, agt agent.Agent, modelName, providerName string) error {
 	// 获取或创建会话
 	app := tui.NewApp(modelName, providerName, "")
+	app.SetInputHandler(func(ctx context.Context, input string) (string, error) {
+		resp, err := agt.HandleMessage(ctx, input)
+		if err != nil {
+			return "", fmt.Errorf("处理消息失败: %w", err)
+		}
+		return responseText(resp), nil
+	})
 
 	// 启动 Bubble Tea 程序
 	program := tea.NewProgram(app)
@@ -166,12 +148,7 @@ func runSimpleREPL(ctx context.Context, agt agent.Agent) error {
 		}
 
 		if resp != nil {
-			for _, part := range resp.Message.Content {
-				if part.Type == llm.ContentTypeText {
-					fmt.Print(part.Text)
-				}
-			}
-			fmt.Println()
+			fmt.Println(responseText(resp))
 		}
 	}
 }

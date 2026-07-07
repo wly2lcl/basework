@@ -14,8 +14,6 @@ import (
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
-	"github.com/wly2lcl/basework/pkg/provider"
-	"github.com/wly2lcl/basework/pkg/session"
 )
 
 // agentCmd 表示 agent 子命令
@@ -54,50 +52,17 @@ func runAgentE(cmd *cobra.Command, args []string) error {
 	}
 	cfg := store.Get()
 
-	// 环境变量覆盖 Provider 选择
-	providerType := cfg.Provider
-	if envProvider := os.Getenv("BASEWORK_PROVIDER"); envProvider != "" {
-		providerType = envProvider
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s\n", providerType, cfg.Model)
-	}
-
-	// 2. 构建 provider 选项
-	opts := buildProviderOptions(cfg)
-
-	// 3. 创建 LLM 模型
-	model, err := provider.Create(provider.Config{
-		Type:    providerType,
-		ModelID: cfg.Model,
-		APIKey:  lookupAPIKey(providerType),
-		Options: opts,
-	})
+	rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{})
 	if err != nil {
-		return fmt.Errorf("创建 LLM 模型失败: %w", err)
+		return err
 	}
-
-	// 4. 创建 Session 存储
-	sessionDir := getSessionDir()
-	sess, err := session.NewJSONLStore(sessionDir)
-	if err != nil {
-		return fmt.Errorf("创建会话存储失败: %w", err)
-	}
-
-	// 5. 创建 Agent
-	agt, err := agent.New(
-		agent.WithModel(model),
-		agent.WithSession(sess),
-		agent.WithSystemPrompt(cfg.SystemPrompt),
-		agent.WithMaxSteps(cfg.MaxIterations),
-	)
-	if err != nil {
-		return fmt.Errorf("创建 Agent 失败: %w", err)
-	}
+	agt := rt.Agent
 	defer agt.Close()
 
-	// 6. 判断模式：一次性消息 vs REPL
+	if verbose {
+		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s tools=%d\n", rt.ProviderName, rt.ModelName, len(agt.Tools()))
+	}
+
 	if message != "" {
 		return handleOneShot(cmd.Context(), agt, message)
 	}
@@ -119,12 +84,7 @@ func handleOneShot(ctx context.Context, agt agent.Agent, msg string) error {
 		return fmt.Errorf("处理消息失败: %w", err)
 	}
 	if resp != nil {
-		for _, part := range resp.Message.Content {
-			if part.Type == llm.ContentTypeText {
-				fmt.Print(part.Text)
-			}
-		}
-		fmt.Println()
+		fmt.Println(responseText(resp))
 	}
 	return nil
 }
@@ -174,14 +134,22 @@ func runREPL(ctx context.Context, agt agent.Agent) error {
 
 		// 输出响应
 		if resp != nil {
-			for _, part := range resp.Message.Content {
-				if part.Type == llm.ContentTypeText {
-					fmt.Print(part.Text)
-				}
-			}
-			fmt.Println()
+			fmt.Println(responseText(resp))
 		}
 	}
+}
+
+func responseText(resp *agent.Response) string {
+	if resp == nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, part := range resp.Message.Content {
+		if part.Type == llm.ContentTypeText {
+			b.WriteString(part.Text)
+		}
+	}
+	return b.String()
 }
 
 // lookupAPIKey 根据 provider 类型查找对应的环境变量
@@ -225,10 +193,10 @@ func lookupAPIKey(providerType string) string {
 }
 
 // buildProviderOptions 根据配置构建 provider 的 Options map
-func buildProviderOptions(cfg *config.Config) map[string]any {
+func buildProviderOptions(cfg *config.Config, providerType string) map[string]any {
 	opts := make(map[string]any)
 
-	switch cfg.Provider {
+	switch providerType {
 	case "bedrock":
 		opts["access_key"] = cfg.Bedrock.AccessKey
 		if opts["access_key"] == "" {

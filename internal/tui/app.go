@@ -30,16 +30,19 @@ type AgentResponseMsg struct {
 
 // ToolCallMsg 表示工具调用消息
 type ToolCallMsg struct {
-	ToolName   string
-	Args       string
-	Result     string
-	IsError    bool
+	ToolName string
+	Args     string
+	Result   string
+	IsError  bool
 }
 
 // ErrorMsg 表示错误消息
 type ErrorMsg struct {
 	Err error
 }
+
+// InputHandler 处理用户输入并返回助手回复。
+type InputHandler func(ctx context.Context, text string) (string, error)
 
 // 布局常量
 const (
@@ -124,8 +127,9 @@ type App struct {
 	MountedPlugins []plugin.TUIPlugin
 
 	// 生命周期管理
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx          context.Context
+	cancel       context.CancelFunc
+	inputHandler InputHandler
 }
 
 // NewApp 创建新的 TUI 应用
@@ -201,6 +205,11 @@ func (m *App) Quit() {
 	m.cleanup()
 }
 
+// SetInputHandler 设置用户输入处理函数。
+func (m *App) SetInputHandler(handler InputHandler) {
+	m.inputHandler = handler
+}
+
 // cleanup 清理资源：取消后台 goroutine、卸载插件等
 func (m *App) cleanup() {
 	// 清空插件注册表
@@ -230,6 +239,35 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Streaming.width = msg.Width
 		return m, nil
 
+	case UserInputMsg:
+		if m.inputHandler == nil {
+			m.AddErrorMessage("Agent 未连接")
+			return m, nil
+		}
+		m.StartStreaming()
+		text := msg.Text
+		return m, func() tea.Msg {
+			reply, err := m.inputHandler(m.ctx, text)
+			if err != nil {
+				return ErrorMsg{Err: err}
+			}
+			return AgentResponseMsg{Text: reply}
+		}
+
+	case AgentResponseMsg:
+		m.StopStreaming()
+		if strings.TrimSpace(msg.Text) != "" {
+			m.AddAssistantMessage(msg.Text)
+		}
+		return m, nil
+
+	case ErrorMsg:
+		m.StopStreaming()
+		if msg.Err != nil {
+			m.AddErrorMessage(msg.Err.Error())
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		key := msg.String()
 
@@ -253,6 +291,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 
 			case keymap.ActionSubmit:
+				if m.IsStreaming {
+					return m, nil
+				}
 				text := strings.TrimSpace(m.Input.Text())
 				if text != "" {
 					// 检查是否以 / 开头（命令）

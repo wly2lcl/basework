@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"context"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -159,6 +160,54 @@ func TestAppStreaming(t *testing.T) {
 	app.StopStreaming()
 	if app.IsStreaming {
 		t.Fatal("StopStreaming 后 IsStreaming 应为 false")
+	}
+}
+
+func TestAppUserInputHandler(t *testing.T) {
+	app := NewApp("test-model", "test-provider", "test-session-id")
+	called := false
+	app.SetInputHandler(func(ctx context.Context, text string) (string, error) {
+		called = true
+		if text != "你好" {
+			t.Fatalf("期望输入为 你好，得到 %q", text)
+		}
+		return "你好！", nil
+	})
+
+	model, cmd := app.Update(UserInputMsg{Text: "你好"})
+	updatedApp, ok := model.(*App)
+	if !ok {
+		t.Fatal("Update 返回的不是 *App 类型")
+	}
+	if !updatedApp.IsStreaming {
+		t.Fatal("处理用户输入时应进入 streaming 状态")
+	}
+	if cmd == nil {
+		t.Fatal("UserInputMsg 应产生处理命令")
+	}
+
+	msg := cmd()
+	if !called {
+		t.Fatal("input handler 未被调用")
+	}
+	resp, ok := msg.(AgentResponseMsg)
+	if !ok {
+		t.Fatalf("期望 AgentResponseMsg，得到 %T", msg)
+	}
+	if resp.Text != "你好！" {
+		t.Fatalf("期望回复 你好！，得到 %q", resp.Text)
+	}
+
+	model, cmd = updatedApp.Update(resp)
+	if cmd != nil {
+		t.Fatal("AgentResponseMsg 不应产生命令")
+	}
+	updatedApp = model.(*App)
+	if updatedApp.IsStreaming {
+		t.Fatal("收到回复后应停止 streaming")
+	}
+	if len(updatedApp.Messages) != 1 || updatedApp.Messages[0].Role != "assistant" {
+		t.Fatalf("期望添加助手消息，得到 %#v", updatedApp.Messages)
 	}
 }
 

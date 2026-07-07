@@ -6,6 +6,82 @@
 
 ---
 
+## Phase 35: 主路径 Wiring 修复 + 第一轮优化（2026-07-07）
+
+**背景**：审计发现多个模块已实现但未接入 CLI/TUI 主路径，导致终端产品能力与文档承诺不一致。第一轮目标是先恢复核心可用性：配置默认值可靠、`basework agent` 有基础编程工具、`basework tui` 能真实对话。
+
+### Task 35.1: 配置默认值合并 ✅
+
+**文件**：`pkg/config/config.go`, `pkg/config/config_test.go`
+
+**内容**：
+- `Load` 使用 `defaultConfig()` 初始化，再反序列化用户 JSON 覆盖
+- `Reload` 使用同样语义，避免热重载丢失默认值
+- 保留 `Validate()` 校验
+- 增加局部配置回归测试
+
+**验收标准**：
+- [x] 只配置 `provider` 时，`model/max_iterations/tools/security` 等默认值仍保留
+- [x] 嵌套配置只覆盖指定字段，不清空整个默认结构
+
+### Task 35.2: 公共 Agent Runtime 创建器 ✅
+
+**文件**：`cmd/basework/runtime.go`
+
+**内容**：
+- 统一 provider 创建、session 创建、基础工具注册
+- 初始化工具超时配置
+- 初始化敏感路径保护
+- 根据配置映射 Bash 黑名单和 permission mode
+- 为后续增强工具/MCP/LSP 接入预留集中入口
+
+**验收标准**：
+- [x] `cmd/basework agent` 和 `cmd/basework tui` 不再各自复制 agent 创建逻辑
+- [x] 基础工具默认注册到 agent registry
+- [x] 默认启用敏感路径 strict 保护
+
+### Task 35.3: CLI Agent 基础工具接入 ✅
+
+**文件**：`cmd/basework/agent.go`
+
+**内容**：
+- 改为复用 `newRuntimeAgent`
+- `basework agent` 默认拥有 `bash/read/write/edit/grep/glob`
+- verbose 输出 provider/model/tools 数量
+
+**验收标准**：
+- [x] `Agent.Tools()` 返回基础工具列表
+- [x] Bash 默认仍受内置黑名单保护
+- [x] 文件工具走敏感路径保护
+
+### Task 35.4: TUI 接入 Agent ✅
+
+**文件**：`cmd/basework/tui.go`, `internal/tui/app.go`, `internal/tui/app_test.go`
+
+**内容**：
+- TUI App 支持 `InputHandler`
+- `UserInputMsg` 调用 agent handler
+- `AgentResponseMsg` / `ErrorMsg` 更新消息区并停止 streaming 状态
+- `cmd/basework tui` 设置 handler 调用 `Agent.HandleMessage`
+
+**验收标准**：
+- [x] TUI 输入不再只停留在 UI 内部
+- [x] agent 回复会加入助手消息列表
+- [x] 有单元测试覆盖 handler 调用链
+
+### Phase 35 后续任务（下一轮）
+
+| 任务 | 优先级 | 状态 | 说明 |
+|------|--------|------|------|
+| 接入增强工具 | P0 | 🔲 待做 | `web_fetch/web_search/todowrite/apply_patch/question` 进入 runtime wiring |
+| 修复 web_search 稳定性 | P0 | 🔲 待做 | nil config 防 panic，测试改 mock backend，避免真实网络 |
+| 接入 MCP/Skill/LSP | P0 | 🔲 待做 | 从配置初始化 manager/loader/LSP，并注册到 agent |
+| 完整权限交互 | P1 | 🔲 待做 | REPL/TUI ask 流程、权限缓存、SQLite 审计 |
+| CI/CD 加强 | P1 | 🔲 待做 | lint + platform matrix + release dry-run/tag 策略 |
+| README 对齐 | P2 | 🔲 待做 | 默认 provider/model 与文档声明统一 |
+
+---
+
 ## 依赖关系总览
 
 ### Phase 1-12：核心框架（已完成 ✅）
