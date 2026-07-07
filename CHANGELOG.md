@@ -5,6 +5,31 @@
 
 ## [Unreleased]
 
+### Phase 33: 关键安全修复 + 架构解耦 (2026-07-07)
+
+**P0 安全修复**
+- `apply_patch` 路径遍历防护：净化路径防止 `../../` 穿越，集成敏感路径检查（`.git/`、`.ssh/`、`.aws/` 等）
+- `web_fetch` SSRF 防护：协议白名单（仅 http/https）、DNS 解析后 IP 检查（拦截内网/回环/链路本地地址）、重定向拦截
+- `JSONLStore` 并发安全：分离 cacheMu 保护 cache map，修复读锁下写 map 的数据竞态
+- `EventBus` 非阻塞发布：信号量满时使用 select+default 丢弃事件，避免发布者永久阻塞
+
+**P1 功能修复**
+- `HandleMessage` 错误处理：关闭后返回 `ErrAgentClosed` 替代 `nil, nil`
+- 上下文压缩激活：压缩结果写入 `EventCompacted` 事件，`ProjectMessages` 根据 `KeepFrom` 截断旧消息
+- 转向系统集成：`SteeringManager` 连接到 agent loop，转向消息注入到 system prompt 之后
+
+**P1 架构重构**
+- `pkg/agent` 解耦 `internal/`：定义 `Compactor`、`LoopDetector`、`PermissionChecker`、`EventPublisher`、`SubAgentRunner` 接口
+- `pkg/llm` 解耦 `internal/`：定义 `EventBus`、`TokenSource` 接口
+- 新增 4 个适配器（`internal/loopdetect/adapter.go`、`permission/adapter.go`、`observability/adapter.go`、`subagent/adapter.go`）
+
+**测试覆盖**
+- 新增 apply_patch 安全测试（7 个用例）
+- 新增 web_fetch SSRF 测试（协议/IP/重定向拦截）
+- 新增 JSONLStore 并发压力测试（10 goroutine × 100 轮）
+- 新增 EventBus 非阻塞测试
+- 新增转向系统集成测试
+
 ### 即将推出
 
 - **工作流引擎** — 多步骤任务编排与 DAG 执行

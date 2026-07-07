@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
+
+	"github.com/wly2lcl/basework/pkg/llm"
 )
 
 // DeliveryMode 消息交付模式
@@ -23,8 +25,8 @@ type steeringMsg struct {
 	seq     int64
 }
 
-// steeringManager 管理消息注入
-type steeringManager struct {
+// SteeringManager 管理消息注入
+type SteeringManager struct {
 	mu           sync.Mutex
 	steerCh      chan steeringMsg // Steer 模式通道
 	queueCh      chan steeringMsg // Queue 模式通道
@@ -32,9 +34,9 @@ type steeringManager struct {
 	canceledSeqs map[int64]bool   // 已取消的序列号
 }
 
-// newSteeringManager 创建 steeringManager
-func newSteeringManager() *steeringManager {
-	return &steeringManager{
+// NewSteeringManager 创建 SteeringManager
+func NewSteeringManager() *SteeringManager {
+	return &SteeringManager{
 		steerCh:      make(chan steeringMsg, 10),
 		queueCh:      make(chan steeringMsg, 10),
 		canceledSeqs: make(map[int64]bool),
@@ -43,7 +45,7 @@ func newSteeringManager() *steeringManager {
 
 // InjectMessage 注入一条 steering 消息
 // ctx 用于取消操作；content 是消息内容；mode 指定交付模式
-func (sm *steeringManager) InjectMessage(_ context.Context, content string, mode DeliveryMode) error {
+func (sm *SteeringManager) InjectMessage(_ context.Context, content string, mode DeliveryMode) error {
 	sm.mu.Lock()
 	sm.seqGen++
 	seq := sm.seqGen
@@ -71,9 +73,9 @@ func (sm *steeringManager) InjectMessage(_ context.Context, content string, mode
 	return nil
 }
 
-// drainSteering 清空当前 pending 的 steering 消息，返回所有未被 cancel 的消息
+// Drain 清空当前 pending 的 steering 消息，返回所有未被 cancel 的消息
 // 在 setupTurn 阶段调用
-func (sm *steeringManager) drainSteering() []string {
+func (sm *SteeringManager) Drain() []string {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -108,8 +110,22 @@ drainSteer:
 }
 
 // Cancel 取消指定序列号的消息
-func (sm *steeringManager) Cancel(seq int64) {
+func (sm *SteeringManager) Cancel(seq int64) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.canceledSeqs[seq] = true
+}
+
+// steeringToChatMessages 将 steering 消息转换为 LLM system 消息列表
+func steeringToChatMessages(msgs []string) []llm.ChatMessage {
+	chatMsgs := make([]llm.ChatMessage, 0, len(msgs))
+	for _, m := range msgs {
+		chatMsgs = append(chatMsgs, llm.ChatMessage{
+			Role: llm.RoleSystem,
+			Content: []llm.ContentPart{
+				{Type: llm.ContentTypeText, Text: m},
+			},
+		})
+	}
+	return chatMsgs
 }

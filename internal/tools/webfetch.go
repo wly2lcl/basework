@@ -7,20 +7,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/tool"
 	"golang.org/x/net/html"
 )
 
 // WebFetchTool 实现 web_fetch 工具，用于获取并提取网页内容
-type WebFetchTool struct{}
+type WebFetchTool struct {
+	cfg *config.Config
+}
 
 // NewWebFetchTool 创建 web_fetch 工具
-func NewWebFetchTool() *WebFetchTool {
-	return &WebFetchTool{}
+func NewWebFetchTool(cfg *config.Config) *WebFetchTool {
+	return &WebFetchTool{cfg: cfg}
 }
 
 // Name 返回工具名称
@@ -95,9 +100,36 @@ func (w *WebFetchTool) Execute(ctx context.Context, args json.RawMessage) (*tool
 		}, nil
 	}
 
-	// 创建带超时的 HTTP 客户端
+	// 解析 URL 并验证协议
+	reqURL, err := url.ParseRequestURI(params.URL)
+	if err != nil {
+		return &tool.Result{
+			Content: fmt.Sprintf("无效的 URL: %v", err),
+			IsError: true,
+		}, nil
+	}
+
+	// 协议白名单：只允许 http 和 https
+	if reqURL.Scheme != "http" && reqURL.Scheme != "https" {
+		return &tool.Result{
+			Content: fmt.Sprintf("不支持的协议: %s（仅允许 http 和 https）", reqURL.Scheme),
+			IsError: true,
+		}, nil
+	}
+
+	// 获取允许的内部主机列表
+	allowedHosts := getAllowedHosts(w.cfg)
+
+	// 创建带 SSRF 防护的 HTTP 客户端
 	client := &http.Client{
-		Timeout: fetchTimeout,
+		Timeout:   fetchTimeout,
+		Transport: newSSRFGuardedTransport(allowedHosts),
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("重定向次数过多")
+			}
+			return nil
+		},
 	}
 
 	// 创建 HTTP 请求
@@ -346,6 +378,48 @@ func getAttr(n *html.Node, key string) string {
 		}
 	}
 	return ""
+}
+
+// getAllowedHosts 从配置中提取允许的内部主机列表
+func getAllowedHosts(cfg *config.Config) []string {
+	if cfg != nil {
+		return cfg.Tools.WebFetch.AllowedInternalHosts
+	}
+	return nil
+}
+
+// newSSRFGuardedTransport 创建带有 SSRF 防护的 HTTP Transport
+func newSSRFGuardedTransport(allowedHosts []string) *http.Transport {
+	return &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, _, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			// 检查是否在白名单中
+			for _, allowed := range allowedHosts {
+				if host == allowed {
+					return (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, network, addr)
+				}
+			}
+			// 解析 DNS 并检查 IP
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil {
+				return nil, err
+			}
+			for _, ip := range ips {
+				if isBlockedIP(ip.IP) {
+					return nil, fmt.Errorf("SSRF 已被阻止: %s 解析到被阻止的地址 %s", host, ip.IP)
+				}
+			}
+			return (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, network, addr)
+		},
+	}
+}
+
+// isBlockedIP 检查 IP 是否为内网/回环/链路本地地址
+func isBlockedIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }
 
 // stripHTMLTags 使用简单方法去除 HTML 标签

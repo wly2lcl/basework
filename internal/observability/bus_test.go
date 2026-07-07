@@ -3,6 +3,7 @@ package observability
 import (
 	"bytes"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -143,7 +144,76 @@ func TestEventBus_StacktraceOnPanic(t *testing.T) {
 	}
 }
 
-// TestEventBus_GoroutineLimitRecover 验证超限后 handler panic 仍能恢复
+// TestEventBus_SemaphoreFull_DropsEvent 验证信号量满时 Publish 不会阻塞
+func TestEventBus_SemaphoreFull_DropsEvent(t *testing.T) {
+	bus := NewEventBus()
+
+	// 注册一个会阻塞的 handler（等待 release 信号）
+	release := make(chan struct{})
+	bus.Subscribe("test.event", func(event Event) {
+		<-release
+	})
+
+	// 发布 100 个事件填满信号量
+	for i := 0; i < 100; i++ {
+		bus.Publish(NewEvent("test.event", nil))
+	}
+
+	// 等待所有 goroutine 获取信号量
+	time.Sleep(100 * time.Millisecond)
+
+	// 验证信号量已满：再发布一个事件不应阻塞
+	done := make(chan struct{})
+	go func() {
+		bus.Publish(NewEvent("test.event", nil))
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// 正常：Publish 没有阻塞
+	case <-time.After(time.Second):
+		t.Fatal("信号量满时 Publish 阻塞了，期望 non-blocking drop")
+	}
+
+	// 清理，防止 goroutine 泄漏
+	close(release)
+	time.Sleep(100 * time.Millisecond)
+}
+
+// TestEventBus_SemaphoreFull_DropsEvent_Log 验证信号量满时输出日志
+func TestEventBus_SemaphoreFull_DropsEvent_Log(t *testing.T) {
+	// 用 log.SetOutput 捕获日志输出，避免 stderr 重定向的并发问题
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	bus := NewEventBus()
+
+	// 注册一个会阻塞的 handler
+	release := make(chan struct{})
+	bus.Subscribe("test.event", func(event Event) {
+		<-release
+	})
+
+	// 填满信号量
+	for i := 0; i < 100; i++ {
+		bus.Publish(NewEvent("test.event", nil))
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	// 发布额外事件（应被 drop 并记录日志）
+	bus.Publish(NewEvent("test.event", nil))
+	time.Sleep(50 * time.Millisecond)
+
+	output := buf.String()
+	if !strings.Contains(output, "EventBus handler dropped") {
+		t.Errorf("日志应包含 drop 消息，得到:\n%s", output)
+	}
+
+	close(release)
+	time.Sleep(100 * time.Millisecond)
+}
 func TestEventBus_GoroutineLimitRecover(t *testing.T) {
 	bus := NewEventBus()
 

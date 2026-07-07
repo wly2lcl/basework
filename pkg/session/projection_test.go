@@ -171,23 +171,23 @@ func TestProjectMessages_Compacted(t *testing.T) {
 		{Seq: 1, Type: EventPrompted, Data: rawJSON(t, PromptedData{Content: "旧消息1"})},
 		{Seq: 2, Type: EventTextDelta, Data: rawJSON(t, TextDeltaData{Delta: "旧回复1"})},
 		{Seq: 3, Type: EventTextEnded},
-		{Seq: 4, Type: EventCompacted, Data: rawJSON(t, CompactedData{Summary: "历史摘要：用户问好", TruncatedSeq: 3})},
+		{Seq: 4, Type: EventCompacted, Data: rawJSON(t, CompactedData{KeepFrom: 1})},
 		{Seq: 5, Type: EventPrompted, Data: rawJSON(t, PromptedData{Content: "新消息"})},
 		{Seq: 6, Type: EventTextDelta, Data: rawJSON(t, TextDeltaData{Delta: "新回复"})},
 		{Seq: 7, Type: EventTextEnded},
 	}
 
 	msgs := ProjectMessages(events)
-	// 预期：system（摘要）+ user（新消息）+ assistant（新回复）
+	// 预期：assistant（旧回复1，KeepFrom=1 截断了第 0 条）+ user（新消息）+ assistant（新回复）
 	if len(msgs) != 3 {
 		t.Fatalf("期望 3 条消息，得到 %d: %+v", len(msgs), msgs)
 	}
 
-	if msgs[0].Role != llm.RoleSystem {
-		t.Errorf("msgs[0].Role = %q, 期望 %q", msgs[0].Role, llm.RoleSystem)
+	if msgs[0].Role != llm.RoleAssistant {
+		t.Errorf("msgs[0].Role = %q, 期望 %q", msgs[0].Role, llm.RoleAssistant)
 	}
-	if msgs[0].Content[0].Text != "历史摘要：用户问好" {
-		t.Errorf("msgs[0].Content[0].Text = %q, 期望 %q", msgs[0].Content[0].Text, "历史摘要：用户问好")
+	if msgs[0].Content[0].Text != "旧回复1" {
+		t.Errorf("msgs[0].Content[0].Text = %q, 期望 %q", msgs[0].Content[0].Text, "旧回复1")
 	}
 
 	if msgs[1].Role != llm.RoleUser {
@@ -199,6 +199,9 @@ func TestProjectMessages_Compacted(t *testing.T) {
 
 	if msgs[2].Role != llm.RoleAssistant {
 		t.Errorf("msgs[2].Role = %q, 期望 %q", msgs[2].Role, llm.RoleAssistant)
+	}
+	if msgs[2].Content[0].Text != "新回复" {
+		t.Errorf("msgs[2].Content[0].Text = %q, 期望 %q", msgs[2].Content[0].Text, "新回复")
 	}
 }
 

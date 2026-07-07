@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
 
@@ -227,12 +228,45 @@ func parsePatch(patch string) ([]patchFile, error) {
 	return files, nil
 }
 
+// sanitizePath 检查并规范化路径，防止路径遍历攻击。
+func sanitizePath(workDir, path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return "", fmt.Errorf("path traversal detected: %s (absolute path not allowed, must be relative to workDir)", path)
+	}
+	fullPath := filepath.Join(workDir, path)
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid workDir: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absWorkDir+string(filepath.Separator)) && absPath != absWorkDir {
+		return "", fmt.Errorf("path traversal detected: %s", path)
+	}
+	return absPath, nil
+}
+
 // applyFiles 执行文件操作
 func applyFiles(workDir string, files []patchFile) patchResult {
 	var result patchResult
 
 	for _, f := range files {
-		fullPath := filepath.Join(workDir, f.Path)
+		fullPath, err := sanitizePath(workDir, f.Path)
+		if err != nil {
+			result.Failed++
+			result.Details = append(result.Details, fmt.Sprintf("❌ 路径校验失败 %s: %v", f.Path, err))
+			continue
+		}
+
+		// 检查是否为敏感路径
+		checker := permission.NewPathChecker(nil, nil, permission.ProtectionStrict)
+		if allowed, reason := checker.CheckPath(fullPath); !allowed {
+			result.Failed++
+			result.Details = append(result.Details, fmt.Sprintf("❌ 敏感路径拦截 %s: %s", f.Path, reason))
+			continue
+		}
 
 		switch f.Operation {
 		case opAdd:

@@ -212,8 +212,11 @@ func TestAgentLoop_Close_ThenHandleMessage(t *testing.T) {
 	_ = a.Close()
 
 	resp, err := a.HandleMessage(context.Background(), "test")
-	if err != nil {
-		t.Fatalf("关闭后 HandleMessage 不应返回错误: %v", err)
+	if err == nil {
+		t.Fatal("关闭后 HandleMessage 应返回错误")
+	}
+	if err != ErrAgentClosed {
+		t.Errorf("期望 ErrAgentClosed，得到 %v", err)
 	}
 	if resp != nil {
 		t.Error("关闭后 HandleMessage 应返回 nil response")

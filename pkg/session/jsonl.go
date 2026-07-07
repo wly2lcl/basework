@@ -20,7 +20,8 @@ var safeIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 // JSONLStore 是基于 JSONL 文件的会话存储实现。
 // 每个会话对应一个 {base_dir}/{session_id}.jsonl 文件。
 type JSONLStore struct {
-	mu      sync.RWMutex
+	mu      sync.RWMutex // 保护文件操作
+	cacheMu sync.RWMutex // 保护 cache 映射
 	baseDir string
 	cache   map[string]*sessionData // 内存缓存，加速读取
 }
@@ -72,7 +73,9 @@ func (s *JSONLStore) AppendEvent(event Event) error {
 	sd.info.UpdatedAt = nowUTC()
 
 	// 更新缓存
+	s.cacheMu.Lock()
 	s.cache[event.SessionID] = sd
+	s.cacheMu.Unlock()
 
 	// 原子写入：写全部事件到 tmp 文件，再 rename
 	tmpPath := path + ".tmp"
@@ -164,7 +167,9 @@ func (s *JSONLStore) Create(opts CreateOpts) (*Info, error) {
 		events: make([]Event, 0),
 		seq:    0,
 	}
+	s.cacheMu.Lock()
 	s.cache[id] = sd
+	s.cacheMu.Unlock()
 
 	// 创建空文件
 	path := filepath.Join(s.baseDir, id+".jsonl")
@@ -257,7 +262,9 @@ func (s *JSONLStore) Delete(id string) error {
 		return fmt.Errorf("session: 删除文件失败: %w", err)
 	}
 
+	s.cacheMu.Lock()
 	delete(s.cache, id)
+	s.cacheMu.Unlock()
 	return nil
 }
 
@@ -268,13 +275,17 @@ func (s *JSONLStore) Messages() ([]llm.ChatMessage, error) {
 }
 
 // loadSession 从缓存或文件加载会话数据。
+// 调用者必须持有 mu 锁（读或写），本函数只操作 cacheMu。
 func (s *JSONLStore) loadSession(id string) (*sessionData, error) {
-	// 先检查缓存
-	if sd, ok := s.cache[id]; ok {
+	// 先检查缓存（cacheMu 读锁）
+	s.cacheMu.RLock()
+	sd, ok := s.cache[id]
+	s.cacheMu.RUnlock()
+	if ok {
 		return sd, nil
 	}
 
-	// 从文件加载
+	// 从文件加载（调用者已持有 mu 锁保护文件操作）
 	path, err := s.safePath(id)
 	if err != nil {
 		return nil, err
@@ -306,12 +317,15 @@ func (s *JSONLStore) loadSession(id string) (*sessionData, error) {
 		info.UpdatedAt = events[len(events)-1].CreatedAt
 	}
 
-	sd := &sessionData{
+	sd = &sessionData{
 		info:   info,
 		events: events,
 		seq:    maxSeq,
 	}
+	// 写入缓存（cacheMu 写锁）
+	s.cacheMu.Lock()
 	s.cache[id] = sd
+	s.cacheMu.Unlock()
 	return sd, nil
 }
 

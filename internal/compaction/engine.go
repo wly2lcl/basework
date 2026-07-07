@@ -1,6 +1,12 @@
 package compaction
 
-import "github.com/wly2lcl/basework/pkg/llm"
+import (
+	"github.com/wly2lcl/basework/pkg/agent"
+	"github.com/wly2lcl/basework/pkg/llm"
+)
+
+// Ensure Engine implements agent.Compactor.
+var _ agent.Compactor = (*Engine)(nil)
 
 // Config 是上下文压缩模块的配置
 type Config struct {

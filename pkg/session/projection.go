@@ -16,21 +16,10 @@ import (
 //   - ToolSuccess → tool message（Role: "tool", ToolCallID 匹配）
 //   - ToolFailed → tool message（Role: "tool", ToolCallID 匹配, IsError: true）
 //   - ToolCalled 后紧接着的 ToolSuccess/ToolFailed 匹配对应的 ToolCallID
-//   - Compacted → 截断 TruncatedSeq 之前的事件，替换为 system message 摘要
+//   - Compacted → 截断已构建消息列表，保留从 KeepFrom 索引开始的消息
 func ProjectMessages(events []Event) []llm.ChatMessage {
 	if len(events) == 0 {
 		return nil
-	}
-
-	// 找到最近的 Compacted 事件的截断点
-	var truncateBefore int64
-	for _, e := range events {
-		if e.Type == EventCompacted {
-			var data CompactedData
-			if err := json.Unmarshal(e.Data, &data); err == nil && data.TruncatedSeq > truncateBefore {
-				truncateBefore = data.TruncatedSeq
-			}
-		}
 	}
 
 	var msgs []llm.ChatMessage
@@ -48,29 +37,16 @@ func ProjectMessages(events []Event) []llm.ChatMessage {
 	}
 
 	for _, event := range events {
-		// Compacted 事件替换为 system message 摘要，并跳过 truncateBefore 之前的事件
-		if event.Type == EventCompacted {
+		switch event.Type {
+		case EventCompacted:
+			flushAssistant()
 			var data CompactedData
 			if err := json.Unmarshal(event.Data, &data); err != nil {
 				continue
 			}
-			summary := data.Summary
-			if summary == "" {
-				summary = "对话历史已被压缩"
+			if data.KeepFrom > 0 && data.KeepFrom < len(msgs) {
+				msgs = msgs[data.KeepFrom:] // 截断旧消息
 			}
-			msgs = append(msgs, llm.ChatMessage{
-				Role:    llm.RoleSystem,
-				Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: summary}},
-			})
-			truncateBefore = data.TruncatedSeq
-			continue
-		}
-		// 跳过被截断的事件
-		if truncateBefore > 0 && event.Seq > 0 && event.Seq <= truncateBefore {
-			continue
-		}
-
-		switch event.Type {
 		case EventPrompted:
 			flushAssistant()
 			var data PromptedData

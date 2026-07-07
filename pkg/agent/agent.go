@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/wly2lcl/basework/internal/permission"
-	"github.com/wly2lcl/basework/internal/subagent"
-	"github.com/wly2lcl/basework/internal/tools"
-	pkgcfg "github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/tool"
@@ -46,21 +42,6 @@ type ToolCallRecord struct {
 	Err    error
 }
 
-// registerBuiltinTools 注册 5 个内置工具到 registry
-func registerBuiltinTools(registry *tool.Registry, permChecker *permission.Checker, cfg *pkgcfg.Config) {
-	builtinTools := []tool.Tool{
-		tools.NewWebFetchTool(),
-		tools.NewWebSearchTool(cfg),
-		tools.NewTodoWriteTool(),
-		tools.NewApplyPatchTool("."),
-		tools.NewQuestionTool(permChecker),
-	}
-
-	for _, t := range builtinTools {
-		_ = registry.Register(t) // 同名工具冲突时静默跳过
-	}
-}
-
 // New 创建 agent，应用提供的选项进行配置
 func New(opts ...Option) (Agent, error) {
 	cfg := &config{
@@ -78,20 +59,13 @@ func New(opts ...Option) (Agent, error) {
 	if cfg.registry == nil {
 		cfg.registry = tool.NewRegistry()
 		for _, t := range cfg.tools {
-			_ = cfg.registry.Register(t) // 忽略错误，测试时已保证唯一
+			_ = cfg.registry.Register(t)
 		}
 	}
 
-	// 注册 5 个内置增强工具
-	appCfg := &pkgcfg.Config{}
-	registerBuiltinTools(cfg.registry, cfg.permChecker, appCfg)
-
-	// 如果配置了子代理协调器，注册 sub_agent 工具
-	if cfg.subAgentCoord != nil && cfg.subAgentCoord.Config.Enabled {
-		subTool := subagent.NewSubAgentTool(cfg.subAgentCoord)
-		if err := cfg.registry.Register(subTool); err != nil {
-			// 工具名冲突时记录但不阻断
-		}
+	// 如果提供了工具工厂，调用它注册额外工具
+	if cfg.toolFactory != nil {
+		cfg.toolFactory(cfg.registry)
 	}
 
 	// 创建 hook chain

@@ -6,9 +6,6 @@ import (
 	"math"
 	"math/rand"
 	"time"
-
-	"github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/internal/oauth"
 )
 
 // RetryConfig 是客户端重试配置。
@@ -29,11 +26,11 @@ func defaultRetryConfig() RetryConfig {
 	}
 }
 
-// Client 是 LLM 客户端，包装 Model 接口并提供重试、可观测性和 OAuth 支持。
+// Client 是 LLM 客户端，包装 Model 接口并提供重试和可观测性支持。
 type Client struct {
 	model    Model
 	retryCfg RetryConfig
-	eventBus *observability.EventBus
+	eventBus EventBus
 }
 
 // ClientOption 是客户端配置选项。
@@ -45,7 +42,7 @@ func WithRetry(cfg RetryConfig) ClientOption {
 }
 
 // WithEventBus 设置可观测性事件总线。
-func WithEventBus(eb *observability.EventBus) ClientOption {
+func WithEventBus(eb EventBus) ClientOption {
 	return func(c *Client) { c.eventBus = eb }
 }
 
@@ -73,12 +70,12 @@ func NewClient(model Model, opts ...ClientOption) *Client {
 	return c
 }
 
-// ApplyOAuth 将 OAuth TokenSource 应用到 model 的底层 HTTP 客户端。
+// ApplyOAuth 将 TokenSource 应用到 model 的底层 HTTP 客户端。
 // 如果 model 不是支持 OAuth 注入的具体类型，此操作可能无效。
 // 返回 true 表示应用成功，false 表示该 model 不支持 OAuth 注入。
-func ApplyOAuth(model Model, ts *oauth.TokenSource) bool {
+func ApplyOAuth(model Model, ts interface{}) bool {
 	type oauthAware interface {
-		SetTokenSource(ts *oauth.TokenSource) error
+		SetTokenSource(ts interface{}) error
 	}
 	if aware, ok := model.(oauthAware); ok {
 		if err := aware.SetTokenSource(ts); err != nil {
@@ -96,7 +93,7 @@ func (c *Client) Model() Model {
 
 // Generate 调用底层模型的 Generate 方法，包装重试逻辑和可观测性事件。
 func (c *Client) Generate(ctx context.Context, req *Request) (*Response, error) {
-	c.publishEvent(observability.EventLLMCallStart, map[string]interface{}{
+	c.publishEvent("llm.call.start", map[string]interface{}{
 		"model":    c.model.ID(),
 		"messages": len(req.Messages),
 		"tools":    len(req.Tools),
@@ -118,7 +115,7 @@ func (c *Client) Generate(ctx context.Context, req *Request) (*Response, error) 
 		data["completion_tokens"] = resp.Usage.CompletionTokens
 		data["total_tokens"] = resp.Usage.TotalTokens
 	}
-	c.publishEvent(observability.EventLLMCallEnd, data)
+	c.publishEvent("llm.call.end", data)
 
 	if err != nil {
 		return nil, fmt.Errorf("llm client: %w", err)
@@ -129,7 +126,7 @@ func (c *Client) Generate(ctx context.Context, req *Request) (*Response, error) 
 // Stream 调用底层模型的 Stream 方法，包装可观测性事件。
 // 流式调用通常不可重试，因此不包装重试逻辑。
 func (c *Client) Stream(ctx context.Context, req *Request) (<-chan StreamEvent, error) {
-	c.publishEvent(observability.EventLLMCallStart, map[string]interface{}{
+	c.publishEvent("llm.call.start", map[string]interface{}{
 		"model":    c.model.ID(),
 		"messages": len(req.Messages),
 		"tools":    len(req.Tools),
@@ -145,7 +142,7 @@ func (c *Client) Stream(ctx context.Context, req *Request) (<-chan StreamEvent, 
 	if err != nil {
 		data["error"] = err.Error()
 	}
-	c.publishEvent(observability.EventLLMCallEnd, data)
+	c.publishEvent("llm.call.end", data)
 
 	if err != nil {
 		return nil, fmt.Errorf("llm client stream: %w", err)
@@ -226,5 +223,5 @@ func (c *Client) publishEvent(eventType string, data map[string]interface{}) {
 	if c.eventBus == nil {
 		return
 	}
-	c.eventBus.Publish(observability.NewEvent(eventType, data))
+	c.eventBus.PublishEvent(eventType, data)
 }

@@ -1,11 +1,6 @@
 package agent
 
 import (
-	"github.com/wly2lcl/basework/internal/compaction"
-	"github.com/wly2lcl/basework/internal/loopdetect"
-	"github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/internal/permission"
-	"github.com/wly2lcl/basework/internal/subagent"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -28,13 +23,19 @@ type config struct {
 	callback        Callback
 	maxContextTokens int
 
-	// 集成模块配置
-	compactor     *compaction.Engine
-	permChecker   *permission.Checker
-	loopDetector  *loopdetect.Detector
-	subAgentCoord *subagent.Coordinator
-	eventBus      *observability.EventBus
-	obsEnabled    bool
+	// 集成模块接口
+	compactor       Compactor
+	permChecker     PermissionChecker
+	loopDetector    LoopDetector
+	subAgentRunner  SubAgentRunner
+	eventBus        EventPublisher
+	obsEnabled      bool
+
+	// toolFactory 注册内置工具（允许内建 wiring）
+	toolFactory ToolFactory
+
+	// steeringManager 转向管理器
+	steeringManager *SteeringManager
 }
 
 // WithModel 设置 LLM 模型
@@ -88,26 +89,36 @@ func WithCallback(cb Callback) Option {
 }
 
 // WithCompactor 设置上下文压缩引擎
-func WithCompactor(e *compaction.Engine) Option {
-	return func(c *config) { c.compactor = e }
+func WithCompactor(c Compactor) Option {
+	return func(cfg *config) { cfg.compactor = c }
 }
 
 // WithPermissionChecker 设置权限检查器
-func WithPermissionChecker(pc *permission.Checker) Option {
-	return func(c *config) { c.permChecker = pc }
+func WithPermissionChecker(pc PermissionChecker) Option {
+	return func(cfg *config) { cfg.permChecker = pc }
 }
 
 // WithLoopDetector 设置循环检测器
-func WithLoopDetector(d *loopdetect.Detector) Option {
-	return func(c *config) { c.loopDetector = d }
+func WithLoopDetector(d LoopDetector) Option {
+	return func(cfg *config) { cfg.loopDetector = d }
 }
 
-// WithSubAgentCoordinator 设置子代理协调器
-func WithSubAgentCoordinator(co *subagent.Coordinator) Option {
-	return func(c *config) { c.subAgentCoord = co }
+// WithSubAgentRunner 设置子代理运行器
+func WithSubAgentRunner(sr SubAgentRunner) Option {
+	return func(cfg *config) { cfg.subAgentRunner = sr }
 }
 
 // WithEventBus 设置可观测性事件总线
-func WithEventBus(eb *observability.EventBus) Option {
-	return func(c *config) { c.eventBus = eb; c.obsEnabled = eb != nil }
+func WithEventBus(eb EventPublisher) Option {
+	return func(cfg *config) { cfg.eventBus = eb; cfg.obsEnabled = eb != nil }
+}
+
+// WithToolFactory 设置工具工厂，用于注册内置工具和自定义工具
+func WithToolFactory(f ToolFactory) Option {
+	return func(cfg *config) { cfg.toolFactory = f }
+}
+
+// WithSteeringManager 设置转向管理器，用于在对话中注入系统消息
+func WithSteeringManager(mgr *SteeringManager) Option {
+	return func(cfg *config) { cfg.steeringManager = mgr }
 }

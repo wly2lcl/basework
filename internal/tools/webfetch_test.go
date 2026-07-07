@@ -7,24 +7,37 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/wly2lcl/basework/pkg/config"
 )
 
+// newTestWebFetch 创建允许 127.0.0.1 的 WebFetchTool（供 httptest 使用）
+func newTestWebFetch() *WebFetchTool {
+	return NewWebFetchTool(&config.Config{
+		Tools: config.ToolsConfig{
+			WebFetch: config.WebFetchConfig{
+				AllowedInternalHosts: []string{"127.0.0.1"},
+			},
+		},
+	})
+}
+
 func TestWebFetchTool_Name(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	if tool.Name() != "web_fetch" {
 		t.Errorf("期望 Name='web_fetch', 得到 '%s'", tool.Name())
 	}
 }
 
 func TestWebFetchTool_Description(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	if tool.Description() == "" {
 		t.Error("期望 Description 非空")
 	}
 }
 
 func TestWebFetchTool_Parameters(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	params := tool.Parameters()
 	if len(params) == 0 {
 		t.Error("期望 Parameters 非空")
@@ -32,7 +45,7 @@ func TestWebFetchTool_Parameters(t *testing.T) {
 }
 
 func TestWebFetchTool_Execute_MissingURL(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	result, err := tool.Execute(context.Background(), []byte(`{}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -46,7 +59,7 @@ func TestWebFetchTool_Execute_MissingURL(t *testing.T) {
 }
 
 func TestWebFetchTool_Execute_InvalidFormat(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "http://example.com", "format": "xml"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -60,7 +73,7 @@ func TestWebFetchTool_Execute_InvalidFormat(t *testing.T) {
 }
 
 func TestWebFetchTool_Execute_InvalidParams(t *testing.T) {
-	tool := NewWebFetchTool()
+	tool := NewWebFetchTool(nil)
 	result, err := tool.Execute(context.Background(), []byte(`not json`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -77,7 +90,7 @@ func TestWebFetchTool_Execute_SuccessText(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`", "format": "text"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -100,7 +113,7 @@ func TestWebFetchTool_Execute_SuccessMarkdown(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`", "format": "markdown"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -120,7 +133,7 @@ func TestWebFetchTool_Execute_SuccessHTML(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`", "format": "html"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -140,7 +153,7 @@ func TestWebFetchTool_Execute_HTTPError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -162,7 +175,7 @@ func TestWebFetchTool_Execute_SizeLimit(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`", "format": "text"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -186,7 +199,7 @@ func TestWebFetchTool_Execute_Timeout(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(ctx, []byte(`{"url": "`+ts.URL+`"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -241,7 +254,7 @@ func TestWebFetchTool_Execute_DefaultFormat(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tool := NewWebFetchTool()
+	tool := newTestWebFetch()
 	result, err := tool.Execute(context.Background(), []byte(`{"url": "`+ts.URL+`"}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)

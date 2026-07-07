@@ -173,7 +173,14 @@ type PromptCacheConfig struct {
 // ToolsConfig 是内置工具的配置
 type ToolsConfig struct {
 	WebSearch WebSearchConfig    `json:"web_search,omitempty"`
+	WebFetch  WebFetchConfig     `json:"web_fetch,omitempty"`
 	Timeout   ToolsTimeoutConfig `json:"timeout,omitempty"`
+}
+
+// WebFetchConfig 是 web_fetch 工具的配置
+type WebFetchConfig struct {
+	// AllowedInternalHosts 允许访问的内部主机列表（SSRF 白名单）
+	AllowedInternalHosts []string `json:"allowed_internal_hosts,omitempty"`
 }
 
 // WebSearchConfig 是 web_search 工具的配置

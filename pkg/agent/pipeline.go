@@ -6,8 +6,6 @@ import (
 	"errors"
 	"log"
 
-	"github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
 )
@@ -22,8 +20,9 @@ type TurnResult struct {
 
 // Pipeline 实现了四阶段 turn 执行管线：setup → callLLM → executeTools → finalize
 type Pipeline struct {
-	td        TurnD
-	sessionID string
+	td            TurnD
+	sessionID     string
+	steeringMsgs  []llm.ChatMessage // 从 SteeringManager.Drain() 获取的消息，在 setupTurn 中 prepend
 }
 
 // NewPipeline 创建管线
@@ -59,7 +58,7 @@ func (p *Pipeline) setupTurn(_ context.Context) ([]llm.ChatMessage, []llm.ToolDe
 		return nil, nil, err
 	}
 
-	// 2. 如果有 system prompt，prepend
+	// 2. 如果有 system prompt，prepend 或替换
 	if prompt := p.td.SystemPrompt(); prompt != "" {
 		sysMsg := llm.ChatMessage{
 			Role:    llm.RoleSystem,
@@ -79,7 +78,22 @@ func (p *Pipeline) setupTurn(_ context.Context) ([]llm.ChatMessage, []llm.ToolDe
 		}
 	}
 
-	// 3. 获取工具定义
+	// 3. prepend steering 消息（以 system 角色出现）到 system prompt 之后、历史消息之前
+	if len(p.steeringMsgs) > 0 {
+		// 在第一条非 system 消息之前插入 steering 消息，如果全是 system 则追加到最后
+		insertPos := 0
+		for i, msg := range msgs {
+			if msg.Role != llm.RoleSystem {
+				break
+			}
+			insertPos = i + 1
+		}
+		// 在 insertPos 处插入 steering 消息
+		msgs = append(msgs[:insertPos], append(p.steeringMsgs, msgs[insertPos:]...)...)
+		p.steeringMsgs = nil
+	}
+
+	// 4. 获取工具定义
 	tools := p.td.ToolRegistry().Materialize()
 
 	return msgs, tools, nil
@@ -233,8 +247,8 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 	records := make([]ToolCallRecord, 0, len(calls))
 
 	// 通过类型断言获取 agent 的权限检查器和事件总线
-	var permChecker *permission.Checker
-	var eventBus *observability.EventBus
+	var permChecker PermissionChecker
+	var eventBus EventPublisher
 	obsEnabled := false
 	if atd, ok := p.td.(*agentTurnD); ok {
 		permChecker = atd.agent.permChecker
@@ -298,10 +312,10 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 
 		// 可观测性：发布 tool.start 事件
 		if obsEnabled && eventBus != nil {
-			eventBus.Publish(observability.NewEvent(observability.EventToolStart, map[string]interface{}{
+			eventBus.PublishEvent("tool.start", map[string]interface{}{
 				"tool_name": call.Name,
 				"tool_id":   call.ID,
-			}))
+			})
 		}
 
 		// 3. 执行工具
@@ -316,7 +330,7 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 			if execErr != nil {
 				data["error"] = execErr.Error()
 			}
-			eventBus.Publish(observability.NewEvent(observability.EventToolEnd, data))
+			eventBus.PublishEvent("tool.end", data)
 		}
 
 		// 4. AfterTool hook

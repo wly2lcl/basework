@@ -90,6 +90,7 @@ type TurnEndedData struct {
 type CompactedData struct {
 	Summary      string `json:"summary"`
 	TruncatedSeq int64  `json:"truncated_seq"`
+	KeepFrom     int    `json:"keep_from"`
 }
 
 // EncodeData 将事件数据编码为 json.RawMessage。

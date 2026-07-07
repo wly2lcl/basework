@@ -2,18 +2,18 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sync"
 
-	"github.com/wly2lcl/basework/internal/compaction"
-	"github.com/wly2lcl/basework/internal/loopdetect"
-	"github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/pkg/hook"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
+
+// ErrAgentClosed 表示 agent 已关闭的错误
+var ErrAgentClosed = errors.New("agent: closed")
 
 // AgentLoop 是 Agent 接口的具体实现，管理工具循环和生命周期
 type AgentLoop struct {
@@ -29,12 +29,18 @@ type AgentLoop struct {
 	mu        sync.Mutex
 	closed    bool
 
-	// 集成模块实例
-	compactor    *compaction.Engine
-	permChecker  *permission.Checker
-	loopDetector *loopdetect.Detector
-	eventBus     *observability.EventBus
+	// 压缩状态标记
+	compressionApplied bool
+
+	// 集成模块接口
+	compactor    Compactor
+	permChecker  PermissionChecker
+	loopDetector LoopDetector
+	eventBus     EventPublisher
 	obsEnabled   bool
+
+	// steeringManager 转向管理器
+	steeringManager *SteeringManager
 }
 
 // agentInstance 实现 Instance 接口
@@ -125,6 +131,7 @@ func newAgentLoop(cfg *config, chain *hook.Chain) (*AgentLoop, error) {
 		loopDetector: cfg.loopDetector,
 		eventBus:     cfg.eventBus,
 		obsEnabled:   cfg.obsEnabled,
+		steeringManager: cfg.steeringManager,
 	}
 
 	// 初始化插件（失败时回滚已初始化的）
@@ -150,7 +157,7 @@ func (a *AgentLoop) HandleMessage(ctx context.Context, input string) (*Response,
 	a.mu.Lock()
 	if a.closed {
 		a.mu.Unlock()
-		return nil, nil
+		return nil, ErrAgentClosed
 	}
 	a.mu.Unlock()
 
@@ -170,6 +177,9 @@ func (a *AgentLoop) HandleMessage(ctx context.Context, input string) (*Response,
 	}); err != nil {
 		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventPrompted)
 	}
+
+	// 新消息到来时重置压缩标记，允许再次压缩
+	a.compressionApplied = false
 
 	// 2. 运行工具循环
 	resp, err := a.runLoop(ctx)
@@ -199,9 +209,12 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 	a.mu.Lock()
 	if a.closed {
 		a.mu.Unlock()
-		return nil, nil
+		return nil, ErrAgentClosed
 	}
 	a.mu.Unlock()
+
+	// 新消息到来时重置压缩标记，允许再次压缩
+	a.compressionApplied = false
 
 	// 将消息转换为事件存储
 	for _, msg := range messages {
@@ -300,17 +313,31 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 	var finalMessage llm.ChatMessage
 
 	// 可观测性：发布 agent.start 事件
-	a.publishEvent(observability.EventAgentStart, nil)
+	a.publishEvent("agent.start", nil)
 
 	// 1. 压缩：检查是否需要压缩上下文
-	history, err := a.td().History()
-	if err == nil && a.compactor != nil {
-		if a.compactor.ShouldCompact(history, a.cfg.maxContextTokens) {
-			compacted, cerr := a.compactor.Compact(history)
-			if cerr == nil && len(compacted) < len(history) {
-				// 清空 session 并写入压缩后的消息
-				// 简化实现：记录日志，实际压缩需要修改 session 存储
-				log.Printf("[压缩] 上下文已从 %d 条消息压缩至 %d 条", len(history), len(compacted))
+	if !a.compressionApplied {
+		history, err := a.td().History()
+		if err == nil && a.compactor != nil {
+			if a.compactor.ShouldCompact(history, a.cfg.maxContextTokens) {
+				compacted, cerr := a.compactor.Compact(history)
+				if cerr == nil && len(compacted) < len(history) {
+					log.Printf("[压缩] 上下文已从 %d 条消息压缩至 %d 条", len(history), len(compacted))
+					// 写入 EventCompacted 事件
+					keepFrom := len(history) - len(compacted)
+					compactData, err := session.EncodeData(&session.CompactedData{KeepFrom: keepFrom})
+					if err != nil {
+						log.Printf("event persistence failed: %v", err)
+					} else if err := a.session.AppendEvent(session.Event{
+						SessionID: a.sessionID,
+						Type:      session.EventCompacted,
+						Data:      compactData,
+					}); err != nil {
+						log.Printf("event persistence failed: %v", err)
+					}
+					// 设置标记，跳过后续压缩直到新消息到达
+					a.compressionApplied = true
+				}
 			}
 		}
 	}
@@ -319,6 +346,14 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		// 每轮重新创建 pipeline（TurnD 会从 session 读取最新状态）
 		inst := &agentInstance{agent: a}
 		p := NewPipeline(inst.TurnD())
+
+		// 注入 steering 消息：在 setupTurn 中 prepend 到历史消息之前
+		if a.steeringManager != nil {
+			msgs := a.steeringManager.Drain()
+			if len(msgs) > 0 {
+				p.steeringMsgs = steeringToChatMessages(msgs)
+			}
+		}
 
 		// 追加 turn started 事件
 		turnData, encodeErr := session.EncodeData(&session.TurnStartedData{Step: step})
@@ -335,7 +370,7 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		result, err := p.Run(ctx)
 		if err != nil {
 			// 可观测性：发布 agent.error 事件
-			a.publishEvent(observability.EventAgentError, map[string]interface{}{
+			a.publishEvent("agent.error", map[string]interface{}{
 				"error": err.Error(),
 				"step":  step,
 			})
@@ -355,13 +390,11 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 			// 从 session 获取当前消息历史
 			messages, _ := a.td().History()
 			// 构建 tool call 列表供循环检测
-			var ldCalls []loopdetect.ToolCall
+			var ldCalls []LoopToolCall
 			for _, tc := range result.ToolCalls {
-				var args map[string]interface{}
-				args = nil // 简化：循环检测主要关注工具名称
-				ldCalls = append(ldCalls, loopdetect.ToolCall{
+				ldCalls = append(ldCalls, LoopToolCall{
 					ToolName: tc.Call.Name,
-					Args:     args,
+					Args:     nil,
 				})
 			}
 
@@ -394,7 +427,7 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 
 		if !result.HasToolCalls {
 			// 可观测性：发布 agent.end 事件
-			a.publishEvent(observability.EventAgentEnd, map[string]interface{}{
+			a.publishEvent("agent.end", map[string]interface{}{
 				"total_tokens":  finalUsage.TotalTokens,
 				"tool_calls":    len(allToolCalls),
 			})
@@ -408,7 +441,7 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 	}
 
 	// 可观测性：发布 agent.end 事件（步数超限）
-	a.publishEvent(observability.EventAgentEnd, map[string]interface{}{
+	a.publishEvent("agent.end", map[string]interface{}{
 		"error":       ErrMaxStepsExceeded.Error(),
 		"tool_calls":  len(allToolCalls),
 	})
@@ -423,7 +456,7 @@ func (a *AgentLoop) td() TurnD {
 // publishEvent 发布可观测性事件（仅在启用时）
 func (a *AgentLoop) publishEvent(eventType string, data map[string]interface{}) {
 	if a.eventBus != nil && a.obsEnabled {
-		a.eventBus.Publish(observability.NewEvent(eventType, data))
+		a.eventBus.PublishEvent(eventType, data)
 	}
 }
 
