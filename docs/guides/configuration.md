@@ -12,8 +12,8 @@
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `provider` | string | `"openai"` | LLM 提供商类型 |
-| `model` | string | `"gpt-4"` | 模型名称 |
+| `provider` | string | `"opencode"` | LLM 提供商类型 |
+| `model` | string | `"big-pickle"` | 模型名称 |
 | `temperature` | float | `0.7` | 生成温度 (0~2) |
 | `max_tokens` | int | `4096` | 最大生成 token 数 |
 | `system_prompt` | string | `""` | 系统提示词 |
@@ -68,7 +68,7 @@ Provider 直接通过 Go 代码中的 `provider.Create()` 配置，也可以通�
 | `openrouter` | OpenRouter | `https://openrouter.ai/api/v1` |
 | `xai` | xAI | `https://api.x.ai/v1` |
 | `mistral` | Mistral AI | `https://api.mistral.ai/v1` |
-| `opencode` | OpenCode Zen | `https://api.opencode.ai/v1` |
+| `opencode` | OpenCode Zen | `https://opencode.ai/zen/v1` |
 | `bedrock` | Amazon Bedrock | AWS Converse API |
 | `azure` | Azure OpenAI | `https://{resource}.openai.azure.com` |
 | `copilot` | GitHub Copilot | `https://api.githubcopilot.com` |
@@ -97,6 +97,8 @@ basework 自动识别以下环境变量：
 | `ANTHROPIC_API_KEY` | Anthropic Claude |
 | `OPENAI_API_KEY` | OpenAI |
 | `GOOGLE_API_KEY` | Google Gemini |
+| `OPENCODE_API_KEY` | OpenCode Zen |
+| `OG_API_KEY` | OpenCode Zen（兼容旧环境变量名） |
 
 CLI 的 `basework init` 命令会自动检测这些环境变量。
 
@@ -108,10 +110,22 @@ CLI 的 `basework init` 命令会自动检测这些环境变量。
 
 ```json
 {
-  "provider": "anthropic",
-  "model": "claude-3-5-sonnet-20241022",
+  "provider": "opencode",
+  "model": "big-pickle",
   "temperature": 0.7,
   "max_tokens": 4096
+}
+```
+
+如需把 OpenCode API Key 写入配置文件，可使用 provider 专属配置：
+
+```json
+{
+  "provider": "opencode",
+  "model": "big-pickle",
+  "opencode": {
+    "api_key": "..."
+  }
 }
 ```
 
@@ -120,7 +134,7 @@ CLI 的 `basework init` 命令会自动检测这些环境变量。
 ```json
 {
   "provider": "openai",
-  "model": "gpt-4",
+  "model": "gpt-4o",
   "temperature": 0.5,
   "max_tokens": 8192,
   "system_prompt": "你是一个专业的代码审查助手。",

@@ -155,7 +155,7 @@ Key files: Makefile, Dockerfile
 │   ├── anthropic.txt    # 覆盖 anthropic 内置模板
 │   ├── my-custom.txt    # 自定义新模板
 │   └── openai.txt       # 覆盖 openai 内置模板
-└── basework.json
+└── config.json
 ```
 
 ### 创建自定义模板

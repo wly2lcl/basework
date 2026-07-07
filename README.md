@@ -264,24 +264,21 @@ description: "代码审查最佳实践"
 
 ## 配置
 
-配置文件：`basework.json` 或 `.basework/basework.json`
+配置文件搜索顺序：`./config.json`、`.basework/config.json`、父目录中的 `config.json`、`~/.config/basework/config.json`。
+
+默认 Provider 是 OpenCode Zen，默认模型是 `big-pickle`。该模型本身免费，但仍需要配置 API Key：
+
+```bash
+export OPENCODE_API_KEY="..."
+```
 
 ```json
 {
-  "model": "claude-3-5-sonnet",
-  "provider": "anthropic",
-  "api_key": "sk-...",
-  "max_steps": 25,
+  "provider": "opencode",
+  "model": "big-pickle",
+  "max_iterations": 25,
   "system_prompt": "你是一个有帮助的助手。",
-  "tools": {
-    "bash": true,
-    "write": true
-  },
-  "lsp": {
-    "go": { "command": "gopls" },
-    "typescript": { "command": "typescript-language-server", "args": ["--stdio"] }
-  },
-  "mcp": {
+  "mcp_configs": {
     "github": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],

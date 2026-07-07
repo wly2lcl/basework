@@ -67,11 +67,21 @@
 | Release dry-run | ✅ 完成 | GoReleaser snapshot 验证发布配置但不发布 artifact/镜像 |
 | 发布策略 | ✅ 完成 | tag push 正式发布；手动 dispatch 默认 dry-run，非 dry-run 需版本校验 |
 
+### 第六轮优化（P2，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| 默认配置对齐 | ✅ 完成 | 默认 provider/model 从 `openai/gpt-4` 对齐为 `opencode/big-pickle` |
+| OpenCode API Key | ✅ 完成 | CLI 优先读取 `opencode.api_key`，环境变量支持 `OPENCODE_API_KEY` 并兼容 `OG_API_KEY` |
+| 初始化体验 | ✅ 完成 | `basework init` 支持 OpenCode Zen，并在无 key 输入时默认选择 OpenCode |
+| 模型列表 | ✅ 完成 | `basework model list` 增加 OpenCode Zen 免费模型 |
+| 文档对齐 | ✅ 完成 | README、安装、配置、CLI、Provider、FAQ 对齐默认模型、API Key 和配置 schema |
+
 ### 后续优化路线
 
 | 阶段 | 优先级 | 目标 |
 |------|--------|------|
-| 第六轮 | P2 | README/安装文档与默认 provider 行为对齐 |
+| 独立任务 | P2 | 全仓 gofmt 基线：单独提交纯格式化 diff，再启用全仓 gofmt CI |
 
 ---
 

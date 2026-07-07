@@ -138,11 +138,31 @@
 - [x] 正式发布只在 tag push 或显式关闭 dry-run 时执行
 - [x] 手动 dry-run 不发布 artifact、不推送镜像
 
-### Phase 35 后续任务（下一轮）
+### Task 35.9: 第六轮默认配置与文档对齐 ✅
+
+**文件**：`pkg/config/config.go`, `pkg/config/config_test.go`, `cmd/basework/agent.go`, `cmd/basework/onboard.go`, `cmd/basework/model.go`, `README.md`, `docs/installation.md`, `docs/guides/configuration.md`, `docs/guides/cli-guide.md`, `docs/guides/provider-guide.md`, `docs/FAQ.md`
+
+**内容**：
+- 默认 provider/model 从 `openai/gpt-4` 对齐为 `opencode/big-pickle`
+- `lookupAPIKey` 支持 `OPENCODE_API_KEY`，并兼容旧的 `OG_API_KEY`
+- runtime 创建 provider 时优先使用 `opencode.api_key` 等配置文件中的 provider 专属 API Key
+- `basework init` 支持 OpenCode Zen，并在无输入时默认选择 OpenCode Zen
+- `basework model list` 增加 OpenCode Zen 免费模型
+- README、安装指南、配置指南、CLI 指南、Provider 指南、FAQ 对齐默认 provider/model、环境变量和配置文件路径
+- 修正文档中 “big-pickle 无需 API Key” 的误导表述：模型免费，但运行仍需配置 OpenCode API Key
+
+**验收标准**：
+- [x] 默认配置和产品文档一致
+- [x] 默认模型回归测试更新
+- [x] OpenCode API Key 环境变量入口一致
+- [x] OpenCode API Key 配置文件入口生效
+- [x] README 配置示例使用当前配置 schema
+
+### Phase 35 后续独立任务
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| README 对齐 | P2 | 🔲 待做 | 默认 provider/model 与文档声明统一 |
+| 全仓 gofmt 基线 | P2 | 🔲 待做 | 单独提交纯格式化 diff，再把 CI gofmt 从触达文件升级为全仓检查 |
 
 ---
 

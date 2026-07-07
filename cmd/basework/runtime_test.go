@@ -88,6 +88,25 @@ Write concise documentation.
 	}
 }
 
+func TestProviderAPIKeyPrefersOpenCodeConfig(t *testing.T) {
+	t.Setenv("OPENCODE_API_KEY", "env-key")
+	cfg := config.NewStore("").Get()
+	cfg.OpenCode.APIKey = "config-key"
+
+	if got := providerAPIKey(cfg, "opencode"); got != "config-key" {
+		t.Fatalf("expected config key, got %q", got)
+	}
+}
+
+func TestLookupAPIKeySupportsLegacyOpenCodeEnv(t *testing.T) {
+	t.Setenv("OPENCODE_API_KEY", "")
+	t.Setenv("OG_API_KEY", "legacy-key")
+
+	if got := lookupAPIKey("opencode"); got != "legacy-key" {
+		t.Fatalf("expected legacy OpenCode key, got %q", got)
+	}
+}
+
 func toolNameSet(tools []tool.Tool) map[string]bool {
 	names := make(map[string]bool, len(tools))
 	for _, tool := range tools {

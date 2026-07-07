@@ -12,7 +12,7 @@ basework 在设计上与 opencode 和 crush 有相似的目标——提供终端
 
 ### 默认使用什么模型？
 
-basework 默认使用 **big-pickle 免费模型**，无需配置 API Key 即可体验。这使得新用户可以零门槛上手，体验 basework 的核心能力。当需要更强大的模型时，可以随时切换到其他 Provider 的模型。
+basework 默认使用 OpenCode Zen 的 **big-pickle 免费模型**。该模型本身免费，但运行时仍需要配置 OpenCode API Key：推荐使用 `OPENCODE_API_KEY`，也兼容旧环境变量名 `OG_API_KEY`。当需要更强大的模型时，可以随时切换到其他 Provider 的模型。
 
 ### 支持哪些 Provider？
 

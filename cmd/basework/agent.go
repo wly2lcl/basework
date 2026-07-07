@@ -171,6 +171,9 @@ func lookupAPIKey(providerType string) string {
 		if key := os.Getenv("OPENCODE_API_KEY"); key != "" {
 			return key
 		}
+		if key := os.Getenv("OG_API_KEY"); key != "" {
+			return key
+		}
 		if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 			return key
 		}
@@ -190,6 +193,24 @@ func lookupAPIKey(providerType string) string {
 		return key
 	}
 	return ""
+}
+
+func providerAPIKey(cfg *config.Config, providerType string) string {
+	switch providerType {
+	case "opencode":
+		if cfg.OpenCode.APIKey != "" {
+			return cfg.OpenCode.APIKey
+		}
+	case "azure":
+		if cfg.Azure.APIKey != "" {
+			return cfg.Azure.APIKey
+		}
+	case "bedrock":
+		if cfg.Bedrock.AccessKey != "" {
+			return cfg.Bedrock.AccessKey
+		}
+	}
+	return lookupAPIKey(providerType)
 }
 
 // buildProviderOptions 根据配置构建 provider 的 Options map

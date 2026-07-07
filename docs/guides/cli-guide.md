@@ -255,14 +255,15 @@ basework --version
 |------|------|
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
 | `OPENAI_API_KEY` | OpenAI API Key |
-| `GEMINI_API_KEY` | Google Gemini API Key |
+| `GOOGLE_API_KEY` | Google Gemini API Key |
 | `COHERE_API_KEY` | Cohere API Key |
 | `MISTRAL_API_KEY` | Mistral AI API Key |
 | `GROQ_API_KEY` | Groq API Key |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key |
 | `TOGETHER_API_KEY` | Together AI API Key |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API Key |
-| `OG_API_KEY` | big-pickle 免费模型 API Key（可选） |
+| `OPENCODE_API_KEY` | OpenCode Zen API Key（推荐） |
+| `OG_API_KEY` | OpenCode Zen API Key（兼容旧名称） |
 | `BASEWORK_CONFIG` | 配置文件路径（覆盖默认位置） |
 | `BASEWORK_LOG_LEVEL` | 日志级别：`debug`、`info`、`warn`、`error` |
 

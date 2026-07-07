@@ -269,8 +269,8 @@ type QueueConfig struct {
 // defaultConfig 返回默认配置。
 func defaultConfig() *Config {
 	return &Config{
-		Provider:         "openai",
-		Model:            "gpt-4",
+		Provider:         "opencode",
+		Model:            "big-pickle",
 		Temperature:      0.7,
 		MaxTokens:        4096,
 		TopP:             1.0,

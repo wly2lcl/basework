@@ -37,6 +37,11 @@ type modelEntry struct {
 
 // knownModels 是已知的模型列表
 var knownModels = []modelEntry{
+	// OpenCode Zen
+	{Provider: "opencode", ModelID: "big-pickle"},
+	{Provider: "opencode", ModelID: "deepseek-v4-flash-free"},
+	{Provider: "opencode", ModelID: "mimo-v2.5-free"},
+
 	// OpenAI
 	{Provider: "openai", ModelID: "gpt-4o"},
 	{Provider: "openai", ModelID: "gpt-4o-mini"},

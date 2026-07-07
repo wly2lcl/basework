@@ -57,11 +57,11 @@ func TestConfigDefaults(t *testing.T) {
 	store := NewStore("")
 	cfg := store.Get()
 
-	if cfg.Provider != "openai" {
-		t.Errorf("expected Provider 'openai', got %q", cfg.Provider)
+	if cfg.Provider != "opencode" {
+		t.Errorf("expected Provider 'opencode', got %q", cfg.Provider)
 	}
-	if cfg.Model != "gpt-4" {
-		t.Errorf("expected Model 'gpt-4', got %q", cfg.Model)
+	if cfg.Model != "big-pickle" {
+		t.Errorf("expected Model 'big-pickle', got %q", cfg.Model)
 	}
 	if cfg.Temperature != 0.7 {
 		t.Errorf("expected Temperature 0.7, got %f", cfg.Temperature)
@@ -114,7 +114,7 @@ func TestLoadPartialConfigMergesDefaults(t *testing.T) {
 	if cfg.Provider != "anthropic" {
 		t.Fatalf("expected provider override, got %q", cfg.Provider)
 	}
-	if cfg.Model != "gpt-4" {
+	if cfg.Model != "big-pickle" {
 		t.Fatalf("expected default model to be preserved, got %q", cfg.Model)
 	}
 	if cfg.MaxIterations != 10 {
@@ -361,8 +361,8 @@ func TestConfigLoadFileNotExists(t *testing.T) {
 	}
 
 	cfg := store.Get()
-	if cfg.Provider != "openai" {
-		t.Errorf("expected default Provider 'openai', got %q", cfg.Provider)
+	if cfg.Provider != "opencode" {
+		t.Errorf("expected default Provider 'opencode', got %q", cfg.Provider)
 	}
 }
 
@@ -474,8 +474,8 @@ func TestConfigReload(t *testing.T) {
 
 	// 初始配置
 	cfg := store.Get()
-	if cfg.Provider != "openai" {
-		t.Errorf("expected default Provider 'openai', got %q", cfg.Provider)
+	if cfg.Provider != "opencode" {
+		t.Errorf("expected default Provider 'opencode', got %q", cfg.Provider)
 	}
 
 	// 直接写入文件（模拟外部修改）
@@ -571,7 +571,7 @@ func TestConfigNewStore(t *testing.T) {
 		c.Provider = "custom"
 	})
 
-	if s2.Get().Provider != "openai" {
+	if s2.Get().Provider != "opencode" {
 		t.Error("s2 should not be affected by s1 mutation")
 	}
 }
@@ -616,8 +616,8 @@ func TestConfigMutateCopyOnWrite(t *testing.T) {
 	})
 
 	// 之前的指针应保持不变
-	if original.Provider != "openai" {
-		t.Errorf("original snapshot should have 'openai', got %q", original.Provider)
+	if original.Provider != "opencode" {
+		t.Errorf("original snapshot should have 'opencode', got %q", original.Provider)
 	}
 }
 
@@ -638,8 +638,8 @@ func TestConfigGetDeepCopy(t *testing.T) {
 
 	// 重新获取，内部状态应不受影响
 	cfg2 := store.Get()
-	if cfg2.Provider != "openai" {
-		t.Errorf("internal state Provider should be 'openai', got %q", cfg2.Provider)
+	if cfg2.Provider != "opencode" {
+		t.Errorf("internal state Provider should be 'opencode', got %q", cfg2.Provider)
 	}
 	if cfg2.MaxTokens != 4096 {
 		t.Errorf("internal state MaxTokens should be 4096, got %d", cfg2.MaxTokens)

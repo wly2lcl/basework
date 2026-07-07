@@ -43,7 +43,7 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 	model, err := provider.Create(provider.Config{
 		Type:    providerType,
 		ModelID: cfg.Model,
-		APIKey:  lookupAPIKey(providerType),
+		APIKey:  providerAPIKey(cfg, providerType),
 		Options: buildProviderOptions(cfg, providerType),
 	})
 	if err != nil {

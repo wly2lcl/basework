@@ -43,7 +43,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 
 | Provider | 类型值 | 端点 | 环境变量 |
 |----------|--------|------|----------|
-| OpenCode Zen | `"opencode"` | `https://opencode.ai/zen/v1` | `OG_API_KEY` |
+| OpenCode Zen | `"opencode"` | `https://opencode.ai/zen/v1` | `OPENCODE_API_KEY`（兼容 `OG_API_KEY`） |
 | Amazon Bedrock | `"bedrock"` | AWS Converse API | AWS 凭证 |
 | Azure OpenAI | `"azure"` | `https://{resource}.openai.azure.com` | `AZURE_OPENAI_API_KEY` |
 | GitHub Copilot | `"copilot"` | `https://api.githubcopilot.com` | OAuth 认证 |

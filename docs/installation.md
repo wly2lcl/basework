@@ -42,6 +42,7 @@ basework version
 ## 配置
 
 首次运行时，basework 会在 `~/.config/basework/` 创建配置文件。
+默认 Provider 是 OpenCode Zen，默认模型是 `big-pickle`。如需显式配置 API Key，可设置 `OPENCODE_API_KEY`，旧环境变量名 `OG_API_KEY` 也兼容。
 
 编辑 `config.json` 配置 Provider、模型等：
 

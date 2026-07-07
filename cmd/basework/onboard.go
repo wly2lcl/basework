@@ -32,6 +32,8 @@ type envVarInfo struct {
 
 // apiEnvVars 是已知的 API Key 环境变量
 var apiEnvVars = []envVarInfo{
+	{envName: "OPENCODE_API_KEY", provider: "opencode", label: "OpenCode Zen (big-pickle)"},
+	{envName: "OG_API_KEY", provider: "opencode", label: "OpenCode Zen (legacy OG_API_KEY)"},
 	{envName: "ANTHROPIC_API_KEY", provider: "anthropic", label: "Anthropic (Claude)"},
 	{envName: "OPENAI_API_KEY", provider: "openai", label: "OpenAI (GPT)"},
 	{envName: "GOOGLE_API_KEY", provider: "gemini", label: "Google (Gemini)"},
@@ -90,14 +92,14 @@ func runInit() error {
 		for i, ev := range apiEnvVars {
 			fmt.Printf("  %d) %s (%s)\n", i+1, ev.label, ev.envName)
 		}
-		fmt.Print("请输入编号 (1-3): ")
+		fmt.Printf("请输入编号 (1-%d): ", len(apiEnvVars))
 		scanner.Scan()
 		choice := strings.TrimSpace(scanner.Text())
 		idx := 0
 		fmt.Sscanf(choice, "%d", &idx)
-		if idx < 1 || idx > 3 {
-			selectedProvider = "openai"
-			fmt.Println("使用默认: OpenAI")
+		if idx < 1 || idx > len(apiEnvVars) {
+			selectedProvider = "opencode"
+			fmt.Println("使用默认: OpenCode Zen")
 		} else {
 			selectedProvider = apiEnvVars[idx-1].provider
 		}
@@ -114,6 +116,8 @@ func runInit() error {
 	// 3. 选择模型
 	var defaultModel string
 	switch selectedProvider {
+	case "opencode":
+		defaultModel = "big-pickle"
 	case "openai":
 		defaultModel = "gpt-4o"
 	case "anthropic":
