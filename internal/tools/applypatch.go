@@ -230,7 +230,7 @@ func parsePatch(patch string) ([]patchFile, error) {
 
 // sanitizePath 检查并规范化路径，防止路径遍历攻击。
 func sanitizePath(workDir, path string) (string, error) {
-	if filepath.IsAbs(path) {
+	if isAbsolutePatchPath(path) {
 		return "", fmt.Errorf("path traversal detected: %s (absolute path not allowed, must be relative to workDir)", path)
 	}
 	fullPath := filepath.Join(workDir, path)
@@ -246,6 +246,13 @@ func sanitizePath(workDir, path string) (string, error) {
 		return "", fmt.Errorf("path traversal detected: %s", path)
 	}
 	return absPath, nil
+}
+
+func isAbsolutePatchPath(path string) bool {
+	return filepath.IsAbs(path) ||
+		filepath.VolumeName(path) != "" ||
+		strings.HasPrefix(path, "/") ||
+		strings.HasPrefix(path, "\\")
 }
 
 // applyFiles 执行文件操作

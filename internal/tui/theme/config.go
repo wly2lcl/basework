@@ -13,6 +13,8 @@ const (
 	configFile = "theme.json"
 )
 
+var userHomeDir = os.UserHomeDir
+
 // ThemeConfig 主题配置持久化结构
 type ThemeConfig struct {
 	Name string `json:"name"` // "dark", "light", "dracula", "monokai"
@@ -20,7 +22,7 @@ type ThemeConfig struct {
 
 // configPath 返回配置文件路径
 func configPath() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("获取用户主目录失败: %w", err)
 	}

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -784,15 +786,23 @@ func TestClientURIHelpers(t *testing.T) {
 	client := &Client{}
 
 	// fileToURI
-	uri := client.fileToURI("/path/to/file.go")
-	expected := "file:///path/to/file.go"
+	inputPath := filepath.Join(t.TempDir(), "file.go")
+	uri := client.fileToURI(inputPath)
+	absPath, err := filepath.Abs(inputPath)
+	if err != nil {
+		t.Fatalf("filepath.Abs: %v", err)
+	}
+	expected := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(absPath),
+	}).String()
 	if uri != expected {
 		t.Errorf("fileToURI: expected %q, got %q", expected, uri)
 	}
 
 	// uriToFile
-	path := client.uriToFile("file:///path/to/file.go")
-	expectedPath := "/path/to/file.go"
+	path := client.uriToFile(uri)
+	expectedPath := filepath.FromSlash(strings.TrimPrefix(uri, "file://"))
 	if path != expectedPath {
 		t.Errorf("uriToFile: expected %q, got %q", expectedPath, path)
 	}
@@ -1058,16 +1068,31 @@ func TestClientFileToURIAbsolute(t *testing.T) {
 	client := &Client{}
 
 	// 绝对路径
-	uri := client.fileToURI("/home/user/test.go")
-	expected := "file:///home/user/test.go"
+	absPath, err := filepath.Abs(filepath.Join(t.TempDir(), "test.go"))
+	if err != nil {
+		t.Fatalf("filepath.Abs: %v", err)
+	}
+	uri := client.fileToURI(absPath)
+	expected := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(absPath),
+	}).String()
 	if uri != expected {
 		t.Errorf("expected %q, got %q", expected, uri)
 	}
 
 	// 包含空格的路径 — 使用 url.URL 后会被正确编码为 %20
-	uri = client.fileToURI("/home/user/my project/test.go")
-	if uri != "file:///home/user/my%20project/test.go" {
-		t.Errorf("unexpected URI for path with spaces: %q", uri)
+	spacedPath, err := filepath.Abs(filepath.Join(t.TempDir(), "my project", "test.go"))
+	if err != nil {
+		t.Fatalf("filepath.Abs spaced path: %v", err)
+	}
+	uri = client.fileToURI(spacedPath)
+	expected = (&url.URL{
+		Scheme: "file",
+		Path:   filepath.ToSlash(spacedPath),
+	}).String()
+	if uri != expected || !strings.Contains(uri, "%20") {
+		t.Errorf("unexpected URI for path with spaces: %q, expected %q", uri, expected)
 	}
 }
 

@@ -7,13 +7,24 @@ import (
 	"testing"
 )
 
+func withTempHome(t *testing.T) string {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	oldUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) {
+		return tmpDir, nil
+	}
+	t.Cleanup(func() {
+		userHomeDir = oldUserHomeDir
+	})
+
+	return tmpDir
+}
+
 // TestLoadThemeConfig 测试加载主题配置
 func TestLoadThemeConfig(t *testing.T) {
-	// 使用临时目录
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	withTempHome(t)
 
 	// 默认返回 dark
 	cfg, err := LoadThemeConfig()
@@ -27,10 +38,7 @@ func TestLoadThemeConfig(t *testing.T) {
 
 // TestSaveThemeConfig 测试保存主题配置
 func TestSaveThemeConfig(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	tmpDir := withTempHome(t)
 
 	// 保存配置
 	cfg := &ThemeConfig{Name: "light"}
@@ -56,10 +64,7 @@ func TestSaveThemeConfig(t *testing.T) {
 
 // TestSetTheme 测试设置主题
 func TestSetTheme(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	withTempHome(t)
 
 	// 设置有效主题
 	if err := SetTheme("dracula"); err != nil {
@@ -74,16 +79,17 @@ func TestSetTheme(t *testing.T) {
 
 // TestLoadThemeConfigInvalidFile 测试损坏的配置文件
 func TestLoadThemeConfigInvalidFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	tmpDir := withTempHome(t)
 
 	// 创建损坏的配置文件
 	configDir := filepath.Join(tmpDir, ".basework")
-	os.MkdirAll(configDir, 0755)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("创建配置目录失败: %v", err)
+	}
 	configPath := filepath.Join(configDir, "theme.json")
-	os.WriteFile(configPath, []byte("invalid json"), 0644)
+	if err := os.WriteFile(configPath, []byte("invalid json"), 0644); err != nil {
+		t.Fatalf("写入损坏配置失败: %v", err)
+	}
 
 	// 应返回默认配置
 	cfg, err := LoadThemeConfig()

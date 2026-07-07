@@ -3,6 +3,7 @@ package permission
 import (
 	"fmt"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 )
@@ -137,9 +138,11 @@ func (pc *PathChecker) IsSensitive(path string) bool {
 		return false
 	}
 
+	normalized := normalizeForPolicyMatch(path)
+
 	// 检查黑名单
 	for _, pattern := range pc.blocked {
-		if pathMatch(pattern, path) {
+		if pathMatch(pattern, normalized) {
 			return true
 		}
 	}
@@ -153,6 +156,10 @@ func (pc *PathChecker) IsSensitive(path string) bool {
 func NormalizePath(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("path is empty")
+	}
+
+	if strings.HasPrefix(path, "/") {
+		return pathpkg.Clean(path), nil
 	}
 
 	// 展开 ~
@@ -183,23 +190,34 @@ func NormalizePath(path string) (string, error) {
 	return path, nil
 }
 
+func normalizeForPolicyMatch(path string) string {
+	path = filepath.ToSlash(path)
+	for strings.Contains(path, "//") {
+		path = strings.ReplaceAll(path, "//", "/")
+	}
+	return path
+}
+
 // pathMatch 检查路径是否匹配模式。
 // 支持：精确匹配、子串匹配（目录模式如 ".git/"、"//.ssh/"）、glob 模式匹配。
 func pathMatch(pattern, path string) bool {
+	pattern = normalizeForPolicyMatch(pattern)
+	path = normalizeForPolicyMatch(path)
+
 	// 精确匹配
 	if pattern == path {
 		return true
 	}
 
 	// 目录模式匹配（模式以 / 或 \\ 结尾，如 ".git/"、"/.ssh/"）
-	if strings.HasSuffix(pattern, "/") || strings.HasSuffix(pattern, string(filepath.Separator)) {
+	if strings.HasSuffix(pattern, "/") || strings.HasSuffix(pattern, "\\") {
 		trimmed := strings.TrimRight(pattern, "/\\")
 
 		// 构造用于子串搜索的组件模式
 		// 模式 "/.ssh/" → 在路径中搜索 "/.ssh/"
 		// 模式 ".git/" → 在路径中搜索 "/.git/"
 		var searchStr string
-		sep := string(filepath.Separator)
+		sep := "/"
 		if strings.HasPrefix(trimmed, sep) {
 			// 模式以分隔符开头（如 "/.ssh"），直接拼接
 			searchStr = trimmed + sep
@@ -230,7 +248,10 @@ func pathMatch(pattern, path string) bool {
 	}
 
 	// 也尝试匹配路径末尾部分（如 "shadow" 匹配 "/etc/shadow"）
-	base := filepath.Base(path)
+	base := path
+	if idx := strings.LastIndex(base, "/"); idx >= 0 {
+		base = base[idx+1:]
+	}
 	if matched, err := filepath.Match(pattern, base); err == nil && matched {
 		return true
 	}
