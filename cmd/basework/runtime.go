@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/wly2lcl/basework/internal/permission"
@@ -69,11 +71,13 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 		}
 	}
 
-	plugin, extraTools := initializeRuntimeExtensions(context.Background(), cfg, cwd)
+	var permissionCleanups []func() error
 	var coreChecker *permission.Checker
 	if permissionChecker != nil {
 		coreChecker = permissionChecker.Core
+		permissionCleanups = permissionChecker.Cleanups
 	}
+	plugin, extraTools := initializeRuntimeExtensions(context.Background(), cfg, cwd, permissionCleanups...)
 
 	agentOpts := []agent.Option{
 		agent.WithModel(model),
@@ -154,8 +158,9 @@ func runtimeTools(cfg *config.Config, workDir string, checker *permission.Checke
 }
 
 type runtimePermissionChecker struct {
-	Core    *permission.Checker
-	Adapter agent.PermissionChecker
+	Core     *permission.Checker
+	Adapter  agent.PermissionChecker
+	Cleanups []func() error
 }
 
 func newPermissionChecker(cfg *config.Config) (*runtimePermissionChecker, error) {
@@ -167,9 +172,21 @@ func newPermissionChecker(cfg *config.Config) (*runtimePermissionChecker, error)
 	if err != nil {
 		return nil, fmt.Errorf("解析权限模式失败: %w", err)
 	}
-	checker := permission.NewChecker(parsedMode, nil, func(context.Context, string, map[string]interface{}) (bool, bool, error) {
-		return false, false, nil
-	})
+	persistence, err := openRuntimePermissionPersistence(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	prompt := newRuntimePermissionPrompt(os.Stdin, os.Stdout)
+	var checker *permission.Checker
+	if persistence.Store != nil {
+		checker = permission.NewCheckerWithStore(parsedMode, persistence.Store, prompt)
+	} else {
+		checker = permission.NewChecker(parsedMode, nil, prompt)
+	}
+	if persistence.AuditLogger != nil {
+		checker = checker.WithAudit(persistence.AuditLogger)
+	}
 
 	level := cfg.Security.ProtectionLevel
 	if level == "" {
@@ -185,14 +202,15 @@ func newPermissionChecker(cfg *config.Config) (*runtimePermissionChecker, error)
 		protection,
 	)
 	return &runtimePermissionChecker{
-		Core:    checker,
-		Adapter: permission.NewPathPermissionAdapter(checker, pathChecker),
+		Core:     checker,
+		Adapter:  permission.NewPathPermissionAdapter(checker, pathChecker),
+		Cleanups: persistence.Cleanups,
 	}, nil
 }
 
-func initializeRuntimeExtensions(ctx context.Context, cfg *config.Config, workDir string) (agent.Plugin, []tool.Tool) {
+func initializeRuntimeExtensions(ctx context.Context, cfg *config.Config, workDir string, extraCleanups ...func() error) (agent.Plugin, []tool.Tool) {
 	var tools []tool.Tool
-	var cleanups []func() error
+	cleanups := append([]func() error{}, extraCleanups...)
 
 	if lspManager, err := startLSPManager(ctx, workDir); err != nil {
 		log.Printf("[runtime] warning: LSP disabled: %v", err)
@@ -210,6 +228,44 @@ func initializeRuntimeExtensions(ctx context.Context, cfg *config.Config, workDi
 	}
 
 	return newRuntimeCleanupPlugin(cleanups...), tools
+}
+
+type runtimePermissionPersistence struct {
+	Store       permission.Store
+	AuditLogger *permission.AuditLogger
+	Cleanups    []func() error
+}
+
+func newRuntimePermissionPrompt(stdin *os.File, stdout *os.File) permission.PromptFunc {
+	return func(ctx context.Context, toolName string, args map[string]interface{}) (bool, bool, error) {
+		select {
+		case <-ctx.Done():
+			return false, false, ctx.Err()
+		default:
+		}
+
+		fmt.Fprintf(stdout, "\n权限请求: 工具 %s\n", toolName)
+		if len(args) > 0 {
+			fmt.Fprintf(stdout, "参数:\n%s\n", permission.MarshalArgs(args))
+		}
+		fmt.Fprint(stdout, "允许执行？[y] 本次允许 / [a] 始终允许 / [n] 本次拒绝 / [d] 始终拒绝: ")
+
+		reader := bufio.NewReader(stdin)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			return false, false, fmt.Errorf("读取权限输入失败: %w", err)
+		}
+		switch strings.ToLower(strings.TrimSpace(answer)) {
+		case "y", "yes":
+			return true, false, nil
+		case "a", "always":
+			return true, true, nil
+		case "d", "deny", "never":
+			return false, true, nil
+		default:
+			return false, false, nil
+		}
+	}
 }
 
 func startLSPManager(ctx context.Context, workDir string) (*lsp.Manager, error) {

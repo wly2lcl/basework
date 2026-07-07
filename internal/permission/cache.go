@@ -54,6 +54,9 @@ func (c *Cache) Get(key string) *bool {
 		toolName, args := parseCacheKey(key)
 		rule, err := c.pers.FindByPattern(toolName, args)
 		if err == nil && rule != nil {
+			if rule.RuleType == "ask" {
+				return nil
+			}
 			allow := rule.RuleType == "allow"
 			c.mu.Lock()
 			c.store[key] = allow

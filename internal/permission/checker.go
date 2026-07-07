@@ -27,7 +27,7 @@ type Checker struct {
 	Rules       []Rule
 	PromptFunc  PromptFunc
 	Cache       *Cache
-	Store       Store       // 可选持久化存储
+	Store       Store        // 可选持久化存储
 	AuditLogger *AuditLogger // 可选审计日志记录器
 }
 
@@ -134,14 +134,19 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 	if c.Store != nil {
 		storedRule, err := c.Store.FindByPattern(toolName, args)
 		if err == nil && storedRule != nil {
-			allow := storedRule.RuleType == "allow"
-			c.Cache.Set(cacheKey, allow)
-			decision := "denied"
-			if allow {
-				decision = "allowed"
+			switch storedRule.RuleType {
+			case "allow", "deny":
+				allow := storedRule.RuleType == "allow"
+				c.Cache.Set(cacheKey, allow)
+				decision := "denied"
+				if allow {
+					decision = "allowed"
+				}
+				c.recordAudit(toolName, storedRule.ID, decision, args)
+				return allow, nil
+			case "ask":
+				c.recordAudit(toolName, storedRule.ID, "asked", args)
 			}
-			c.recordAudit(toolName, storedRule.ID, decision, args)
-			return allow, nil
 		}
 	}
 

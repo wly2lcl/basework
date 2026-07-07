@@ -102,12 +102,46 @@
 - [x] MCP/LSP 生命周期由 agent 关闭流程托管
 - [x] MCP 连接失败不会导致无关 CLI/TUI 启动失败
 
+### Task 35.7: 第四轮权限交互与审计闭环 ✅
+
+**文件**：`cmd/basework/runtime.go`, `cmd/basework/runtime_permission_*.go`, `internal/permission/checker.go`, `internal/permission/cache.go`
+
+**内容**：
+- runtime 权限 checker 接入持久化规则存储
+- sqlite build tag 下打开 `~/.basework/permissions.db` 并写入审计日志
+- 无 sqlite build tag 下保留 memory/空操作降级，保证默认构建可用
+- interactive 模式提供终端确认 prompt，支持本次允许、始终允许、本次拒绝、始终拒绝
+- 修复持久化 `ask` 规则被误判为 deny 的问题
+- 权限 store/audit 跟随 agent 生命周期关闭
+
+**验收标准**：
+- [x] `permission add/list/audit` 使用的 SQLite 规则库与 runtime checker 同源
+- [x] runtime 权限检查会写入 SQLite 审计记录
+- [x] `ask` 规则进入用户提示流程，不会被当作拒绝
+- [x] 无 sqlite tag 构建仍能编译运行
+
+### Task 35.8: 第五轮 CI/CD 加强 ✅
+
+**文件**：`.github/workflows/build.yml`, `.github/workflows/release.yml`
+
+**内容**：
+- CI 拆分为 quality、跨平台 test、release dry-run 三个 job
+- quality job 增加本轮触达 Go 文件的 gofmt、带 `sqlite memory` tag 的 vet、race test 子集
+- test job 覆盖 Ubuntu/macOS/Windows
+- release dry-run 使用 GoReleaser snapshot 验证发布配置
+- release workflow 支持 tag push 正式发布，workflow_dispatch 默认 dry-run
+- 手动非 dry-run 发布增加版本格式校验，避免误打无效 tag
+
+**验收标准**：
+- [x] CI 覆盖 lint/vet/test/build/release dry-run
+- [x] 跨平台 matrix 覆盖 Linux/macOS/Windows
+- [x] 正式发布只在 tag push 或显式关闭 dry-run 时执行
+- [x] 手动 dry-run 不发布 artifact、不推送镜像
+
 ### Phase 35 后续任务（下一轮）
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| 完整权限交互 | P1 | 🔲 待做 | REPL/TUI ask 流程、权限缓存、SQLite 审计 |
-| CI/CD 加强 | P1 | 🔲 待做 | lint + platform matrix + release dry-run/tag 策略 |
 | README 对齐 | P2 | 🔲 待做 | 默认 provider/model 与文档声明统一 |
 
 ---

@@ -1,25 +1,34 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. v0.1.0)"
-        required: true
+        description: "Release version (required only when dry_run is false, e.g. v0.1.0)"
+        required: false
         type: string
+      dry_run:
+        description: "Run GoReleaser snapshot without publishing"
+        required: false
+        type: boolean
+        default: true
       prerelease:
         description: "Mark as pre-release"
         required: false
         type: boolean
         default: false
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   release:
-    name: GoReleaser Release
+    name: GoReleaser
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -27,35 +36,71 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Validate manual release input
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
+        run: |
+          if [ -z "${{ inputs.version }}" ]; then
+            echo "version is required when dry_run is false"
+            exit 1
+          fi
+          if ! echo "${{ inputs.version }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
+            echo "version must look like v1.2.3"
+            exit 1
+          fi
+
       - name: Configure Git
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
       - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
         run: |
-          git tag -a ${{ inputs.version }} -m "Release ${{ inputs.version }}"
-          git push origin ${{ inputs.version }}
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
 
       - name: Set up QEMU
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
         uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run GoReleaser
+      - name: Check GoReleaser config
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ~> v2
+          args: check
+
+      - name: Run GoReleaser dry run
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ~> v2
+          args: release --snapshot --clean --skip=docker,publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -63,3 +108,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_PRERELEASE: ${{ inputs.prerelease }}

@@ -329,6 +329,28 @@ func TestChecker_Check_交互模式_用户拒绝(t *testing.T) {
 	}
 }
 
+func TestChecker_Check_交互模式_StoreAsk规则会提示(t *testing.T) {
+	promptCalled := false
+	store := &fakePermissionStore{
+		rule: &StoredRule{ID: "rule-ask", RuleType: "ask", Pattern: "danger_*"},
+	}
+	c := NewCheckerWithStore(ModeInteractive, store, func(ctx context.Context, toolName string, args map[string]interface{}) (bool, bool, error) {
+		promptCalled = true
+		return true, false, nil
+	})
+
+	allowed, err := c.Check(context.Background(), "danger_tool", nil)
+	if err != nil {
+		t.Fatalf("不应返回错误: %v", err)
+	}
+	if !allowed {
+		t.Fatal("用户允许后应返回 true")
+	}
+	if !promptCalled {
+		t.Fatal("ask 规则应继续调用 PromptFunc")
+	}
+}
+
 func TestChecker_Check_交互模式_无PromptFunc(t *testing.T) {
 	c := NewChecker(ModeInteractive, nil, nil)
 	_, err := c.Check(context.Background(), "tool", nil)
@@ -343,6 +365,55 @@ func TestChecker_Check_未知模式(t *testing.T) {
 	if err == nil {
 		t.Error("未知模式时应返回错误")
 	}
+}
+
+type fakePermissionStore struct {
+	rule *StoredRule
+}
+
+func (s *fakePermissionStore) Create(rule *StoredRule) error {
+	s.rule = rule
+	return nil
+}
+
+func (s *fakePermissionStore) Get(id string) (*StoredRule, error) {
+	if s.rule != nil && s.rule.ID == id {
+		return s.rule, nil
+	}
+	return nil, nil
+}
+
+func (s *fakePermissionStore) Update(rule *StoredRule) error {
+	s.rule = rule
+	return nil
+}
+
+func (s *fakePermissionStore) Delete(id string) error {
+	if s.rule != nil && s.rule.ID == id {
+		s.rule = nil
+	}
+	return nil
+}
+
+func (s *fakePermissionStore) List() ([]StoredRule, error) {
+	if s.rule == nil {
+		return []StoredRule{}, nil
+	}
+	return []StoredRule{*s.rule}, nil
+}
+
+func (s *fakePermissionStore) FindByPattern(toolName string, args map[string]interface{}) (*StoredRule, error) {
+	if s.rule == nil {
+		return nil, nil
+	}
+	if MatchRule(Rule{ToolPattern: s.rule.Pattern}, toolName, args) {
+		return s.rule, nil
+	}
+	return nil, nil
+}
+
+func (s *fakePermissionStore) Close() error {
+	return nil
 }
 
 // ---------- NewCheckerFromConfig 测试 ----------

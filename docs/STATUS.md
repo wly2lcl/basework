@@ -47,12 +47,30 @@
 | 生命周期清理 | ✅ 完成 | 通过 agent plugin 在关闭时释放 MCP/LSP 资源 |
 | Runtime 回归测试 | ✅ 完成 | 覆盖增强工具/LSP 工具注册和 Skill prompt 注入 |
 
+### 第四轮优化（P1，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| 权限规则闭环 | ✅ 完成 | runtime checker 接入与 `permission` 子命令同源的 SQLite 规则库 |
+| 交互式权限确认 | ✅ 完成 | interactive 模式支持本次允许、始终允许、本次拒绝、始终拒绝 |
+| 审计日志写入 | ✅ 完成 | runtime 权限检查会写入 SQLite audit，并随 agent 关闭刷新 |
+| `ask` 规则修复 | ✅ 完成 | 持久化 `ask` 规则进入 PromptFunc，不再被误判为 deny |
+| build tag 降级 | ✅ 完成 | 无 sqlite tag 时保持 memory/空操作权限存储，默认构建不受影响 |
+
+### 第五轮优化（P1，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| CI 分层 | ✅ 完成 | build workflow 拆分为 quality、跨平台 test、release dry-run |
+| 静态检查 | ✅ 完成 | 增加本轮触达 Go 文件的 gofmt、带 `sqlite memory` tag 的 vet、race test 子集 |
+| 跨平台矩阵 | ✅ 完成 | Ubuntu/macOS/Windows 均运行测试和构建 |
+| Release dry-run | ✅ 完成 | GoReleaser snapshot 验证发布配置但不发布 artifact/镜像 |
+| 发布策略 | ✅ 完成 | tag push 正式发布；手动 dispatch 默认 dry-run，非 dry-run 需版本校验 |
+
 ### 后续优化路线
 
 | 阶段 | 优先级 | 目标 |
 |------|--------|------|
-| 第四轮 | P1 | 完整权限交互与审计日志：TUI/REPL ask 流程、SQLite 权限规则、审计查询 |
-| 第五轮 | P1 | CI/CD 加强：lint、跨平台 build matrix、release dry-run/tag 策略 |
 | 第六轮 | P2 | README/安装文档与默认 provider 行为对齐 |
 
 ---
