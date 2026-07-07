@@ -316,8 +316,8 @@ func TestConfigLoadFileNotExists(t *testing.T) {
 	}
 }
 
-// TestConfigLoadCorruptJSON 验证非法 JSON 文件返回默认配置并记录警告。
-func TestConfigLoadCorruptJSON(t *testing.T) {
+// TestConfigLoadInvalidJSON 验证非法 JSON 文件返回错误。
+func TestConfigLoadInvalidJSON(t *testing.T) {
 	dir, cleanup := tempConfigDir(t)
 	defer cleanup()
 
@@ -326,17 +326,9 @@ func TestConfigLoadCorruptJSON(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	store, err := Load(path)
-	if err != nil {
-		t.Fatalf("Load should not return error for corrupt JSON: %v", err)
-	}
-	if store == nil {
-		t.Fatal("Load should return a Store for corrupt JSON")
-	}
-
-	cfg := store.Get()
-	if cfg.Provider != "openai" {
-		t.Errorf("expected default Provider 'openai', got %q", cfg.Provider)
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("Load 应返回错误，但得到了 nil")
 	}
 }
 

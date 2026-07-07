@@ -3,6 +3,7 @@ package observability
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -637,6 +638,81 @@ func TestEventBus_EventTimestampInUTC(t *testing.T) {
 	_, offset := event.Timestamp.Zone()
 	if offset != 0 {
 		t.Errorf("Timestamp 应为 UTC, 时区偏移 = %d", offset)
+	}
+}
+
+// TestEventBus_HandlerPanic 验证 handler panic 不会崩溃进程，且其他 handler 不受影响
+func TestEventBus_HandlerPanic(t *testing.T) {
+	bus := NewEventBus()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	normalCount := 0
+
+	// 一个会 panic 的 handler
+	bus.Subscribe("test.event", func(event Event) {
+		panic("模拟 panic")
+	})
+
+	// 一个正常 handler
+	bus.Subscribe("test.event", func(event Event) {
+		mu.Lock()
+		normalCount++
+		mu.Unlock()
+	})
+
+	// 发布事件，验证不崩溃
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Publish 本身不应该 panic, 得到: %v", r)
+			}
+		}()
+		bus.Publish(NewEvent("test.event", nil))
+	}()
+
+	wg.Wait()
+
+	// 等待异步 handler 执行完毕
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	if normalCount != 1 {
+		t.Errorf("正常 handler 应执行 1 次，得到 %d", normalCount)
+	}
+	mu.Unlock()
+}
+
+// TestEventBus_MultiplePanicHandlers 验证多个 handler panic 时进程仍然正常运行
+func TestEventBus_MultiplePanicHandlers(t *testing.T) {
+	bus := NewEventBus()
+
+	// 三个 handler，全部会 panic
+	for i := 0; i < 3; i++ {
+		i := i
+		bus.Subscribe("test.event", func(event Event) {
+			panic(fmt.Sprintf("handler %d panic", i))
+		})
+	}
+
+	// 发布事件不应崩溃
+	done := make(chan struct{})
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Publish 不应 panic: %v", r)
+			}
+			close(done)
+		}()
+		bus.Publish(NewEvent("test.event", nil))
+	}()
+
+	select {
+	case <-done:
+		// 正常返回
+	case <-time.After(time.Second):
+		t.Fatal("Publish 超时")
 	}
 }
 

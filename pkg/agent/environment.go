@@ -80,8 +80,9 @@ func (c *ContextCollector) Collect(ctx context.Context) string {
 			case <-done:
 				results <- result{name: p.Name(), text: text}
 			case <-collectCtx.Done():
-				// 超时跳过
+				// 超时跳过 — 启动 cleanup goroutine 等待内层 goroutine 完成后释放
 				results <- result{name: p.Name(), text: ""}
+				go func() { <-done }()
 			}
 		}()
 	}

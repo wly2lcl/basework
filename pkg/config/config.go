@@ -5,7 +5,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -516,7 +515,6 @@ func (s *Store) Reload() error {
 
 // Load 从 JSON 文件加载配置。
 // 文件不存在时返回使用默认配置的 Store。
-// 文件内容非法 JSON 时记录警告并返回默认配置的 Store。
 func Load(path string) (*Store, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -528,8 +526,7 @@ func Load(path string) (*Store, error) {
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		log.Printf("warning: config file %q has invalid JSON: %v, using defaults", path, err)
-		return NewStore(path), nil
+		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 
 	return &Store{

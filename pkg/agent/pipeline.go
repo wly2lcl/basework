@@ -338,16 +338,8 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 
 // finalize 构造 TurnResult
 func (p *Pipeline) finalize(_ context.Context, resp *llm.Response, records []ToolCallRecord) (*TurnResult, error) {
-	hasToolCalls := false
-	for _, r := range records {
-		if r.Err == nil {
-			hasToolCalls = true
-			break
-		}
-	}
-
 	return &TurnResult{
-		HasToolCalls: hasToolCalls,
+		HasToolCalls: len(records) > 0,
 		Message:      resp.Message,
 		ToolCalls:    records,
 		Usage:        resp.Usage,

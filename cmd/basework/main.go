@@ -45,7 +45,6 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(tuiCmd)
-	rootCmd.AddCommand(profileCmd)
 }
 
 func main() {

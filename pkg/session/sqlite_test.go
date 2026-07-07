@@ -195,6 +195,141 @@ func TestSQLiteStore_MessagesNotSupported(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_ForeignKeysEnabled(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	s, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore 失败: %v", err)
+	}
+	defer s.Close()
+
+	var fkEnabled int
+	err = s.GetDB().QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
+	if err != nil {
+		t.Fatalf("查询 PRAGMA foreign_keys 失败: %v", err)
+	}
+	if fkEnabled != 1 {
+		t.Fatalf("foreign_keys 应为 1，得到 %d", fkEnabled)
+	}
+}
+
+func TestSQLiteStore_DeleteCascadeViaForeignKey(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	s, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore 失败: %v", err)
+	}
+	defer s.Close()
+
+	// 创建会话
+	info, err := s.Create(CreateOpts{Title: "cascade-test"})
+	if err != nil {
+		t.Fatalf("Create 失败: %v", err)
+	}
+
+	// 插入一条 message（通过 events→ProjectMessages 或直接 SQL）
+	// 使用直接 SQL 插入 messages 表以验证级联
+	db := s.GetDB()
+	_, err = db.Exec(
+		`INSERT INTO messages (id, session_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)`,
+		"msg_1", info.ID, "user", "你好", "2024-01-01T00:00:00Z",
+	)
+	if err != nil {
+		t.Fatalf("插入 message 失败: %v", err)
+	}
+
+	// 验证 message 存在
+	var msgCount int
+	err = db.QueryRow(`SELECT COUNT(*) FROM messages WHERE session_id = ?`, info.ID).Scan(&msgCount)
+	if err != nil {
+		t.Fatalf("查询 messages 失败: %v", err)
+	}
+	if msgCount != 1 {
+		t.Fatalf("期望 1 条 message，得到 %d", msgCount)
+	}
+
+	// 删除会话（通过 Delete 方法）
+	if err := s.Delete(info.ID); err != nil {
+		t.Fatalf("Delete 失败: %v", err)
+	}
+
+	// 验证 message 也被级联删除
+	err = db.QueryRow(`SELECT COUNT(*) FROM messages WHERE session_id = ?`, info.ID).Scan(&msgCount)
+	if err != nil {
+		t.Fatalf("查询 messages 失败: %v", err)
+	}
+	if msgCount != 0 {
+		t.Errorf("级联删除后 message 应为 0，得到 %d", msgCount)
+	}
+}
+
+func TestSQLiteStore_DeleteRemovesAllData(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	s, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewSQLiteStore 失败: %v", err)
+	}
+	defer s.Close()
+
+	// 创建会话并追加事件和消息
+	info, err := s.Create(CreateOpts{Title: "full-delete-test"})
+	if err != nil {
+		t.Fatalf("Create 失败: %v", err)
+	}
+
+	// 追加事件（会触发 messages 写入）
+	err = s.AppendEvent(Event{
+		SessionID: info.ID,
+		Type:      EventPrompted,
+		Data:      rawJSON(t, PromptedData{Content: "测试"}),
+	})
+	if err != nil {
+		t.Fatalf("AppendEvent 失败: %v", err)
+	}
+
+	// 验证 events 表有数据
+	db := s.GetDB()
+	var eventCount int
+	err = db.QueryRow(`SELECT COUNT(*) FROM events WHERE session_id = ?`, info.ID).Scan(&eventCount)
+	if err != nil {
+		t.Fatalf("查询 events 失败: %v", err)
+	}
+	if eventCount != 1 {
+		t.Fatalf("期望 1 个 event，得到 %d", eventCount)
+	}
+
+	// 删除会话
+	if err := s.Delete(info.ID); err != nil {
+		t.Fatalf("Delete 失败: %v", err)
+	}
+
+	// 验证所有关联数据都被删除
+	var count int
+	err = db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE id = ?`, info.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("查询 sessions 失败: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("删除后 sessions 应为 0，得到 %d", count)
+	}
+
+	err = db.QueryRow(`SELECT COUNT(*) FROM events WHERE session_id = ?`, info.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("查询 events 失败: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("删除后 events 应为 0，得到 %d", count)
+	}
+
+	err = db.QueryRow(`SELECT COUNT(*) FROM messages WHERE session_id = ?`, info.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("查询 messages 失败: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("删除后 messages 应为 0，得到 %d", count)
+	}
+}
+
 func TestSQLiteStore_ListLimit(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	s, err := NewSQLiteStore(dbPath)

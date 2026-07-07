@@ -57,10 +57,15 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 
 // initSchema 创建数据库表结构。
 func (s *SQLiteStore) initSchema() error {
-	schema := `
-	PRAGMA journal_mode=WAL;
-	PRAGMA foreign_keys=ON;
+	// 单独设置 PRAGMA（多语句 Exec 中 PRAGMA 可能不生效）
+	if _, err := s.db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return fmt.Errorf("session: 设置 WAL 模式失败: %w", err)
+	}
+	if _, err := s.db.Exec("PRAGMA foreign_keys=ON"); err != nil {
+		return fmt.Errorf("session: 启用外键约束失败: %w", err)
+	}
 
+	schema := `
 	CREATE TABLE IF NOT EXISTS sessions (
 		id TEXT PRIMARY KEY,
 		title TEXT NOT NULL DEFAULT '',
@@ -242,29 +247,36 @@ func (s *SQLiteStore) Delete(id string) error {
 		return fmt.Errorf("session: 会话 %s 不存在", id)
 	}
 
-	// 手动级联删除（SQLite 外键可能未启用）
-	_, err = s.db.Exec(`DELETE FROM tool_results WHERE tool_call_id IN (SELECT id FROM tool_calls WHERE message_id IN (SELECT id FROM messages WHERE session_id = ?))`, id)
+	// 使用事务确保原子性
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("session: 开始事务失败: %w", err)
+	}
+	defer tx.Rollback() // 如果 Commit 没调用，自动 Rollback
+
+	// 手动级联删除
+	_, err = tx.Exec(`DELETE FROM tool_results WHERE tool_call_id IN (SELECT id FROM tool_calls WHERE message_id IN (SELECT id FROM messages WHERE session_id = ?))`, id)
 	if err != nil {
 		return fmt.Errorf("session: 删除 tool_results 失败: %w", err)
 	}
-	_, err = s.db.Exec(`DELETE FROM tool_calls WHERE message_id IN (SELECT id FROM messages WHERE session_id = ?)`, id)
+	_, err = tx.Exec(`DELETE FROM tool_calls WHERE message_id IN (SELECT id FROM messages WHERE session_id = ?)`, id)
 	if err != nil {
 		return fmt.Errorf("session: 删除 tool_calls 失败: %w", err)
 	}
-	_, err = s.db.Exec(`DELETE FROM messages WHERE session_id = ?`, id)
+	_, err = tx.Exec(`DELETE FROM messages WHERE session_id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("session: 删除 messages 失败: %w", err)
 	}
-	_, err = s.db.Exec(`DELETE FROM events WHERE session_id = ?`, id)
+	_, err = tx.Exec(`DELETE FROM events WHERE session_id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("session: 删除 events 失败: %w", err)
 	}
-	_, err = s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
+	_, err = tx.Exec(`DELETE FROM sessions WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("session: 删除会话失败: %w", err)
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 // AppendEvent 向会话追加一个事件。

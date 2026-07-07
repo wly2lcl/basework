@@ -2,7 +2,7 @@
 
 # 默认构建
 build:
-	go build -o bin/basework ./cmd/basework
+	go build -tags "sqlite memory" -o bin/basework ./cmd/basework
 
 # 构建含可选模块版本
 build-full:
@@ -10,7 +10,7 @@ build-full:
 
 # 运行测试
 test:
-	go test ./...
+	go test -tags "sqlite memory" ./...
 
 # 运行测试（含可选模块）
 test-all:

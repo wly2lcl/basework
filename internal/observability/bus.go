@@ -1,6 +1,10 @@
 package observability
 
-import "sync"
+import (
+	"fmt"
+	"os"
+	"sync"
+)
 
 // EventHandler 是事件处理函数的类型
 type EventHandler func(event Event)
@@ -42,6 +46,11 @@ func (eb *EventBus) Publish(event Event) {
 	for _, handler := range handlers {
 		h := handler // 捕获变量
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Fprintf(os.Stderr, "EventBus handler panic: %v\n", r)
+				}
+			}()
 			h(event)
 		}()
 	}

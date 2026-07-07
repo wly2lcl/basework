@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -116,5 +117,57 @@ func TestContextCollector_CancelledContext(t *testing.T) {
 	result := cc.Collect(ctx)
 	if result != "" {
 		t.Log("取消的上下文可能导致空结果")
+	}
+}
+
+// hangProvider 模拟一个会 hang 住的 ContextProvider
+type hangProvider struct {
+	name string
+}
+
+func (h *hangProvider) Name() string { return h.name }
+
+func (h *hangProvider) Collect() (string, error) {
+	<-make(chan struct{}) // 永远阻塞
+	return "", nil
+}
+
+// TestContextCollector_HangProvider 验证 hang 的 provider 不会导致 Collect 永远阻塞，也不会 goroutine 泄漏
+func TestContextCollector_HangProvider(t *testing.T) {
+	before := runtime.NumGoroutine()
+
+	providers := []ContextProvider{
+		&mockProvider{name: "fast", text: "fast_info"},
+		&hangProvider{name: "hang"},
+	}
+
+	cc := NewContextCollector(providers...)
+	cc.timeout = 50 * time.Millisecond
+
+	// Collect 应在超时后返回，不会无限阻塞
+	done := make(chan struct{})
+	go func() {
+		result := cc.Collect(context.Background())
+		if !strings.Contains(result, "fast_info") {
+			t.Error("fast provider 的结果应包含在结果中")
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// 正常返回
+	case <-time.After(5 * time.Second):
+		t.Fatal("Collect 超时，hang provider 导致阻塞")
+	}
+
+	// 等待 goroutine 调度后比较数量
+	time.Sleep(100 * time.Millisecond)
+	after := runtime.NumGoroutine()
+
+	// 允许少量 goroutine 增长（gc、调度等），但不允许大幅泄漏
+	leaked := after - before
+	if leaked > 5 {
+		t.Errorf("可能的 goroutine 泄漏: 调用前 %d, 调用后 %d (泄漏 %d)", before, after, leaked)
 	}
 }

@@ -139,7 +139,10 @@ func (p *CopilotProvider) Authenticate(ctx context.Context) error {
 		case <-time.After(time.Duration(interval) * time.Second):
 		}
 
-		tokenBody, _ := json.Marshal(tokenReq)
+		tokenBody, err := json.Marshal(tokenReq)
+		if err != nil {
+			return fmt.Errorf("序列化 token 请求失败: %w", err)
+		}
 		tokenResp, err := http.Post("https://github.com/login/oauth/access_token",
 			"application/json", bytes.NewReader(tokenBody))
 		if err != nil {
@@ -152,7 +155,10 @@ func (p *CopilotProvider) Authenticate(ctx context.Context) error {
 			Error       string `json:"error"`
 			ErrorDesc   string `json:"error_description"`
 		}
-		json.NewDecoder(tokenResp.Body).Decode(&tokenResult)
+		if err := json.NewDecoder(tokenResp.Body).Decode(&tokenResult); err != nil {
+			tokenResp.Body.Close()
+			return fmt.Errorf("解析 token 响应失败: %w", err)
+		}
 		tokenResp.Body.Close()
 
 		switch tokenResult.Error {

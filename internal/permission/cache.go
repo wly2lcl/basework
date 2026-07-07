@@ -2,6 +2,7 @@ package permission
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -83,10 +84,10 @@ func (c *Cache) Set(key string, allow bool) {
 			Scope:    "session",
 			Source:   "auto",
 		}
-		// 异步写入，不阻塞
-		go func() {
-			_ = c.pers.Create(rule)
-		}()
+		// 同步写入，不阻塞权限决策
+		if err := c.pers.Create(rule); err != nil {
+			fmt.Fprintf(os.Stderr, "permission: 持久化规则失败: %v\n", err)
+		}
 	}
 }
 

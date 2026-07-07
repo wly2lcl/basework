@@ -475,7 +475,25 @@ func TestPipeline_Finalize_AllToolsFailed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finalize 返回错误: %v", err)
 	}
-	if result.HasToolCalls {
-		t.Error("所有工具失败时，HasToolCalls 应为 false，表示无需继续循环")
+	if !result.HasToolCalls {
+		t.Error("所有工具失败时，HasToolCalls 应为 true，因为仍有工具调用记录")
+	}
+}
+
+func TestPipeline_Finalize_PartialFailure(t *testing.T) {
+	p := &Pipeline{}
+	records := []ToolCallRecord{
+		{Call: llm.ToolCall{ID: "call_1"}, Result: &tool.Result{Content: "ok"}, Err: nil},
+		{Call: llm.ToolCall{ID: "call_2"}, Err: errors.New("失败")},
+	}
+	result, err := p.finalize(context.Background(), &llm.Response{}, records)
+	if err != nil {
+		t.Fatalf("finalize 返回错误: %v", err)
+	}
+	if !result.HasToolCalls {
+		t.Error("部分成功部分失败时，HasToolCalls 应为 true")
+	}
+	if len(result.ToolCalls) != 2 {
+		t.Errorf("期望 2 条记录, 得到 %d", len(result.ToolCalls))
 	}
 }
