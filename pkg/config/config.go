@@ -424,6 +424,38 @@ func (c *Config) clone() *Config {
 	return &cp
 }
 
+// Validate 验证配置字段是否在合法范围内。
+func (c *Config) Validate() error {
+	if c.Temperature < 0.0 || c.Temperature > 2.0 {
+		return fmt.Errorf("temperature must be between 0.0 and 2.0, got %f", c.Temperature)
+	}
+	if c.MaxTokens < 0 {
+		return fmt.Errorf("max_tokens must be non-negative, got %d", c.MaxTokens)
+	}
+	if c.MaxIterations < 0 {
+		return fmt.Errorf("max_iterations must be non-negative, got %d", c.MaxIterations)
+	}
+	if c.Timeout < 0 {
+		return fmt.Errorf("timeout must be non-negative, got %d", c.Timeout)
+	}
+	if c.Profiling.Port != 0 && (c.Profiling.Port < 1024 || c.Profiling.Port > 65535) {
+		return fmt.Errorf("profiling port must be between 1024 and 65535, got %d", c.Profiling.Port)
+	}
+	if c.OAuth.CallbackPort != 0 && (c.OAuth.CallbackPort < 1024 || c.OAuth.CallbackPort > 65535) {
+		return fmt.Errorf("callback port must be between 1024 and 65535, got %d", c.OAuth.CallbackPort)
+	}
+	if c.TopP < 0.0 || c.TopP > 1.0 {
+		return fmt.Errorf("top_p must be between 0.0 and 1.0, got %f", c.TopP)
+	}
+	if c.FrequencyPenalty < 0.0 || c.FrequencyPenalty > 2.0 {
+		return fmt.Errorf("frequency_penalty must be between 0.0 and 2.0, got %f", c.FrequencyPenalty)
+	}
+	if c.PresencePenalty < 0.0 || c.PresencePenalty > 2.0 {
+		return fmt.Errorf("presence_penalty must be between 0.0 and 2.0, got %f", c.PresencePenalty)
+	}
+	return nil
+}
+
 // Store 管理配置的原子读写和持久化。
 type Store struct {
 	mu     sync.RWMutex
@@ -512,6 +544,10 @@ func (s *Store) Reload() error {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("config validation failed: %w", err)
+	}
+
 	s.mu.Lock()
 	s.config = &cfg
 	s.mu.Unlock()
@@ -533,6 +569,10 @@ func Load(path string) (*Store, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &Store{

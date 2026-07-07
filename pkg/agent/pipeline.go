@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/wly2lcl/basework/pkg/llm"
@@ -127,6 +128,9 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 	var usage llm.Usage
 
 	for evt := range ch {
+		if evt.Error != nil {
+			return nil, fmt.Errorf("stream error: %w", evt.Error)
+		}
 		switch evt.Type {
 		case llm.StreamEventText:
 			textContent += evt.Delta
@@ -168,6 +172,11 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 		case llm.StreamEventDone:
 			// stream 结束
 		}
+	}
+
+	// 检查 stream 结束后是否因上下文取消而退出
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	// 刷新未完成的 tool call：stream 结束时将 toolCallMap 中残留的 tool call 标记为完成

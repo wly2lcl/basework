@@ -476,9 +476,7 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 					}
 					entry.ArgsJSON += tc.Function.Arguments
 
-					// Mark complete when current delta has empty args but we've accumulated something
-					complete := tc.Function.Arguments == "" && entry.ArgsJSON != ""
-
+					// Emit incremental delta; completion is determined by finish_reason or stream end
 					ch <- llm.StreamEvent{
 						Type: llm.StreamEventToolCall,
 						ToolCall: &llm.ToolCallDelta{
@@ -486,14 +484,28 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 							ID:       entry.ID,
 							Name:     entry.Name,
 							ArgsJSON: entry.ArgsJSON,
-							Complete: complete,
+							Complete: false,
 						},
 					}
+				}
+				continue
+			}
 
-					if complete {
-						delete(acc, tc.Index)
+			// When finish_reason="tool_calls", flush all accumulated tool calls as complete
+			if sseEvent.Choices[0].FinishReason != nil && *sseEvent.Choices[0].FinishReason == "tool_calls" {
+				for idx, entry := range acc {
+					ch <- llm.StreamEvent{
+						Type: llm.StreamEventToolCall,
+						ToolCall: &llm.ToolCallDelta{
+							Index:    idx,
+							ID:       entry.ID,
+							Name:     entry.Name,
+							ArgsJSON: entry.ArgsJSON,
+							Complete: true,
+						},
 					}
 				}
+				acc = make(map[int]*accumulatedToolCall)
 				continue
 			}
 

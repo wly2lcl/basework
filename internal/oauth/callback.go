@@ -5,21 +5,26 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
 // CallbackServer 是本地 OAuth 回调服务器。
 // 它启动 HTTP 服务器监听本地端口，等待授权服务器将授权码回调到本地。
 type CallbackServer struct {
-	server   *http.Server
-	codeChan chan string
-	errChan  chan error
-	started  bool
+	server     *http.Server
+	codeChan   chan string
+	errChan    chan error
+	started    bool
+	stateStore map[string]time.Time
+	stateMu    sync.Mutex
 }
 
 // NewCallbackServer 创建新的回调服务器实例。
 func NewCallbackServer() *CallbackServer {
-	return &CallbackServer{}
+	return &CallbackServer{
+		stateStore: make(map[string]time.Time),
+	}
 }
 
 // Start 启动本地回调服务器，返回完整的回调 URL（包含路径）。
@@ -89,8 +94,50 @@ func (cs *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// 验证 state（CSRF 保护）
+	state := query.Get("state")
+	if err := cs.validateState(state); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = fmt.Fprintf(w, "授权失败: %v\n", err)
+		cs.errChan <- err
+		return
+	}
+
 	_, _ = fmt.Fprint(w, "授权成功，可以关闭此窗口。\n")
 	cs.codeChan <- code
+}
+
+// storeState 保存 state 字符串及其创建时间，用于后续 CSRF 验证。
+func (cs *CallbackServer) storeState(state string) {
+	cs.stateMu.Lock()
+	defer cs.stateMu.Unlock()
+	cs.stateStore[state] = time.Now()
+}
+
+// validateState 验证 state 是否存在、未过期，并删除（一次性使用）。
+// 成功返回 nil，失败返回对应错误信息。
+func (cs *CallbackServer) validateState(state string) error {
+	cs.stateMu.Lock()
+	defer cs.stateMu.Unlock()
+
+	if state == "" {
+		return fmt.Errorf("OAuth state mismatch")
+	}
+
+	createdAt, ok := cs.stateStore[state]
+	if !ok {
+		return fmt.Errorf("OAuth state mismatch")
+	}
+
+	// 一次性使用：立即删除
+	delete(cs.stateStore, state)
+
+	// 检查过期（10 分钟）
+	if time.Since(createdAt) > 10*time.Minute {
+		return fmt.Errorf("OAuth state expired")
+	}
+
+	return nil
 }
 
 // WaitForCode 等待授权码到达。

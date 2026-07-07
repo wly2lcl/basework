@@ -73,6 +73,11 @@ func NewCopilotProvider(cfg CopilotConfigOpts) (*CopilotProvider, error) {
 		return p, nil
 	}
 
+	// 设置 token source
+	if p.token != nil {
+		p.tokenSrc = oauth2.StaticTokenSource(p.token)
+	}
+
 	return p, nil
 }
 
@@ -168,6 +173,7 @@ func (p *CopilotProvider) Authenticate(ctx context.Context) error {
 				AccessToken: tokenResult.AccessToken,
 				TokenType:   tokenResult.TokenType,
 			}
+			p.tokenSrc = oauth2.StaticTokenSource(p.token)
 
 			if err := p.saveToken(); err != nil {
 				return fmt.Errorf("保存 token 失败: %w", err)
@@ -196,14 +202,38 @@ func (p *CopilotProvider) Authenticate(ctx context.Context) error {
 // buildCopilotHeaders 构建 Copilot 请求头
 func (p *CopilotProvider) buildCopilotHeaders() map[string]string {
 	headers := map[string]string{
-		"Editor-Version":          copilotEditorVersion,
-		"Editor-Plugin-Version":   copilotEditorPluginVersion,
-		"Copilot-Integration-Id":  copilotIntegrationID,
+		"Editor-Version":         copilotEditorVersion,
+		"Editor-Plugin-Version":  copilotEditorPluginVersion,
+		"Copilot-Integration-Id": copilotIntegrationID,
 	}
 	if p.token != nil && p.token.AccessToken != "" {
 		headers["Authorization"] = "Bearer " + p.token.AccessToken
 	}
 	return headers
+}
+
+// refreshTokenIfNeeded checks if the current token is expired and refreshes it if possible.
+func (p *CopilotProvider) refreshTokenIfNeeded(ctx context.Context) error {
+	if p.token == nil {
+		return nil
+	}
+	if !p.token.Valid() {
+		if p.tokenSrc == nil {
+			return fmt.Errorf("token expired and no token source available")
+		}
+		newToken, err := p.tokenSrc.Token()
+		if err != nil {
+			return fmt.Errorf("token refresh failed: %w", err)
+		}
+		p.token = newToken
+		// Update the static token source for future refreshes
+		p.tokenSrc = oauth2.StaticTokenSource(p.token)
+		// Persist the refreshed token
+		if err := p.saveToken(); err != nil {
+			return fmt.Errorf("token refresh: save failed: %w", err)
+		}
+	}
+	return nil
 }
 
 // Chat 发送非流式聊天请求
@@ -212,6 +242,15 @@ func (p *CopilotProvider) Chat(ctx context.Context, req *llm.Request) (*llm.Resp
 		return nil, &llm.Error{
 			Type:    llm.ErrorTypeAuth,
 			Message: "Copilot 未认证，请先调用 Authenticate()",
+		}
+	}
+
+	// 自动刷新过期 token
+	if err := p.refreshTokenIfNeeded(ctx); err != nil {
+		return nil, &llm.Error{
+			Type:       llm.ErrorTypeAuth,
+			Message:    fmt.Sprintf("token refresh failed: %v", err),
+			StatusCode: 0,
 		}
 	}
 
@@ -240,6 +279,15 @@ func (p *CopilotProvider) ChatStream(ctx context.Context, req *llm.Request) (<-c
 		return nil, &llm.Error{
 			Type:    llm.ErrorTypeAuth,
 			Message: "Copilot 未认证，请先调用 Authenticate()",
+		}
+	}
+
+	// 自动刷新过期 token
+	if err := p.refreshTokenIfNeeded(ctx); err != nil {
+		return nil, &llm.Error{
+			Type:       llm.ErrorTypeAuth,
+			Message:    fmt.Sprintf("token refresh failed: %v", err),
+			StatusCode: 0,
 		}
 	}
 

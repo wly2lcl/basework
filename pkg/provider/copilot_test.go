@@ -200,7 +200,9 @@ func TestCopilot_Generate(t *testing.T) {
 // TestCopilot_Unauthenticated 验证未认证时出错
 func TestCopilot_Unauthenticated(t *testing.T) {
 	p, _ := NewCopilotProvider(CopilotConfigOpts{Model: "gpt-4"})
-	// 不设置 token
+	// 确保 token 为 nil（覆盖环境中有 token 文件的情况）
+	p.token = nil
+	p.tokenSrc = nil
 
 	_, err := p.Chat(t.Context(), &llm.Request{
 		Messages: []llm.ChatMessage{

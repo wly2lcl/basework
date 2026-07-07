@@ -69,6 +69,10 @@ func runMockMCPServer() {
 			result = json.RawMessage(`{"tools":[{"name":"echo","description":"Echo tool","inputSchema":{"type":"object"}}]}`)
 		case "tools/call":
 			result = json.RawMessage(`{"content":[{"type":"text","text":"echo: hello"}]}`)
+		case "resources/list":
+			result = json.RawMessage(`{"resources":[{"uri":"mock://resource","name":"Mock Resource"}]}`)
+		case "prompts/list":
+			result = json.RawMessage(`{"prompts":[{"name":"mock_prompt","description":"A mock prompt"}]}`)
 		case "shutdown":
 			result = json.RawMessage("null")
 		case "slow":

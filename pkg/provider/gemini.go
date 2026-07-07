@@ -415,15 +415,14 @@ func parseGeminiStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 				errMap, _ := errObj.(map[string]any)
 				msg, _ := errMap["message"].(string)
 				ch <- llm.StreamEvent{
-					Type: llm.StreamEventText,
 					Error: &llm.Error{
-						Type:          llm.ErrorTypeInternal,
-						Message:       "gemini stream error",
-						ProviderError: msg,
-					},
-				}
-				return
+					Type:          llm.ErrorTypeInternal,
+					Message:       "gemini stream error",
+					ProviderError: msg,
+				},
 			}
+			return
+		}
 
 			// Parse usage metadata (usually in the final chunk)
 			if usageMeta, ok := chunk["usageMetadata"].(map[string]any); ok {
@@ -486,8 +485,8 @@ func parseGeminiStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 			// Emit text delta
 			if currentText != "" {
 				delta := ""
-				if len(currentText) > len(accumulatedText) {
-					delta = currentText[len(accumulatedText):]
+				if strings.HasPrefix(currentText, accumulatedText) {
+					delta = strings.TrimPrefix(currentText, accumulatedText)
 				} else if currentText != accumulatedText {
 					// If text changed entirely, emit the full text
 					delta = currentText
@@ -504,7 +503,6 @@ func parseGeminiStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 
 		if err := scanner.Err(); err != nil {
 			ch <- llm.StreamEvent{
-				Type: llm.StreamEventText,
 				Error: &llm.Error{
 					Type:    llm.ErrorTypeNetwork,
 					Message: fmt.Sprintf("gemini stream read error: %v", err),

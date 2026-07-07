@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -121,6 +122,10 @@ type App struct {
 
 	// 插件
 	MountedPlugins []plugin.TUIPlugin
+
+	// 生命周期管理
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewApp 创建新的 TUI 应用
@@ -141,6 +146,8 @@ func NewApp(modelName, provider, sessionID string) *App {
 	// 创建命令注册表
 	cmdRegistry := command.NewRegistry()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	app := &App{
 		Messages:        make([]Message, 0),
 		Input:           NewInputView(),
@@ -154,6 +161,8 @@ func NewApp(modelName, provider, sessionID string) *App {
 		KeyResolver:     keymap.NewResolver(keymap.DefaultBindings),
 		DialogMgr:       dialog.NewManager(),
 		MountedPlugins:  make([]plugin.TUIPlugin, 0),
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 
 	// 注册内置命令
@@ -189,7 +198,19 @@ func (m *App) ClearMessages() {
 
 // Quit 退出程序
 func (m *App) Quit() {
-	// 由外部通过 tea.Quit 处理
+	m.cleanup()
+}
+
+// cleanup 清理资源：取消后台 goroutine、卸载插件等
+func (m *App) cleanup() {
+	// 清空插件注册表
+	plugin.Clear()
+	m.MountedPlugins = nil
+
+	// 取消 context，停止所有派生 goroutine
+	if m.cancel != nil {
+		m.cancel()
+	}
 }
 
 // Init 实现 Bubble Tea Model 接口
@@ -228,6 +249,7 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if action, found := m.KeyResolver.Resolve(key, keymap.LayerApp); found {
 			switch action {
 			case keymap.ActionQuit:
+				m.cleanup()
 				return m, tea.Quit
 
 			case keymap.ActionSubmit:

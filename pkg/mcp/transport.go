@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // ---------------------------------------------------------------------------
@@ -114,7 +115,8 @@ type StdioTransport struct {
 	pending   map[int]chan pendingResponse
 	nextID    atomic.Int64
 
-	started   atomic.Bool
+	started    atomic.Bool
+	readLoopWg sync.WaitGroup // 追踪 readLoop goroutine，供 Reset 等待
 	done      chan struct{}
 	closeOnce sync.Once
 	closed    atomic.Bool
@@ -166,6 +168,7 @@ func (t *StdioTransport) Connect(ctx context.Context) error {
 	t.reader = bufio.NewReader(stdout)
 	t.started.Store(true)
 
+	t.readLoopWg.Add(1)
 	go t.readLoop()
 	return nil
 }
@@ -212,6 +215,40 @@ func (t *StdioTransport) Notify(method string, params json.RawMessage) error {
 		Params:  params,
 	}
 	return t.write(notif)
+}
+
+// Reset 杀死旧进程并重置状态，使 transport 可以被重新 Connect。
+// 用于重连场景：清理旧进程后重新调用 Connect 启动新进程。
+func (t *StdioTransport) Reset() {
+	if !t.started.Load() {
+		return
+	}
+
+	// 取消等待中的请求
+	t.cancelPending(fmt.Errorf("transport reset"))
+
+	// 关闭 stdin
+	if t.stdin != nil {
+		t.stdin.Close()
+	}
+
+	// 关闭 stdout（这会导致 readLoop 退出）
+	if t.stdout != nil {
+		t.stdout.Close()
+	}
+
+	// 等待 readLoop goroutine 退出，避免后续 Connect 与旧 readLoop 产生 data race
+	t.readLoopWg.Wait()
+
+	// 杀死旧进程
+	if t.cmd != nil && t.cmd.Process != nil {
+		t.cmd.Process.Kill()
+		t.cmd.Wait() // 忽略等待错误
+	}
+
+	// 重置状态——不置 nil 指针（避免与 readLoop 的 data race），
+	// 下一次 Connect 会覆盖所有字段。
+	t.started.Store(false)
 }
 
 // Close 关闭传输层，取消所有等待中的请求。
@@ -280,6 +317,7 @@ func (t *StdioTransport) cancelPending(err error) {
 
 // readLoop 循环从 stdout 读取消息并分发。
 func (t *StdioTransport) readLoop() {
+	defer t.readLoopWg.Done()
 	defer func() {
 		if !t.closed.Load() {
 			t.cancelPending(fmt.Errorf("connection closed"))
@@ -400,7 +438,9 @@ func (t *HTTPTransport) Connect(ctx context.Context) error {
 	if t.url == "" {
 		return fmt.Errorf("MCP HTTP transport: empty URL")
 	}
-	t.client = &http.Client{}
+	t.client = &http.Client{
+		Timeout: 5 * time.Minute,
+	}
 	return nil
 }
 

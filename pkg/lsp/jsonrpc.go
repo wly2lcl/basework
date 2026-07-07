@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -260,6 +262,13 @@ func (c *Conn) cancelPending(err error) {
 
 // readLoop 循环从 stdout 读取消息并分发。
 func (c *Conn) readLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("LSP readLoop panic: %v\n%s", r, debug.Stack())
+			_ = c.Close()
+		}
+	}()
+
 	defer func() {
 		if !c.closed.Load() {
 			c.cancelPending(fmt.Errorf("connection closed"))

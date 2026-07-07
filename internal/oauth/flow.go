@@ -63,6 +63,9 @@ func (f *Flow) Authorize(ctx context.Context) (*Token, error) {
 		redirectURI = callbackURL
 	}
 
+	// 存储 state 用于回调时的 CSRF 验证
+	f.Server.storeState(pkce.State)
+
 	authURL := buildAuthorizationURL(f.Config, pkce, redirectURI)
 	fmt.Printf("请在浏览器中完成授权:\n%s\n\n", authURL)
 

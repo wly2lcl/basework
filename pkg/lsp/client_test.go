@@ -1064,10 +1064,9 @@ func TestClientFileToURIAbsolute(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, uri)
 	}
 
-	// 包含空格的路径
+	// 包含空格的路径 — 使用 url.URL 后会被正确编码为 %20
 	uri = client.fileToURI("/home/user/my project/test.go")
-	// LSP 规范中，空格不需要编码为 %20，直接使用即可
-	if uri != "file:///home/user/my project/test.go" {
+	if uri != "file:///home/user/my%20project/test.go" {
 		t.Errorf("unexpected URI for path with spaces: %q", uri)
 	}
 }

@@ -108,11 +108,16 @@ func doTokenRequest(ctx context.Context, tokenEndpoint string, data url.Values) 
 		return nil, fmt.Errorf("解析 token 响应失败: %w", err)
 	}
 
+	expiresAt := time.Now().Add(1 * time.Hour) // 默认 1 小时
+	if tr.ExpiresIn > 0 {
+		expiresAt = time.Now().Add(time.Duration(tr.ExpiresIn) * time.Second)
+	}
+
 	token := &Token{
 		AccessToken:  tr.AccessToken,
 		RefreshToken: tr.RefreshToken,
 		TokenType:    tr.TokenType,
-		ExpiresAt:    time.Now().Add(time.Duration(tr.ExpiresIn) * time.Second),
+		ExpiresAt:    expiresAt,
 		Scope:        tr.Scope,
 	}
 

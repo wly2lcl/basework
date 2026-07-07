@@ -194,8 +194,12 @@ func TestCallbackServerReceiveCode(t *testing.T) {
 	}
 	defer cs.Stop()
 
-	// 发送 HTTP 请求模拟回调
-	reqURL := callbackURL + "?code=test-auth-code-123"
+	// 预先存储 state
+	state := "test-callback-state"
+	cs.storeState(state)
+
+	// 发送带 state 的 HTTP 请求模拟回调
+	reqURL := callbackURL + "?code=test-auth-code-123&state=" + state
 	resp, err := http.Get(reqURL)
 	if err != nil {
 		t.Fatalf("发送回调请求失败: %v", err)

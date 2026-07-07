@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -27,13 +29,80 @@ func setHeaders(req *http.Request, apiKey string, extraHeaders map[string]string
 	}
 }
 
+// maxRetries is the maximum number of retry attempts for transient HTTP failures
+const maxRetries = 3
+
+// doWithRetry executes an HTTP request with exponential backoff retry for transient failures.
+// Retries on 429 (rate limit) and 5xx (server error) status codes.
+// After exhausting retries on status codes, the last response is returned so callers
+// can map the status code appropriately (e.g. via mapHTTPError).
+func doWithRetry(ctx context.Context, client *http.Client, req *http.Request, maxRetries int, bodyFn func() (io.ReadCloser, error)) (*http.Response, error) {
+	var lastErr error
+	var lastResp *http.Response
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		// Create a fresh body reader for each attempt (body may be consumed)
+		if bodyFn != nil {
+			body, err := bodyFn()
+			if err != nil {
+				return nil, fmt.Errorf("create request body: %w", err)
+			}
+			req.Body = body
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			// Network errors are retryable
+			if attempt < maxRetries {
+				waitTime := time.Duration(1<<uint(attempt)) * time.Second // exponential: 1s, 2s, 4s, ...
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(waitTime):
+					continue
+				}
+			}
+			continue
+		}
+
+		// Check for retryable status codes
+		if resp.StatusCode == 429 || resp.StatusCode >= 500 {
+			lastResp = resp
+			if attempt < maxRetries {
+				resp.Body.Close()
+				// Check Retry-After header
+				retryAfter := resp.Header.Get("Retry-After")
+				waitTime := time.Duration(1<<uint(attempt)) * time.Second
+				if retryAfter != "" {
+					if seconds, err := strconv.Atoi(retryAfter); err == nil {
+						waitTime = time.Duration(seconds) * time.Second
+					}
+				}
+
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(waitTime):
+					continue
+				}
+			}
+			// Retries exhausted: return last response so caller can handle the status code
+			return lastResp, nil
+		}
+
+		return resp, nil
+	}
+	// Only reachable if all attempts returned transport-level errors
+	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
+}
+
 // readBody reads the full response body
 func readBody(resp *http.Response) ([]byte, error) {
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
 }
 
-// jsonRequest performs a JSON POST request and returns the raw response body
+// jsonRequest performs a JSON POST request with retry logic and returns the raw response body
 func jsonRequest(ctx context.Context, client *http.Client, url string, headers map[string]string, body any) ([]byte, int, error) {
 	// 1. Marshal body to JSON
 	jsonBody, err := json.Marshal(body)
@@ -41,8 +110,8 @@ func jsonRequest(ctx context.Context, client *http.Client, url string, headers m
 		return nil, 0, err
 	}
 
-	// 2. Create POST request
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	// 2. Create POST request (body will be replaced on each retry)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -53,8 +122,11 @@ func jsonRequest(ctx context.Context, client *http.Client, url string, headers m
 		req.Header.Set(k, v)
 	}
 
-	// 4. Execute request
-	resp, err := client.Do(req)
+	// 4. Execute request with retry
+	bodyFn := func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(jsonBody)), nil
+	}
+	resp, err := doWithRetry(ctx, client, req, maxRetries, bodyFn)
 	if err != nil {
 		return nil, 0, err
 	}

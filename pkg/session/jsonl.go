@@ -104,26 +104,18 @@ func (s *JSONLStore) AppendEvent(event Event) error {
 }
 
 // Events 根据过滤条件返回事件列表。
+// 优先从缓存读取，缓存未命中时从文件加载。
 func (s *JSONLStore) Events(filter EventFilter) ([]Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	path, err := s.safePath(filter.SessionID)
+	sd, err := s.loadSession(filter.SessionID)
 	if err != nil {
-		return nil, err
-	}
-
-	// 从文件读取所有事件
-	events, err := s.readEvents(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("session: 会话 %s 不存在", filter.SessionID)
-		}
 		return nil, err
 	}
 
 	var result []Event
-	for _, e := range events {
+	for _, e := range sd.events {
 		if filter.AfterSeq > 0 && e.Seq <= filter.AfterSeq {
 			continue
 		}

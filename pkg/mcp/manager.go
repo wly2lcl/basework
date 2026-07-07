@@ -24,14 +24,22 @@ type Manager struct {
 	maxPromptSize   int
 }
 
+// ServerCapabilities 表示 MCP 服务器在 initialize 响应中宣告的能力。
+type ServerCapabilities struct {
+	Tools     bool
+	Resources bool
+	Prompts   bool
+}
+
 // ServerConnection 表示到 MCP 服务器的连接。
 type ServerConnection struct {
-	Name       string
-	Transport  Transport
-	Tools      []mcpTool
-	Resources  []mcpResource
-	Prompts    []mcpPrompt
-	MaxRetries int
+	Name         string
+	Transport    Transport
+	Tools        []mcpTool
+	Resources    []mcpResource
+	Prompts      []mcpPrompt
+	Capabilities ServerCapabilities
+	MaxRetries   int
 
 	serverStatus ServerStatus
 	statusMu     sync.RWMutex
@@ -93,7 +101,13 @@ func (m *Manager) Connect(ctx context.Context, name string, cfg ServerConfig) er
 		transport.Close()
 		return fmt.Errorf("initialize handshake: %w", err)
 	}
-	_ = initResult // 握手结果暂不处理
+
+	// 解析 capabilities
+	var caps ServerCapabilities
+	if err := parseCapabilities(initResult, &caps); err != nil {
+		transport.Close()
+		return fmt.Errorf("parse capabilities: %w", err)
+	}
 
 	// 发送 initialized 通知
 	if err := transport.Notify("initialized", nil); err != nil {
@@ -101,49 +115,53 @@ func (m *Manager) Connect(ctx context.Context, name string, cfg ServerConfig) er
 		return fmt.Errorf("initialized notification: %w", err)
 	}
 
-	// 发现工具
+	// 条件发现：仅发现服务端宣告支持的能力
 	var tools []mcpTool
-	toolsResult, err := transport.Call(ctx, "tools/list", nil)
-	if err != nil {
-		transport.Close()
-		return fmt.Errorf("tools/list: %w", err)
+	if caps.Tools {
+		toolsResult, err := transport.Call(ctx, "tools/list", nil)
+		if err != nil {
+			transport.Close()
+			return fmt.Errorf("tools/list: %w", err)
+		}
+		var toolsList struct {
+			Tools []mcpTool `json:"tools"`
+		}
+		if err := json.Unmarshal(toolsResult, &toolsList); err != nil {
+			transport.Close()
+			return fmt.Errorf("parse tools/list response: %w", err)
+		}
+		tools = toolsList.Tools
 	}
-	var toolsList struct {
-		Tools []mcpTool `json:"tools"`
-	}
-	if err := json.Unmarshal(toolsResult, &toolsList); err != nil {
-		transport.Close()
-		return fmt.Errorf("parse tools/list response: %w", err)
-	}
-	tools = toolsList.Tools
 
-	// 发现资源（降级：失败时仅记警告，不中断连接）
 	var resources []mcpResource
-	resourcesResult, err := transport.Call(ctx, "resources/list", nil)
-	if err != nil {
-		// resources/list 失败时不中断连接
-		resources = nil
-	} else {
-		var resourcesList struct {
-			Resources []mcpResource `json:"resources"`
-		}
-		if json.Unmarshal(resourcesResult, &resourcesList) == nil {
-			resources = resourcesList.Resources
+	if caps.Resources {
+		resourcesResult, err := transport.Call(ctx, "resources/list", nil)
+		if err != nil {
+			// resources/list 失败时不中断连接
+			resources = nil
+		} else {
+			var resourcesList struct {
+				Resources []mcpResource `json:"resources"`
+			}
+			if json.Unmarshal(resourcesResult, &resourcesList) == nil {
+				resources = resourcesList.Resources
+			}
 		}
 	}
 
-	// 发现提示模板（降级：失败时仅记警告，不中断连接）
 	var prompts []mcpPrompt
-	promptsResult, err := transport.Call(ctx, "prompts/list", nil)
-	if err != nil {
-		// prompts/list 失败时不中断连接
-		prompts = nil
-	} else {
-		var promptsList struct {
-			Prompts []mcpPrompt `json:"prompts"`
-		}
-		if json.Unmarshal(promptsResult, &promptsList) == nil {
-			prompts = promptsList.Prompts
+	if caps.Prompts {
+		promptsResult, err := transport.Call(ctx, "prompts/list", nil)
+		if err != nil {
+			// prompts/list 失败时不中断连接
+			prompts = nil
+		} else {
+			var promptsList struct {
+				Prompts []mcpPrompt `json:"prompts"`
+			}
+			if json.Unmarshal(promptsResult, &promptsList) == nil {
+				prompts = promptsList.Prompts
+			}
 		}
 	}
 
@@ -153,13 +171,14 @@ func (m *Manager) Connect(ctx context.Context, name string, cfg ServerConfig) er
 	}
 
 	conn := &ServerConnection{
-		Name:        name,
-		Transport:   transport,
-		Tools:       tools,
-		Resources:   resources,
-		Prompts:     prompts,
+		Name:         name,
+		Transport:    transport,
+		Tools:        tools,
+		Resources:    resources,
+		Prompts:      prompts,
+		Capabilities: caps,
 		serverStatus: StatusAvailable,
-		MaxRetries:  maxRetries,
+		MaxRetries:   maxRetries,
 	}
 
 	m.mu.Lock()
@@ -307,6 +326,29 @@ func (m *Manager) Close() error {
 	for name, server := range m.servers {
 		server.Transport.Close()
 		delete(m.servers, name)
+	}
+	return nil
+}
+
+// parseCapabilities 从 initialize 响应的 result 中解析 capabilities。
+func parseCapabilities(initResult json.RawMessage, caps *ServerCapabilities) error {
+	var resp struct {
+		Capabilities map[string]interface{} `json:"capabilities"`
+	}
+	if err := json.Unmarshal(initResult, &resp); err != nil {
+		return fmt.Errorf("unmarshal init result: %w", err)
+	}
+	if resp.Capabilities == nil {
+		return nil
+	}
+	if _, ok := resp.Capabilities["tools"]; ok {
+		caps.Tools = true
+	}
+	if _, ok := resp.Capabilities["resources"]; ok {
+		caps.Resources = true
+	}
+	if _, ok := resp.Capabilities["prompts"]; ok {
+		caps.Prompts = true
 	}
 	return nil
 }

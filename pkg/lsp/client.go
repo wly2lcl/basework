@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -232,6 +233,10 @@ func (c *Client) Start(ctx context.Context, workspacePath string) error {
 	conn := NewConn(stdin, stdout)
 
 	if err := c.startWithConn(ctx, conn, workspacePath); err != nil {
+		conn.Close()
+		if c.cmd != nil && c.cmd.Process != nil {
+			_ = c.cmd.Process.Kill() // Kill the child process on failure
+		}
 		c.cmd = nil
 		c.state.Store(int32(StateError))
 		c.startErr = err
@@ -342,6 +347,11 @@ func (c *Client) Ready() bool {
 // OpenFile 发送 textDocument/didOpen 通知打开文件。
 // 如果文件已经打开，则不重复发送。
 func (c *Client) OpenFile(file string) error {
+	conn := c.conn.Load()
+	if conn == nil {
+		return fmt.Errorf("LSP client not started")
+	}
+
 	uri := c.fileToURI(file)
 
 	c.filesMu.Lock()
@@ -367,12 +377,17 @@ func (c *Client) OpenFile(file string) error {
 	params.TextDocument.Version = 1
 	params.TextDocument.Text = string(content)
 
-	return c.conn.Load().Notify("textDocument/didOpen", params)
+	return conn.Notify("textDocument/didOpen", params)
 }
 
 // ChangeFile 发送 textDocument/didChange 通知更新文件内容。
 // 文件必须已通过 OpenFile 打开。
 func (c *Client) ChangeFile(file, content string) error {
+	conn := c.conn.Load()
+	if conn == nil {
+		return fmt.Errorf("LSP client not started")
+	}
+
 	uri := c.fileToURI(file)
 
 	c.filesMu.Lock()
@@ -391,11 +406,16 @@ func (c *Client) ChangeFile(file, content string) error {
 		{Text: content},
 	}
 
-	return c.conn.Load().Notify("textDocument/didChange", params)
+	return conn.Notify("textDocument/didChange", params)
 }
 
 // CloseFile 发送 textDocument/didClose 通知关闭文件。
 func (c *Client) CloseFile(file string) error {
+	conn := c.conn.Load()
+	if conn == nil {
+		return fmt.Errorf("LSP client not started")
+	}
+
 	uri := c.fileToURI(file)
 
 	c.filesMu.Lock()
@@ -409,7 +429,7 @@ func (c *Client) CloseFile(file string) error {
 	params := didCloseParams{}
 	params.TextDocument.URI = uri
 
-	return c.conn.Load().Notify("textDocument/didClose", params)
+	return conn.Notify("textDocument/didClose", params)
 }
 
 // ensureOpen 确保文件已打开，如果未打开则自动调用 OpenFile。
@@ -461,12 +481,17 @@ func (c *Client) Diagnostics(file string) ([]Diagnostic, uint64) {
 
 // Definition 查询光标位置处的符号定义位置。
 func (c *Client) Definition(ctx context.Context, file string, pos Position) ([]Location, error) {
+	conn := c.conn.Load()
+	if conn == nil {
+		return nil, fmt.Errorf("LSP client not started")
+	}
+
 	c.ensureOpen(file)
 
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Load().Send(lspCtx, "textDocument/definition", textDocumentPositionParams{
+	raw, err := conn.Send(lspCtx, "textDocument/definition", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -479,12 +504,17 @@ func (c *Client) Definition(ctx context.Context, file string, pos Position) ([]L
 
 // References 查询光标位置处符号的所有引用位置。
 func (c *Client) References(ctx context.Context, file string, pos Position) ([]Location, error) {
+	conn := c.conn.Load()
+	if conn == nil {
+		return nil, fmt.Errorf("LSP client not started")
+	}
+
 	c.ensureOpen(file)
 
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Load().Send(lspCtx, "textDocument/references", referencesParams{
+	raw, err := conn.Send(lspCtx, "textDocument/references", referencesParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 		Context:      referenceContext{IncludeDeclaration: true},
@@ -498,12 +528,17 @@ func (c *Client) References(ctx context.Context, file string, pos Position) ([]L
 
 // Hover 查询光标位置处的悬停信息。
 func (c *Client) Hover(ctx context.Context, file string, pos Position) (string, error) {
+	conn := c.conn.Load()
+	if conn == nil {
+		return "", fmt.Errorf("LSP client not started")
+	}
+
 	c.ensureOpen(file)
 
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Load().Send(lspCtx, "textDocument/hover", textDocumentPositionParams{
+	raw, err := conn.Send(lspCtx, "textDocument/hover", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -528,12 +563,17 @@ func (c *Client) Hover(ctx context.Context, file string, pos Position) (string, 
 
 // DocumentSymbols 查询文件中所有符号。
 func (c *Client) DocumentSymbols(ctx context.Context, file string) ([]SymbolInfo, error) {
+	conn := c.conn.Load()
+	if conn == nil {
+		return nil, fmt.Errorf("LSP client not started")
+	}
+
 	c.ensureOpen(file)
 
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Load().Send(lspCtx, "textDocument/documentSymbol", textDocumentParams{
+	raw, err := conn.Send(lspCtx, "textDocument/documentSymbol", textDocumentParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 	})
 	if err != nil {
@@ -545,10 +585,15 @@ func (c *Client) DocumentSymbols(ctx context.Context, file string) ([]SymbolInfo
 
 // WorkspaceSymbols 在工作区中搜索符号。
 func (c *Client) WorkspaceSymbols(ctx context.Context, query string) ([]SymbolInfo, error) {
+	conn := c.conn.Load()
+	if conn == nil {
+		return nil, fmt.Errorf("LSP client not started")
+	}
+
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Load().Send(lspCtx, "workspace/symbol", map[string]string{"query": query})
+	raw, err := conn.Send(lspCtx, "workspace/symbol", map[string]string{"query": query})
 	if err != nil {
 		return nil, err
 	}
@@ -668,7 +713,11 @@ func (c *Client) fileToURI(path string) string {
 	}
 	// 统一使用正斜杠
 	absPath = filepath.ToSlash(absPath)
-	return "file://" + absPath
+	u := &url.URL{
+		Scheme: "file",
+		Path:   absPath,
+	}
+	return u.String()
 }
 
 // uriToFile 将 file:// URI 转换回文件路径。

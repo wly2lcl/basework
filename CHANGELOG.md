@@ -5,6 +5,46 @@
 
 ## [Unreleased]
 
+### Phase 34: 深度修复 — 协议/数据/可靠性 (2026-07-07)
+
+**Critical 安全与协议修复**
+- OAuth CSRF 防护：生成随机 state 参数，回调时验证匹配性（10 分钟过期、一次性使用）
+- MCP StdioTransport 重连：`Reset()` 杀死旧进程 + 重启，重连后重新发现工具/资源/提示
+- Stream 错误传播：pipeline 检查 `StreamEvent.Error`，流式错误不再静默丢弃
+- 上下文取消检测：stream 循环后检查 `ctx.Err()`，返回取消错误
+
+**Critical 数据完整性修复**
+- FTS5 真全文搜索：替换 LIKE 为 FTS5 虚拟表 + BM25 相关性排序，CJK 回退 LIKE
+- Memory ID 统一：FTS 索引与存储层使用相同 ID 格式
+- LSP 生命周期：nil 指针防护（8 个方法）、进程泄漏清理（Kill）、readLoop panic 恢复
+- 配置验证框架：`Validate()` 检查温度/token/端口/TopP 等范围，`Load`/`Reload` 后自动调用
+
+**High Provider 错误处理**
+- Gemini/Bedrock UTF-8：`strings.TrimPrefix` 替代字节切片，CJK 输出不再乱码
+- OpenAI tool call：基于 `finish_reason` 判断完成，替代脆弱的空字符串检测
+- HTTP 重试：429/5xx 指数退避重试（3 次），尊重 `Retry-After` header
+- Copilot token 自动刷新：过期前自动通过 TokenSource 刷新
+
+**High MCP 能力协商**
+- 解析 initialize 响应中的 capabilities 字段
+- 仅对声明支持的能力调用 tools/list、resources/list、prompts/list
+
+**Medium 代码质量改进**
+- todowrite 会话隔离：全局 map 改为实例注入 sessionID
+- TUI 退出清理：退出时清理插件、取消 context
+- JSONLStore Events 缓存优先：从缓存读取而非每次读盘
+- OAuth expires_in=0 处理：使用默认 1 小时过期，防止无限刷新循环
+- MCP HTTPTransport 超时：5 分钟超时防止永久挂起
+- LSP fileToURI 编码：使用 `url.URL.String()` 正确 percent-encode 路径
+
+**测试覆盖**
+- 新增 OAuth CSRF 测试（5 个用例）
+- 新增 MCP 重连/能力协商测试（12+ 个用例）
+- 新增 FTS5 搜索测试（12 个用例）
+- 新增 LSP 生命周期测试（14 个用例）
+- 新增配置验证测试（33 个用例）
+- 新增 HTTP 重试测试（8 个用例）
+
 ### Phase 33: 关键安全修复 + 架构解耦 (2026-07-07)
 
 **P0 安全修复**

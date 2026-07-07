@@ -67,10 +67,9 @@ func (e *Engine) Compress(ctx context.Context, messages []llm.ChatMessage) ([]ll
 				return nil, fmt.Errorf("store compressed memory: %w", err)
 			}
 
-			// 索引到 FTS
+			// 索引到 FTS（使用内容前缀作为 ID，与 entriesByIDs 一致）
 			if e.fts != nil {
-				id := fmt.Sprintf("compressed_%d", len(parts))
-				if err := e.fts.Index(id, summary); err != nil {
+				if err := e.fts.Index(entryID(summary), summary); err != nil {
 					return nil, fmt.Errorf("index compressed memory: %w", err)
 				}
 			}

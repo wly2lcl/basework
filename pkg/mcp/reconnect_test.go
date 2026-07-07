@@ -2,7 +2,10 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -25,33 +28,47 @@ func TestReconnectExponentialBackoff(t *testing.T) {
 	server.Transport.Close()
 
 	// 使用短超时的 context 避免测试时间过长
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := mgr.Reconnect(ctx, "test-server")
-	// 预期失败（mock server 已关闭），但应该执行了退避重试
+	// 现在 Reset+Connect 会启动新进程，重连应该成功
 	if err != nil {
-		t.Logf("Reconnect returned error (expected): %v", err)
+		t.Fatalf("Reconnect should succeed (creates new process): %v", err)
 	}
 
-	// 检查状态标记
-	status := server.Status()
-	t.Logf("Server status after reconnect: %s", status)
+	// 检查状态标记为 available
+	if !server.IsAvailable() {
+		t.Errorf("expected server to be available after successful reconnect, got %q", server.Status())
+	}
 }
 
 // TestReconnectMaxRetries 测试达到最大重试次数后标记 unavailable。
 func TestReconnectMaxRetries(t *testing.T) {
-	mgr := setupManagerWithMock(t, "test-server")
+	mgr := NewManager()
 	defer mgr.Close()
 
-	server, _ := mgr.GetServer("test-server")
-	server.MaxRetries = 2 // 只重试 2 次
-
-	// 关闭 transport
-	server.Transport.Close()
+	// 使用无效命令，导致连接始终失败
+	cfg := managerTestConfig()
+	cfg.Command = "nonexistent-command-that-will-always-fail"
+	cfg.Args = nil
+	cfg.Env = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// 初始连接也应该会失败...实际测试只需要测试重试逻辑
+	// 改为注入一个已关闭的 transport 来模拟
+	mgr.mu.Lock()
+	transport := NewStdioTransport("nonexistent-command", nil, nil)
+	server := &ServerConnection{
+		Name:        "test-server",
+		Transport:   transport,
+		MaxRetries:  2,
+		serverStatus: StatusAvailable,
+	}
+	mgr.servers["test-server"] = server
+	mgr.mu.Unlock()
 
 	err := mgr.Reconnect(ctx, "test-server")
 	if err == nil {
@@ -141,6 +158,120 @@ func TestReconnectSuccessResetsRetry(t *testing.T) {
 	if server.MaxRetries <= 0 {
 		t.Error("expected MaxRetries to be set")
 	}
+}
+
+// TestStdioReset 测试 Reset 杀死进程并重置状态。
+func TestStdioReset(t *testing.T) {
+	transport := stdioTestTransport()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := transport.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	// 验证进程已启动
+	if transport.cmd == nil || transport.cmd.Process == nil {
+		t.Fatal("expected process to be running")
+	}
+	pid := transport.cmd.Process.Pid
+
+	// 调用 Reset
+	transport.Reset()
+
+	// 验证 started 为 false
+	if transport.started.Load() {
+		t.Error("expected started to be false after reset")
+	}
+
+	// 验证旧进程不再运行（发送 signal 0 检查）
+	process, err := os.FindProcess(pid)
+	if err == nil {
+		if err := process.Signal(os.Signal(syscall.Signal(0))); err == nil {
+			t.Error("expected old process to be killed")
+		}
+	}
+
+	transport.Close()
+}
+
+// TestReconnectStartsNewProcess 测试 Reset+Connect 启动新进程。
+func TestReconnectStartsNewProcess(t *testing.T) {
+	transport := stdioTestTransport()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := transport.Connect(ctx); err != nil {
+		t.Fatalf("first Connect: %v", err)
+	}
+	oldPid := transport.cmd.Process.Pid
+
+	// Reset + 重新 Connect
+	transport.Reset()
+	if err := transport.Connect(ctx); err != nil {
+		t.Fatalf("second Connect: %v", err)
+	}
+
+	// 验证新进程 PID 不同
+	if transport.cmd.Process.Pid == oldPid {
+		t.Error("expected new process to have different PID")
+	}
+
+	// 验证新连接可用
+	result, err := transport.Call(ctx, "ping", nil)
+	if err != nil {
+		t.Fatalf("Call after reconnect: %v", err)
+	}
+	var s string
+	if err := json.Unmarshal(result, &s); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if s != "pong" {
+		t.Errorf("expected 'pong', got %q", s)
+	}
+
+	transport.Close()
+}
+
+// TestReconnectRediscovery 测试重连后重新发现工具/资源/提示。
+func TestReconnectRediscovery(t *testing.T) {
+	transport := stdioTestTransport()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := transport.Connect(ctx); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	// 模拟重连流程
+	transport.Reset()
+	if err := transport.Connect(ctx); err != nil {
+		t.Fatalf("reconnect: %v", err)
+	}
+
+	// 重新发现
+	tools := rediscoverTools(ctx, transport)
+	resources := rediscoverResources(ctx, transport)
+	prompts := rediscoverPrompts(ctx, transport)
+
+	// 验证重新发现成功
+	if len(tools) == 0 {
+		t.Error("expected tools to be rediscovered")
+	}
+	if len(resources) == 0 {
+		t.Error("expected resources to be rediscovered")
+	}
+	if len(prompts) == 0 {
+		t.Error("expected prompts to be rediscovered")
+	}
+	if tools[0].Name != "echo" {
+		t.Errorf("expected 'echo', got %q", tools[0].Name)
+	}
+
+	transport.Close()
 }
 
 // TestReconnectUnavailableBlocksCalls 测试 unavailable 后拒绝调用。

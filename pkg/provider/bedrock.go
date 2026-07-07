@@ -507,7 +507,7 @@ func parseBedrockStream(ctx context.Context, resp *http.Response) <-chan llm.Str
 				if event.Delta != nil && event.Delta.Text != "" {
 					delta := event.Delta.Text
 					if len(accumulatedText) > 0 && strings.HasPrefix(event.Delta.Text, accumulatedText) {
-						delta = event.Delta.Text[len(accumulatedText):]
+						delta = strings.TrimPrefix(event.Delta.Text, accumulatedText)
 					}
 					accumulatedText = event.Delta.Text
 					if delta != "" {

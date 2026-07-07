@@ -23,11 +23,13 @@ var (
 )
 
 // TodoWriteTool 实现 todowrite 工具，用于管理任务列表
-type TodoWriteTool struct{}
+type TodoWriteTool struct {
+	sessionID string
+}
 
 // NewTodoWriteTool 创建 todowrite 工具
-func NewTodoWriteTool() *TodoWriteTool {
-	return &TodoWriteTool{}
+func NewTodoWriteTool(sessionID string) *TodoWriteTool {
+	return &TodoWriteTool{sessionID: sessionID}
 }
 
 // Name 返回工具名称
@@ -89,8 +91,8 @@ func (t *TodoWriteTool) Execute(ctx context.Context, args json.RawMessage) (*too
 		}, nil
 	}
 
-	// 使用固定 key 存储（简化实现）
-	sessionID := "default"
+	// 使用实例的 sessionID
+	sessionID := t.sessionID
 
 	todoMu.Lock()
 	todoStore[sessionID] = params.Todos

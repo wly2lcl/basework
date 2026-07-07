@@ -8,21 +8,21 @@ import (
 )
 
 func TestTodoWriteTool_Name(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	if tool.Name() != "todowrite" {
 		t.Errorf("期望 Name='todowrite', 得到 '%s'", tool.Name())
 	}
 }
 
 func TestTodoWriteTool_Description(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	if tool.Description() == "" {
 		t.Error("期望 Description 非空")
 	}
 }
 
 func TestTodoWriteTool_Parameters(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	params := tool.Parameters()
 	if len(params) == 0 {
 		t.Error("期望 Parameters 非空")
@@ -30,7 +30,7 @@ func TestTodoWriteTool_Parameters(t *testing.T) {
 }
 
 func TestTodoWriteTool_Execute_EmptyTodos(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`{"todos": []}`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -41,7 +41,7 @@ func TestTodoWriteTool_Execute_EmptyTodos(t *testing.T) {
 }
 
 func TestTodoWriteTool_Execute_InvalidParams(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`not json`))
 	if err != nil {
 		t.Fatalf("Execute 返回错误: %v", err)
@@ -53,9 +53,9 @@ func TestTodoWriteTool_Execute_InvalidParams(t *testing.T) {
 
 func TestTodoWriteTool_Execute_CreateTodos(t *testing.T) {
 	// 先清理
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`{
 		"todos": [
 			{"text": "任务1", "status": "pending"},
@@ -91,9 +91,9 @@ func TestTodoWriteTool_Execute_CreateTodos(t *testing.T) {
 }
 
 func TestTodoWriteTool_Execute_AllCompleted(t *testing.T) {
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`{
 		"todos": [
 			{"text": "完成", "status": "completed"},
@@ -116,9 +116,9 @@ func TestTodoWriteTool_Execute_AllCompleted(t *testing.T) {
 }
 
 func TestTodoWriteTool_Execute_AllPending(t *testing.T) {
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`{
 		"todos": [
 			{"text": "待办1"},
@@ -138,9 +138,9 @@ func TestTodoWriteTool_Execute_AllPending(t *testing.T) {
 }
 
 func TestTodoWriteTool_RenderFormat(t *testing.T) {
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	result, err := tool.Execute(context.Background(), []byte(`{
 		"todos": [
 			{"text": "任务 A", "status": "pending"}
@@ -160,16 +160,16 @@ func TestTodoWriteTool_RenderFormat(t *testing.T) {
 }
 
 func TestTodoWriteTool_StoreAndGet(t *testing.T) {
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	tool.Execute(context.Background(), []byte(`{
 		"todos": [
 			{"text": "存储测试", "status": "pending"}
 		]
 	}`))
 
-	todos := GetTodos("default")
+	todos := GetTodos("test")
 	if len(todos) != 1 {
 		t.Fatalf("期望 1 个任务, 得到 %d", len(todos))
 	}
@@ -182,9 +182,9 @@ func TestTodoWriteTool_StoreAndGet(t *testing.T) {
 }
 
 func TestTodoWriteTool_OverwriteExisting(t *testing.T) {
-	ClearTodos("default")
+	ClearTodos("test")
 
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	// 先写入一批
 	tool.Execute(context.Background(), []byte(`{
 		"todos": [{"text": "旧任务", "status": "pending"}]
@@ -195,7 +195,7 @@ func TestTodoWriteTool_OverwriteExisting(t *testing.T) {
 		"todos": [{"text": "新任务", "status": "completed"}]
 	}`))
 
-	todos := GetTodos("default")
+	todos := GetTodos("test")
 	if len(todos) != 1 {
 		t.Fatalf("期望 1 个任务, 得到 %d", len(todos))
 	}
@@ -205,7 +205,7 @@ func TestTodoWriteTool_OverwriteExisting(t *testing.T) {
 }
 
 func TestTodo_ParametersSchema(t *testing.T) {
-	tool := NewTodoWriteTool()
+	tool := NewTodoWriteTool("test")
 	params := tool.Parameters()
 
 	var schema map[string]interface{}

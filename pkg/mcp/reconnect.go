@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -52,6 +53,11 @@ func (m *Manager) Reconnect(ctx context.Context, serverName string) error {
 		case <-time.After(backoff):
 		}
 
+		// 杀死旧进程（仅 StdioTransport 需要）
+		if resetter, ok := server.Transport.(interface{ Reset() }); ok {
+			resetter.Reset()
+		}
+
 		// 尝试重新连接 transport
 		if err := server.Transport.Connect(ctx); err != nil {
 			lastErr = err
@@ -66,7 +72,31 @@ func (m *Manager) Reconnect(ctx context.Context, serverName string) error {
 			backoff *= 2
 			continue
 		}
-		_ = initResult
+
+		// 解析 capabilities 并仅重新发现支持的能力
+		var caps ServerCapabilities
+		if err := parseCapabilities(initResult, &caps); err != nil {
+			lastErr = err
+			backoff *= 2
+			continue
+		}
+		server.Capabilities = caps
+
+		if caps.Tools {
+			server.Tools = rediscoverTools(ctx, server.Transport)
+		} else {
+			server.Tools = nil
+		}
+		if caps.Resources {
+			server.Resources = rediscoverResources(ctx, server.Transport)
+		} else {
+			server.Resources = nil
+		}
+		if caps.Prompts {
+			server.Prompts = rediscoverPrompts(ctx, server.Transport)
+		} else {
+			server.Prompts = nil
+		}
 
 		// 重连成功，重置状态
 		server.setStatus(StatusAvailable)
@@ -97,4 +127,49 @@ func (s *ServerConnection) IsAvailable() bool {
 	s.statusMu.RLock()
 	defer s.statusMu.RUnlock()
 	return s.serverStatus == StatusAvailable
+}
+
+// rediscoverTools 重新获取服务器工具列表。
+func rediscoverTools(ctx context.Context, transport Transport) []mcpTool {
+	result, err := transport.Call(ctx, "tools/list", nil)
+	if err != nil {
+		return nil
+	}
+	var list struct {
+		Tools []mcpTool `json:"tools"`
+	}
+	if json.Unmarshal(result, &list) != nil {
+		return nil
+	}
+	return list.Tools
+}
+
+// rediscoverResources 重新获取服务器资源列表。
+func rediscoverResources(ctx context.Context, transport Transport) []mcpResource {
+	result, err := transport.Call(ctx, "resources/list", nil)
+	if err != nil {
+		return nil
+	}
+	var list struct {
+		Resources []mcpResource `json:"resources"`
+	}
+	if json.Unmarshal(result, &list) != nil {
+		return nil
+	}
+	return list.Resources
+}
+
+// rediscoverPrompts 重新获取服务器提示模板列表。
+func rediscoverPrompts(ctx context.Context, transport Transport) []mcpPrompt {
+	result, err := transport.Call(ctx, "prompts/list", nil)
+	if err != nil {
+		return nil
+	}
+	var list struct {
+		Prompts []mcpPrompt `json:"prompts"`
+	}
+	if json.Unmarshal(result, &list) != nil {
+		return nil
+	}
+	return list.Prompts
 }
