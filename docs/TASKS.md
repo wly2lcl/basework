@@ -6,7 +6,7 @@
 
 ---
 
-## Phase 35: 主路径 Wiring 修复 + 第一轮优化（2026-07-07）
+## Phase 35: 主路径 Wiring 修复 + P0 优化（2026-07-07）
 
 **背景**：审计发现多个模块已实现但未接入 CLI/TUI 主路径，导致终端产品能力与文档承诺不一致。第一轮目标是先恢复核心可用性：配置默认值可靠、`basework agent` 有基础编程工具、`basework tui` 能真实对话。
 
@@ -69,13 +69,43 @@
 - [x] agent 回复会加入助手消息列表
 - [x] 有单元测试覆盖 handler 调用链
 
+### Task 35.5: 第二轮增强工具接入 ✅
+
+**文件**：`cmd/basework/runtime.go`, `internal/tools/websearch.go`, `internal/tools/websearch_test.go`
+
+**内容**：
+- `runtimeTools` 默认注册 `web_fetch/web_search/todowrite/apply_patch/question`
+- `web_search` 支持后端注入，单元测试不再访问真实 Tavily/Exa API
+- `web_search` 对 nil config 安全返回配置错误，不再 panic
+- 保留 Tavily/Exa 默认后端行为与参数上限处理
+
+**验收标准**：
+- [x] CLI/TUI 共享 runtime 默认具备增强工具
+- [x] `web_search` nil config 不 panic
+- [x] `web_search` 测试不依赖外网或真实 API key
+- [x] `num_results` 默认值和最大值有回归测试
+
+### Task 35.6: 第三轮 MCP/Skill/LSP 主路径接入 ✅
+
+**文件**：`cmd/basework/runtime.go`, `cmd/basework/runtime_test.go`
+
+**内容**：
+- 从 `mcp_configs` 初始化 MCP manager，并注册 MCP 工具、资源读取、提示获取工具
+- MCP 单个 server 连接失败只记录 warning，不阻断 CLI/TUI 启动
+- 初始化 LSP manager 并注册 6 个 LSP 工具
+- 扫描 `.basework/skills`、`~/.basework/skills`、`~/.config/basework/skills` 并注入 system prompt
+- 使用 agent plugin 在退出时关闭 MCP/LSP 资源
+
+**验收标准**：
+- [x] runtime 工具列表包含增强工具和 LSP 工具
+- [x] workspace Skill 可发现并注入 system prompt
+- [x] MCP/LSP 生命周期由 agent 关闭流程托管
+- [x] MCP 连接失败不会导致无关 CLI/TUI 启动失败
+
 ### Phase 35 后续任务（下一轮）
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| 接入增强工具 | P0 | 🔲 待做 | `web_fetch/web_search/todowrite/apply_patch/question` 进入 runtime wiring |
-| 修复 web_search 稳定性 | P0 | 🔲 待做 | nil config 防 panic，测试改 mock backend，避免真实网络 |
-| 接入 MCP/Skill/LSP | P0 | 🔲 待做 | 从配置初始化 manager/loader/LSP，并注册到 agent |
 | 完整权限交互 | P1 | 🔲 待做 | REPL/TUI ask 流程、权限缓存、SQLite 审计 |
 | CI/CD 加强 | P1 | 🔲 待做 | lint + platform matrix + release dry-run/tag 策略 |
 | README 对齐 | P2 | 🔲 待做 | 默认 provider/model 与文档声明统一 |

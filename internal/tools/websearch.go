@@ -16,12 +16,41 @@ import (
 
 // WebSearchTool 实现 web_search 工具，用于搜索网络信息
 type WebSearchTool struct {
-	cfg *config.Config
+	cfg      *config.Config
+	backends map[string]SearchBackend
 }
 
 // NewWebSearchTool 创建 web_search 工具
 func NewWebSearchTool(cfg *config.Config) *WebSearchTool {
-	return &WebSearchTool{cfg: cfg}
+	return NewWebSearchToolWithBackends(cfg, defaultSearchBackends())
+}
+
+// SearchBackend 是 web_search 后端适配器接口。
+type SearchBackend interface {
+	Search(ctx context.Context, apiKey, query string, numResults int) ([]SearchResult, error)
+}
+
+// SearchBackendFunc 将函数适配为 SearchBackend，便于测试和扩展。
+type SearchBackendFunc func(ctx context.Context, apiKey, query string, numResults int) ([]SearchResult, error)
+
+// Search 调用函数后端。
+func (f SearchBackendFunc) Search(ctx context.Context, apiKey, query string, numResults int) ([]SearchResult, error) {
+	return f(ctx, apiKey, query, numResults)
+}
+
+// NewWebSearchToolWithBackends 创建可注入后端的 web_search 工具。
+func NewWebSearchToolWithBackends(cfg *config.Config, backends map[string]SearchBackend) *WebSearchTool {
+	if backends == nil {
+		backends = defaultSearchBackends()
+	}
+	return &WebSearchTool{cfg: cfg, backends: backends}
+}
+
+func defaultSearchBackends() map[string]SearchBackend {
+	return map[string]SearchBackend{
+		"tavily": SearchBackendFunc(searchTavily),
+		"exa":    SearchBackendFunc(searchExa),
+	}
 }
 
 // Name 返回工具名称
@@ -95,12 +124,13 @@ func (w *WebSearchTool) Execute(ctx context.Context, args json.RawMessage) (*too
 	}
 
 	// 获取配置
-	backend := w.cfg.Tools.WebSearch.Backend
+	webSearchCfg := w.webSearchConfig()
+	backend := webSearchCfg.Backend
 	if backend == "" {
 		backend = "tavily"
 	}
 
-	apiKey := w.cfg.Tools.WebSearch.APIKey
+	apiKey := webSearchCfg.APIKey
 	if apiKey == "" {
 		return &tool.Result{
 			Content: "web_search 工具的 API key 未配置，请设置 config.tools.web_search.api_key",
@@ -108,21 +138,15 @@ func (w *WebSearchTool) Execute(ctx context.Context, args json.RawMessage) (*too
 		}, nil
 	}
 
-	var results []SearchResult
-	var err error
-
-	switch backend {
-	case "tavily":
-		results, err = searchTavily(ctx, apiKey, params.Query, params.NumResults)
-	case "exa":
-		results, err = searchExa(ctx, apiKey, params.Query, params.NumResults)
-	default:
+	searcher, ok := w.backends[backend]
+	if !ok {
 		return &tool.Result{
 			Content: fmt.Sprintf("不支持的搜索后端 '%s'，可选值：tavily, exa", backend),
 			IsError: true,
 		}, nil
 	}
 
+	results, err := searcher.Search(ctx, apiKey, params.Query, params.NumResults)
 	if err != nil {
 		return &tool.Result{
 			Content: fmt.Sprintf("搜索失败: %v", err),
@@ -151,6 +175,13 @@ func (w *WebSearchTool) Execute(ctx context.Context, args json.RawMessage) (*too
 	return &tool.Result{
 		Content: strings.TrimSpace(buf.String()),
 	}, nil
+}
+
+func (w *WebSearchTool) webSearchConfig() config.WebSearchConfig {
+	if w == nil || w.cfg == nil {
+		return config.WebSearchConfig{}
+	}
+	return w.cfg.Tools.WebSearch
 }
 
 // tavilyRequest Tavily API 请求结构
