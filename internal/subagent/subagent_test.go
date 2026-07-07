@@ -59,9 +59,9 @@ func newTimeoutMockAgent() *mockAgent {
 
 func TestAgentType_Constants(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		agentType AgentType
-		want     string
+		want      string
 	}{
 		{"通用类型", TypeGeneral, "general"},
 		{"只读类型", TypeReadonly, "readonly"},

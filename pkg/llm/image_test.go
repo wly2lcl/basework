@@ -2,10 +2,10 @@ package llm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
-	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"

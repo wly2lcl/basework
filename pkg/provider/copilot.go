@@ -34,10 +34,10 @@ const (
 
 // CopilotProvider 实现 Provider 接口，封装 GitHub Copilot API
 type CopilotProvider struct {
-	model    string
-	token    *oauth2.Token
-	tokenSrc oauth2.TokenSource
-	client   *http.Client
+	model     string
+	token     *oauth2.Token
+	tokenSrc  oauth2.TokenSource
+	client    *http.Client
 	tokenPath string
 }
 

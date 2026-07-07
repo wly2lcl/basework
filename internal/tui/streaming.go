@@ -41,13 +41,13 @@ type StreamingView struct {
 // NewStreamingView 创建新的流式渲染组件
 func NewStreamingView() *StreamingView {
 	return &StreamingView{
-		currentText:     "",
-		thinkingText:    "",
-		toolInProgress:  "",
-		isRunning:       false,
-		startTime:       time.Now(),
-		width:           80,
-		spinnerIdx:      0,
+		currentText:    "",
+		thinkingText:   "",
+		toolInProgress: "",
+		isRunning:      false,
+		startTime:      time.Now(),
+		width:          80,
+		spinnerIdx:     0,
 	}
 }
 

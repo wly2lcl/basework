@@ -29,9 +29,9 @@ const (
 
 // ResponseError 表示 JSON-RPC 响应中的错误。
 type ResponseError struct {
-	Code    int              `json:"code"`
-	Message string           `json:"message"`
-	Data    json.RawMessage  `json:"data,omitempty"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data,omitempty"`
 }
 
 func (e *ResponseError) Error() string {
@@ -96,8 +96,8 @@ type Conn struct {
 	notifyMu sync.RWMutex
 	handlers map[string]func(json.RawMessage)
 
-	started  atomic.Bool
-	done     chan struct{}
+	started   atomic.Bool
+	done      chan struct{}
 	closeOnce sync.Once
 
 	// closed 标记连接已关闭，避免重复操作

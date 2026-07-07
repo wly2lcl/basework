@@ -62,9 +62,9 @@ func TestReconnectMaxRetries(t *testing.T) {
 	mgr.mu.Lock()
 	transport := NewStdioTransport("nonexistent-command", nil, nil)
 	server := &ServerConnection{
-		Name:        "test-server",
-		Transport:   transport,
-		MaxRetries:  2,
+		Name:         "test-server",
+		Transport:    transport,
+		MaxRetries:   2,
 		serverStatus: StatusAvailable,
 	}
 	mgr.servers["test-server"] = server

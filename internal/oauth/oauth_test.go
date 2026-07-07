@@ -495,9 +495,9 @@ func TestExchangeToken(t *testing.T) {
 	defer server.Close()
 
 	config := ProviderConfig{
-		ClientID:    "test-client-id",
+		ClientID:      "test-client-id",
 		TokenEndpoint: server.URL,
-		RedirectURI: "http://127.0.0.1:9999/callback",
+		RedirectURI:   "http://127.0.0.1:9999/callback",
 	}
 
 	token, err := ExchangeToken(context.Background(), config, "test-code", "test-verifier")
@@ -539,9 +539,9 @@ func TestExchangeTokenErrorResponse(t *testing.T) {
 	defer server.Close()
 
 	config := ProviderConfig{
-		ClientID:    "test-client-id",
+		ClientID:      "test-client-id",
 		TokenEndpoint: server.URL,
-		RedirectURI: "http://127.0.0.1:9999/callback",
+		RedirectURI:   "http://127.0.0.1:9999/callback",
 	}
 
 	_, err := ExchangeToken(context.Background(), config, "expired-code", "test-verifier")
@@ -621,8 +621,8 @@ func TestTokenSourceExpiredNoRefresh(t *testing.T) {
 	if err == nil {
 		t.Fatal("过期且无 refresh token 时应返回错误")
 	}
-if !strings.Contains(err.Error(), "重新运行授权") {
-			t.Errorf("错误信息应包含 '重新运行授权'，实际: %v", err)
+	if !strings.Contains(err.Error(), "重新运行授权") {
+		t.Errorf("错误信息应包含 '重新运行授权'，实际: %v", err)
 	}
 }
 

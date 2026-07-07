@@ -36,12 +36,12 @@ type Client struct {
 	env     []string
 	cwd     string
 
-conn atomic.Pointer[Conn]
-	cmd  *exec.Cmd
+	conn  atomic.Pointer[Conn]
+	cmd   *exec.Cmd
 	state atomic.Int32
 
-	startMu   sync.Mutex
-	startErr  error
+	startMu  sync.Mutex
+	startErr error
 
 	// 已打开文件列表（URI → 是否已打开）
 	openFiles map[string]bool
@@ -154,7 +154,7 @@ type referenceContext struct {
 
 // referencesParams 是 textDocument/references 请求的参数。
 type referencesParams struct {
-	TextDocument textDocumentID  `json:"textDocument"`
+	TextDocument textDocumentID   `json:"textDocument"`
 	Position     Position         `json:"position"`
 	Context      referenceContext `json:"context"`
 }

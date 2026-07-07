@@ -21,9 +21,9 @@ type TurnResult struct {
 
 // Pipeline 实现了四阶段 turn 执行管线：setup → callLLM → executeTools → finalize
 type Pipeline struct {
-	td            TurnD
-	sessionID     string
-	steeringMsgs  []llm.ChatMessage // 从 SteeringManager.Drain() 获取的消息，在 setupTurn 中 prepend
+	td           TurnD
+	sessionID    string
+	steeringMsgs []llm.ChatMessage // 从 SteeringManager.Drain() 获取的消息，在 setupTurn 中 prepend
 }
 
 // NewPipeline 创建管线

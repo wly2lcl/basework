@@ -94,7 +94,7 @@ func TestEstimateConversationTokens(t *testing.T) {
 		{
 			name: "多条消息累加 token",
 			messages: []llm.ChatMessage{
-				textMsg(llm.RoleUser, "abcd"),      // 1 token
+				textMsg(llm.RoleUser, "abcd"),        // 1 token
 				textMsg(llm.RoleAssistant, "abcdef"), // 2 tokens
 			},
 			expected: 3,
@@ -158,7 +158,7 @@ func TestSlidingWindowStrategy_Compact(t *testing.T) {
 			wantLenMax: 10,
 		},
 		{
-			name: "系统消息不受窗口限制",
+			name:       "系统消息不受窗口限制",
 			windowSize: 3,
 			messages: []llm.ChatMessage{
 				textMsg(llm.RoleSystem, "system prompt"),
@@ -229,8 +229,8 @@ func TestSummarizationStrategy_Compact(t *testing.T) {
 		checkSys   bool
 	}{
 		{
-			name:     "消息太少，不触发摘要",
-			messages: makeMessages(3, llm.RoleUser),
+			name:       "消息太少，不触发摘要",
+			messages:   makeMessages(3, llm.RoleUser),
 			wantMinLen: 3,
 			wantMaxLen: 3,
 		},
@@ -347,10 +347,10 @@ func TestSelectiveStrategy_Compact(t *testing.T) {
 				msgs = append(msgs, textMsg(llm.RoleTool, "tool_result"))
 				return msgs
 			}(),
-			wantUserCount: 2,
+			wantUserCount:      2,
 			wantAssistantCount: 5,
-			wantSysCount: 1,
-			wantLen: 9, // 1 sys + 2 user + 1 tool + 5 assistant
+			wantSysCount:       1,
+			wantLen:            9, // 1 sys + 2 user + 1 tool + 5 assistant
 		},
 		{
 			name:               "助手消息未超过限制，全部保留",
@@ -359,9 +359,9 @@ func TestSelectiveStrategy_Compact(t *testing.T) {
 				textMsg(llm.RoleUser, "user1"),
 				textMsg(llm.RoleAssistant, "assistant1"),
 			},
-			wantUserCount: 1,
+			wantUserCount:      1,
 			wantAssistantCount: 1,
-			wantLen: 2,
+			wantLen:            2,
 		},
 		{
 			name:               "默认值（keppCount <= 0 时使用 5）",
@@ -374,9 +374,9 @@ func TestSelectiveStrategy_Compact(t *testing.T) {
 				}
 				return msgs
 			}(),
-			wantUserCount: 1,
+			wantUserCount:      1,
 			wantAssistantCount: 5,
-			wantLen: 6, // 1 user + 5 assistant
+			wantLen:            6, // 1 user + 5 assistant
 		},
 		{
 			name:               "助手消息恰好等于限制，保留全部",
@@ -389,9 +389,9 @@ func TestSelectiveStrategy_Compact(t *testing.T) {
 				}
 				return msgs
 			}(),
-			wantUserCount: 1,
+			wantUserCount:      1,
 			wantAssistantCount: 3,
-			wantLen: 4,
+			wantLen:            4,
 		},
 	}
 
@@ -518,7 +518,7 @@ func TestEngine_Compact(t *testing.T) {
 		checkFn  func(t *testing.T, result []llm.ChatMessage)
 	}{
 		{
-			name: "压缩禁用时返回原消息",
+			name:   "压缩禁用时返回原消息",
 			config: Config{Enabled: false},
 			messages: []llm.ChatMessage{
 				textMsg(llm.RoleSystem, "system"),
@@ -534,7 +534,7 @@ func TestEngine_Compact(t *testing.T) {
 			},
 		},
 		{
-			name: "启用压缩后执行策略压缩",
+			name:   "启用压缩后执行策略压缩",
 			config: Config{Enabled: true, Threshold: 0.8},
 			messages: []llm.ChatMessage{
 				textMsg(llm.RoleUser, "msg1"),
@@ -574,10 +574,10 @@ func TestEngine_Compact(t *testing.T) {
 
 func TestNewEngine_Defaults(t *testing.T) {
 	tests := []struct {
-		name            string
-		config          Config
-		wantThreshold   float64
-		wantWindowSize  int
+		name           string
+		config         Config
+		wantThreshold  float64
+		wantWindowSize int
 	}{
 		{
 			name:           "Threshold <= 0 时使用默认值 0.8",

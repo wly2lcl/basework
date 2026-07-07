@@ -155,8 +155,8 @@ type testPlugin struct {
 	slot SlotType
 }
 
-func (p *testPlugin) ID() string                         { return p.id }
-func (p *testPlugin) Slot() SlotType                     { return p.slot }
-func (p *testPlugin) Init() tea.Cmd                      { return nil }
+func (p *testPlugin) ID() string                              { return p.id }
+func (p *testPlugin) Slot() SlotType                          { return p.slot }
+func (p *testPlugin) Init() tea.Cmd                           { return nil }
 func (p *testPlugin) Update(msg tea.Msg) (TUIPlugin, tea.Cmd) { return p, nil }
-func (p *testPlugin) View(width, height int) string      { return "test-plugin-view" }
+func (p *testPlugin) View(width, height int) string           { return "test-plugin-view" }

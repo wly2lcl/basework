@@ -54,10 +54,10 @@ func newGemini(baseURL, apiKey, modelID string, opts map[string]any) (llm.Model,
 
 	return &geminiModel{
 		baseURL:            strings.TrimRight(baseURL, "/"),
-		apiKey:            apiKey,
-		modelID:           modelID,
-		client:            newHTTPClient(60 * time.Second),
-		capabilities:      capabilities,
+		apiKey:             apiKey,
+		modelID:            modelID,
+		client:             newHTTPClient(60 * time.Second),
+		capabilities:       capabilities,
 		promptCacheEnabled: promptCacheEnabled,
 	}, nil
 }
@@ -416,13 +416,13 @@ func parseGeminiStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 				msg, _ := errMap["message"].(string)
 				ch <- llm.StreamEvent{
 					Error: &llm.Error{
-					Type:          llm.ErrorTypeInternal,
-					Message:       "gemini stream error",
-					ProviderError: msg,
-				},
+						Type:          llm.ErrorTypeInternal,
+						Message:       "gemini stream error",
+						ProviderError: msg,
+					},
+				}
+				return
 			}
-			return
-		}
 
 			// Parse usage metadata (usually in the final chunk)
 			if usageMeta, ok := chunk["usageMetadata"].(map[string]any); ok {

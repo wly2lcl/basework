@@ -50,7 +50,7 @@ var authLogoutCmd = &cobra.Command{
 	Use:   "logout <provider>",
 	Short: "清除指定 provider 的认证信息",
 	Long:  `删除指定 provider 的 access token，解除认证状态。`,
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAuthLogout(args[0])
 	},

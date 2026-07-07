@@ -11,9 +11,9 @@ import (
 // 命令面板样式
 var (
 	stylePanelBorder = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("63")).
-			Padding(0, 1)
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("63")).
+				Padding(0, 1)
 
 	stylePanelQuery = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("255")).

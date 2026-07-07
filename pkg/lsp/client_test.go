@@ -94,8 +94,8 @@ type clientFixture struct {
 	server *mockLSPServer
 	conn   *Conn
 	// 客户端视角的管道
-	clientIn  io.WriteCloser  // 客户端写入
-	clientOut io.ReadCloser   // 客户端读取
+	clientIn  io.WriteCloser // 客户端写入
+	clientOut io.ReadCloser  // 客户端读取
 	cleanup   func()
 }
 

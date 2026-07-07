@@ -48,9 +48,9 @@ func runMockMCPServer() {
 		}
 
 		var msg struct {
-			ID     *int             `json:"id"`
-			Method string           `json:"method"`
-			Params json.RawMessage  `json:"params"`
+			ID     *int            `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 		}
 		if err := json.Unmarshal(body, &msg); err != nil {
 			continue
@@ -479,9 +479,9 @@ func newHTTPServer(t *testing.T) *httptest.Server {
 		}
 
 		var req struct {
-			ID     *int             `json:"id"`
-			Method string           `json:"method"`
-			Params json.RawMessage  `json:"params"`
+			ID     *int            `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -1085,8 +1085,8 @@ func TestStdioAfterClose(t *testing.T) {
 func TestHTTPCallParam(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Method string           `json:"method"`
-			Params json.RawMessage  `json:"params"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		if req.Method != "echo" {

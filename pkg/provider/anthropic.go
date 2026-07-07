@@ -411,16 +411,16 @@ func fromAnthropicResponse(body []byte) (*llm.Response, error) {
 		Type    string `json:"type"`
 		Role    string `json:"role"`
 		Content []struct {
-			Type string          `json:"type"`
-			Text string          `json:"text,omitempty"`
-			ID   string          `json:"id,omitempty"`
-			Name string          `json:"name,omitempty"`
+			Type  string          `json:"type"`
+			Text  string          `json:"text,omitempty"`
+			ID    string          `json:"id,omitempty"`
+			Name  string          `json:"name,omitempty"`
 			Input json.RawMessage `json:"input,omitempty"`
 		} `json:"content"`
 		StopReason string `json:"stop_reason"`
 		Usage      struct {
-			InputTokens            int `json:"input_tokens"`
-			OutputTokens           int `json:"output_tokens"`
+			InputTokens              int `json:"input_tokens"`
+			OutputTokens             int `json:"output_tokens"`
 			CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 			CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 		} `json:"usage"`
@@ -431,11 +431,11 @@ func fromAnthropicResponse(body []byte) (*llm.Response, error) {
 	}
 
 	usage := llm.Usage{
-		PromptTokens:              raw.Usage.InputTokens,
-		CompletionTokens:          raw.Usage.OutputTokens,
-		TotalTokens:               raw.Usage.InputTokens + raw.Usage.OutputTokens,
-		CacheCreationInputTokens:  raw.Usage.CacheCreationInputTokens,
-		CacheReadInputTokens:      raw.Usage.CacheReadInputTokens,
+		PromptTokens:             raw.Usage.InputTokens,
+		CompletionTokens:         raw.Usage.OutputTokens,
+		TotalTokens:              raw.Usage.InputTokens + raw.Usage.OutputTokens,
+		CacheCreationInputTokens: raw.Usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     raw.Usage.CacheReadInputTokens,
 	}
 
 	var textBuilder strings.Builder
@@ -555,11 +555,11 @@ func parseAnthropicStream(ctx context.Context, resp *http.Response) <-chan llm.S
 					if err := json.Unmarshal([]byte(data), &msgStart); err == nil {
 						if msgStart.Message.Usage.InputTokens > 0 || msgStart.Message.Usage.OutputTokens > 0 {
 							usage := &llm.Usage{
-								PromptTokens:              msgStart.Message.Usage.InputTokens,
-								CompletionTokens:          msgStart.Message.Usage.OutputTokens,
-								TotalTokens:               msgStart.Message.Usage.InputTokens + msgStart.Message.Usage.OutputTokens,
-								CacheCreationInputTokens:  msgStart.Message.Usage.CacheCreationInputTokens,
-								CacheReadInputTokens:      msgStart.Message.Usage.CacheReadInputTokens,
+								PromptTokens:             msgStart.Message.Usage.InputTokens,
+								CompletionTokens:         msgStart.Message.Usage.OutputTokens,
+								TotalTokens:              msgStart.Message.Usage.InputTokens + msgStart.Message.Usage.OutputTokens,
+								CacheCreationInputTokens: msgStart.Message.Usage.CacheCreationInputTokens,
+								CacheReadInputTokens:     msgStart.Message.Usage.CacheReadInputTokens,
 							}
 							ch <- llm.StreamEvent{
 								Type:  llm.StreamEventUsage,

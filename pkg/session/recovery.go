@@ -12,12 +12,12 @@ import (
 
 // RecoveryStatus 表示恢复操作的状态
 type RecoveryStatus struct {
-	SessionID   string
-	Corrupted   bool
-	Repaired    bool
-	BackupPath  string
-	Error       error
-	CheckedAt   time.Time
+	SessionID  string
+	Corrupted  bool
+	Repaired   bool
+	BackupPath string
+	Error      error
+	CheckedAt  time.Time
 }
 
 // CheckIntegrity 检查会话数据库的完整性

@@ -20,9 +20,9 @@ const (
 
 // ContentPart 支持多模态内容，可以是纯文本或图片
 type ContentPart struct {
-	Type        ContentType
-	Text        string
-	ImageURL    string
+	Type         ContentType
+	Text         string
+	ImageURL     string
 	CacheControl *CacheControl // Prompt 缓存控制标记，可选
 }
 
@@ -30,7 +30,7 @@ type ContentPart struct {
 type ChatMessage struct {
 	Role       Role
 	Content    []ContentPart
-	Name       string       // 可选，工具名或助手名
-	ToolCalls  []ToolCall   // 助手请求的工具调用
-	ToolCallID string       // 工具响应关联的 ID
+	Name       string     // 可选，工具名或助手名
+	ToolCalls  []ToolCall // 助手请求的工具调用
+	ToolCallID string     // 工具响应关联的 ID
 }

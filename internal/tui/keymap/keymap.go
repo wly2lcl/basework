@@ -19,22 +19,22 @@ const (
 type Action string
 
 const (
-	ActionQuit         Action = "quit"
-	ActionClear        Action = "clear"
-	ActionSubmit       Action = "submit"
-	ActionNewline      Action = "newline"
-	ActionHistoryUp    Action = "history_up"
-	ActionHistoryDown  Action = "history_down"
-	ActionTabComplete  Action = "tab_complete"
-	ActionCursorLeft   Action = "cursor_left"
-	ActionCursorRight  Action = "cursor_right"
-	ActionCursorHome   Action = "cursor_home"
-	ActionCursorEnd    Action = "cursor_end"
-	ActionDeleteBefore Action = "delete_before"
-	ActionDeleteAfter  Action = "delete_after"
+	ActionQuit           Action = "quit"
+	ActionClear          Action = "clear"
+	ActionSubmit         Action = "submit"
+	ActionNewline        Action = "newline"
+	ActionHistoryUp      Action = "history_up"
+	ActionHistoryDown    Action = "history_down"
+	ActionTabComplete    Action = "tab_complete"
+	ActionCursorLeft     Action = "cursor_left"
+	ActionCursorRight    Action = "cursor_right"
+	ActionCursorHome     Action = "cursor_home"
+	ActionCursorEnd      Action = "cursor_end"
+	ActionDeleteBefore   Action = "delete_before"
+	ActionDeleteAfter    Action = "delete_after"
 	ActionCommandPalette Action = "command_palette"
-	ActionEscape       Action = "escape"
-	ActionFocusInput   Action = "focus_input"
+	ActionEscape         Action = "escape"
+	ActionFocusInput     Action = "focus_input"
 )
 
 // KeyBinding 定义键绑定

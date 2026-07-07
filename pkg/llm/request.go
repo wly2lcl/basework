@@ -19,9 +19,9 @@ type Response struct {
 
 // Usage 记录 token 用量
 type Usage struct {
-	PromptTokens              int
-	CompletionTokens          int
-	TotalTokens               int
-	CacheCreationInputTokens  int // Prompt 缓存创建时的输入 token 数
-	CacheReadInputTokens      int // Prompt 缓存命中时的读取 token 数
+	PromptTokens             int
+	CompletionTokens         int
+	TotalTokens              int
+	CacheCreationInputTokens int // Prompt 缓存创建时的输入 token 数
+	CacheReadInputTokens     int // Prompt 缓存命中时的读取 token 数
 }

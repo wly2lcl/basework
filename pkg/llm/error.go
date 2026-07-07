@@ -9,12 +9,12 @@ import (
 type ErrorType string
 
 const (
-	ErrorTypeRateLimit      ErrorType = "rate_limit"
+	ErrorTypeRateLimit       ErrorType = "rate_limit"
 	ErrorTypeContextOverflow ErrorType = "context_overflow"
-	ErrorTypeAuth           ErrorType = "auth"
-	ErrorTypeNetwork        ErrorType = "network"
-	ErrorTypeModelNotFound  ErrorType = "model_not_found"
-	ErrorTypeInternal       ErrorType = "internal"
+	ErrorTypeAuth            ErrorType = "auth"
+	ErrorTypeNetwork         ErrorType = "network"
+	ErrorTypeModelNotFound   ErrorType = "model_not_found"
+	ErrorTypeInternal        ErrorType = "internal"
 )
 
 // Error 是 LLM 提供商的错误

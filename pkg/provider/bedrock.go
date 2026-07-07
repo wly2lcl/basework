@@ -26,25 +26,25 @@ const defaultBedrockRegion = "us-east-1"
 
 // Bedrock 模型 ID 映射（简化名 → AWS 模型 ID）
 var bedrockModelIDs = map[string]string{
-	"claude-3-5-sonnet":    "anthropic.claude-3-5-sonnet-20241022-v2:0",
-	"claude-3-opus":        "anthropic.claude-3-opus-20240229-v1:0",
-	"claude-3-sonnet":      "anthropic.claude-3-sonnet-20240229-v1:0",
-	"claude-3-haiku":       "anthropic.claude-3-haiku-20240307-v1:0",
-	"claude-4-sonnet":      "anthropic.claude-3-5-sonnet-20241022-v2:0",
-	"llama-3-1-70b":        "meta.llama3-1-70b-instruct-v1:0",
-	"llama-3-1-8b":         "meta.llama3-1-8b-instruct-v1:0",
-	"mistral-large":        "mistral.mistral-large-2402-v1:0",
+	"claude-3-5-sonnet": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+	"claude-3-opus":     "anthropic.claude-3-opus-20240229-v1:0",
+	"claude-3-sonnet":   "anthropic.claude-3-sonnet-20240229-v1:0",
+	"claude-3-haiku":    "anthropic.claude-3-haiku-20240307-v1:0",
+	"claude-4-sonnet":   "anthropic.claude-3-5-sonnet-20241022-v2:0",
+	"llama-3-1-70b":     "meta.llama3-1-70b-instruct-v1:0",
+	"llama-3-1-8b":      "meta.llama3-1-8b-instruct-v1:0",
+	"mistral-large":     "mistral.mistral-large-2402-v1:0",
 }
 
 // BedrockProvider 实现 Provider 接口，封装 Amazon Bedrock Converse API
 type BedrockProvider struct {
-	accessKey     string
-	secretKey     string
-	region        string
-	modelID       string
-	awsModelID    string
-	client        *http.Client
-	bedrockURL    string // 非流式端点 URL（可被测试覆盖）
+	accessKey        string
+	secretKey        string
+	region           string
+	modelID          string
+	awsModelID       string
+	client           *http.Client
+	bedrockURL       string // 非流式端点 URL（可被测试覆盖）
 	bedrockStreamURL string // 流式端点 URL（可被测试覆盖）
 }
 
@@ -164,8 +164,8 @@ func hmacSHA256(key, data []byte) []byte {
 
 // bedrockMessage 表示 Bedrock Converse API 的消息
 type bedrockMessage struct {
-	Role    string          `json:"role"`
-	Content []bedrockBlock  `json:"content"`
+	Role    string         `json:"role"`
+	Content []bedrockBlock `json:"content"`
 }
 
 type bedrockBlock struct {
@@ -174,9 +174,9 @@ type bedrockBlock struct {
 
 // bedrockRequest 是 Bedrock Converse API 请求体
 type bedrockRequest struct {
-	Messages         []bedrockMessage        `json:"messages"`
-	System           []bedrockSystemBlock    `json:"system,omitempty"`
-	InferenceConfig  *bedrockInferenceConfig `json:"inferenceConfig,omitempty"`
+	Messages        []bedrockMessage        `json:"messages"`
+	System          []bedrockSystemBlock    `json:"system,omitempty"`
+	InferenceConfig *bedrockInferenceConfig `json:"inferenceConfig,omitempty"`
 }
 
 type bedrockSystemBlock struct {
@@ -184,16 +184,16 @@ type bedrockSystemBlock struct {
 }
 
 type bedrockInferenceConfig struct {
-	MaxTokens   int      `json:"maxTokens,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
+	MaxTokens     int      `json:"maxTokens,omitempty"`
+	Temperature   *float64 `json:"temperature,omitempty"`
 	StopSequences []string `json:"stopSequences,omitempty"`
 }
 
 // bedrockResponse 是 Bedrock Converse API 响应体
 type bedrockResponse struct {
-	Output   *bedrockOutput     `json:"output"`
-	StopReason string           `json:"stopReason"`
-	Usage    *bedrockUsage      `json:"usage"`
+	Output     *bedrockOutput `json:"output"`
+	StopReason string         `json:"stopReason"`
+	Usage      *bedrockUsage  `json:"usage"`
 }
 
 type bedrockOutput struct {

@@ -46,9 +46,9 @@ func runManagerMockServer() {
 		}
 
 		var msg struct {
-			ID     *int             `json:"id"`
-			Method string           `json:"method"`
-			Params json.RawMessage  `json:"params"`
+			ID     *int            `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 		}
 		if err := json.Unmarshal(body, &msg); err != nil {
 			continue

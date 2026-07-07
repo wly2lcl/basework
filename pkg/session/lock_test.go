@@ -61,7 +61,7 @@ func TestFileLock_ForceUnlock(t *testing.T) {
 	lockPath := filepath.Join(tmpDir, "test.lock")
 
 	lock := NewFileLock(lockPath)
-	
+
 	// 获取锁
 	err := lock.Lock(1 * time.Second)
 	if err != nil {

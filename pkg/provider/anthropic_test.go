@@ -94,10 +94,10 @@ func TestAnthropic_Headers(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools:     true,
@@ -145,10 +145,10 @@ func TestAnthropic_Generate(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
@@ -199,10 +199,10 @@ func TestAnthropic_Generate_WithTools(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
@@ -253,10 +253,10 @@ func TestAnthropic_Stream(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
@@ -312,10 +312,10 @@ func TestAnthropic_Stream_WithToolCalls(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
@@ -381,10 +381,10 @@ func TestAnthropic_Error_RateLimit(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,
@@ -411,10 +411,10 @@ func TestAnthropic_Error_ContextOverflow(t *testing.T) {
 	defer ts.Close()
 
 	m := &anthropicModel{
-		baseURL: ts.URL,
-		apiKey:  "sk-ant-test123",
-		modelID: "claude-sonnet-4-20250514",
-		client:  ts.Client(),
+		baseURL:            ts.URL,
+		apiKey:             "sk-ant-test123",
+		modelID:            "claude-sonnet-4-20250514",
+		client:             ts.Client(),
 		promptCacheEnabled: true,
 		capabilities: map[llm.Capability]bool{
 			llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true,

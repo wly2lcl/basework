@@ -126,7 +126,7 @@
 
 **内容**：
 - CI 拆分为 quality、跨平台 test、release dry-run 三个 job
-- quality job 增加本轮触达 Go 文件的 gofmt、带 `sqlite memory` tag 的 vet、race test 子集
+- quality job 增加全仓 gofmt、带 `sqlite memory` tag 的 vet、race test 子集
 - test job 覆盖 Ubuntu/macOS/Windows
 - release dry-run 使用 GoReleaser snapshot 验证发布配置
 - release workflow 支持 tag push 正式发布，workflow_dispatch 默认 dry-run
@@ -158,11 +158,19 @@
 - [x] OpenCode API Key 配置文件入口生效
 - [x] README 配置示例使用当前配置 schema
 
-### Phase 35 后续独立任务
+### Task 35.10: 全仓 gofmt 格式化基线 ✅
 
-| 任务 | 优先级 | 状态 | 说明 |
-|------|--------|------|------|
-| 全仓 gofmt 基线 | P2 | 🔲 待做 | 单独提交纯格式化 diff，再把 CI gofmt 从触达文件升级为全仓检查 |
+**文件**：全仓 Go 文件，`.github/workflows/build.yml`
+
+**内容**：
+- 单独执行全仓 `gofmt`，只做格式化，不混入业务逻辑改动
+- CI gofmt 检查从触达文件列表升级为全仓 Go 文件检查
+- 后续所有 PR 都需要保持 gofmt 通过
+
+**验收标准**：
+- [x] 全仓 `gofmt -l` 无输出
+- [x] CI 使用同一套全仓 gofmt 检查
+- [x] 该轮 diff 为格式化基线和 CI 检查范围更新
 
 ---
 

@@ -10,21 +10,21 @@ var modelPricing = map[string]struct {
 	inputPrice  float64 // 输入价格（每百万 token）
 	outputPrice float64 // 输出价格（每百万 token）
 }{
-	"gpt-4o":               {inputPrice: 2.50, outputPrice: 10.00},
-	"gpt-4o-mini":          {inputPrice: 0.15, outputPrice: 0.60},
-	"gpt-4-turbo":          {inputPrice: 10.00, outputPrice: 30.00},
-	"gpt-4":               {inputPrice: 30.00, outputPrice: 60.00},
-	"gpt-3.5-turbo":        {inputPrice: 0.50, outputPrice: 1.50},
-	"claude-3-5-sonnet":    {inputPrice: 3.00, outputPrice: 15.00},
-	"claude-3-opus":        {inputPrice: 15.00, outputPrice: 75.00},
-	"claude-3-haiku":       {inputPrice: 0.25, outputPrice: 1.25},
-	"claude-3-sonnet":      {inputPrice: 3.00, outputPrice: 15.00},
-	"deepseek-v2":          {inputPrice: 0.14, outputPrice: 0.28},
-	"deepseek-v3":          {inputPrice: 0.27, outputPrice: 1.10},
-	"gemini-1.5-pro":       {inputPrice: 3.50, outputPrice: 10.50},
-	"gemini-1.5-flash":     {inputPrice: 0.075, outputPrice: 0.30},
-	"mistral-large":        {inputPrice: 2.00, outputPrice: 6.00},
-	"llama-3-70b":          {inputPrice: 0.65, outputPrice: 2.75},
+	"gpt-4o":            {inputPrice: 2.50, outputPrice: 10.00},
+	"gpt-4o-mini":       {inputPrice: 0.15, outputPrice: 0.60},
+	"gpt-4-turbo":       {inputPrice: 10.00, outputPrice: 30.00},
+	"gpt-4":             {inputPrice: 30.00, outputPrice: 60.00},
+	"gpt-3.5-turbo":     {inputPrice: 0.50, outputPrice: 1.50},
+	"claude-3-5-sonnet": {inputPrice: 3.00, outputPrice: 15.00},
+	"claude-3-opus":     {inputPrice: 15.00, outputPrice: 75.00},
+	"claude-3-haiku":    {inputPrice: 0.25, outputPrice: 1.25},
+	"claude-3-sonnet":   {inputPrice: 3.00, outputPrice: 15.00},
+	"deepseek-v2":       {inputPrice: 0.14, outputPrice: 0.28},
+	"deepseek-v3":       {inputPrice: 0.27, outputPrice: 1.10},
+	"gemini-1.5-pro":    {inputPrice: 3.50, outputPrice: 10.50},
+	"gemini-1.5-flash":  {inputPrice: 0.075, outputPrice: 0.30},
+	"mistral-large":     {inputPrice: 2.00, outputPrice: 6.00},
+	"llama-3-70b":       {inputPrice: 0.65, outputPrice: 2.75},
 }
 
 // CostTracker 追踪 LLM 调用的成本，线程安全

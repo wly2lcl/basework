@@ -11,25 +11,25 @@ import (
 type Option func(*config)
 
 type config struct {
-	model        llm.Model
-	tools        []tool.Tool
-	registry     *tool.Registry
-	systemPrompt string
-	session      session.Store
-	hooks        []hook.Hook
-	maxSteps     int
-	plugins         []Plugin
-	observer        Observer
-	callback        Callback
+	model            llm.Model
+	tools            []tool.Tool
+	registry         *tool.Registry
+	systemPrompt     string
+	session          session.Store
+	hooks            []hook.Hook
+	maxSteps         int
+	plugins          []Plugin
+	observer         Observer
+	callback         Callback
 	maxContextTokens int
 
 	// 集成模块接口
-	compactor       Compactor
-	permChecker     PermissionChecker
-	loopDetector    LoopDetector
-	subAgentRunner  SubAgentRunner
-	eventBus        EventPublisher
-	obsEnabled      bool
+	compactor      Compactor
+	permChecker    PermissionChecker
+	loopDetector   LoopDetector
+	subAgentRunner SubAgentRunner
+	eventBus       EventPublisher
+	obsEnabled     bool
 
 	// toolFactory 注册内置工具（允许内建 wiring）
 	toolFactory ToolFactory

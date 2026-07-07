@@ -66,9 +66,9 @@ func (s *mockServer) loop() {
 		}
 
 		var msg struct {
-			ID     *int             `json:"id"`
-			Method string           `json:"method"`
-			Params json.RawMessage  `json:"params"`
+			ID     *int            `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
 		}
 		if err := json.Unmarshal(body, &msg); err != nil {
 			s.t.Errorf("mock server: failed to unmarshal request: %v", err)
@@ -148,8 +148,8 @@ type connFixture struct {
 	conn   *Conn
 	server *mockServer
 	// 客户端视角的管道
-	clientIn  io.WriteCloser  // Conn 写 stdin
-	clientOut io.ReadCloser   // Conn 读 stdout
+	clientIn  io.WriteCloser // Conn 写 stdin
+	clientOut io.ReadCloser  // Conn 读 stdout
 }
 
 func newConnFixture(t *testing.T) *connFixture {

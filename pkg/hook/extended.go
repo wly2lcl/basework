@@ -10,9 +10,9 @@ type EventType int
 
 const (
 	EventPreStep      EventType = iota // 步骤执行前
-	EventPostStep                       // 步骤执行后
-	EventOnToolError                    // 工具执行出错
-	EventOnCompaction                   // 上下文压缩时
+	EventPostStep                      // 步骤执行后
+	EventOnToolError                   // 工具执行出错
+	EventOnCompaction                  // 上下文压缩时
 )
 
 // StepContext 步骤执行前的上下文
@@ -57,9 +57,9 @@ type NopExtendedHook struct {
 	NopHook
 }
 
-func (NopExtendedHook) OnPreStep(ctx *StepContext) error   { return nil }
-func (NopExtendedHook) OnPostStep(ctx *PostStepContext)    {}
-func (NopExtendedHook) OnToolError(ctx *ToolErrorContext)  {}
+func (NopExtendedHook) OnPreStep(ctx *StepContext) error    { return nil }
+func (NopExtendedHook) OnPostStep(ctx *PostStepContext)     {}
+func (NopExtendedHook) OnToolError(ctx *ToolErrorContext)   {}
 func (NopExtendedHook) OnCompaction(ctx *CompactionContext) {}
 
 // FuncExtendedHook 函数式扩展 hook

@@ -118,19 +118,19 @@ func newAgentLoop(cfg *config, chain *hook.Chain) (*AgentLoop, error) {
 	}
 
 	a := &AgentLoop{
-		model:        cfg.model,
-		session:      sess,
-		sessionID:    info.ID,
-		cfg:          cfg,
-		chain:        chain,
-		plugins:      cfg.plugins,
-		observer:     cfg.observer,
-		callback:     cfg.callback,
-		compactor:    cfg.compactor,
-		permChecker:  cfg.permChecker,
-		loopDetector: cfg.loopDetector,
-		eventBus:     cfg.eventBus,
-		obsEnabled:   cfg.obsEnabled,
+		model:           cfg.model,
+		session:         sess,
+		sessionID:       info.ID,
+		cfg:             cfg,
+		chain:           chain,
+		plugins:         cfg.plugins,
+		observer:        cfg.observer,
+		callback:        cfg.callback,
+		compactor:       cfg.compactor,
+		permChecker:     cfg.permChecker,
+		loopDetector:    cfg.loopDetector,
+		eventBus:        cfg.eventBus,
+		obsEnabled:      cfg.obsEnabled,
 		steeringManager: cfg.steeringManager,
 	}
 
@@ -428,8 +428,8 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		if !result.HasToolCalls {
 			// 可观测性：发布 agent.end 事件
 			a.publishEvent("agent.end", map[string]interface{}{
-				"total_tokens":  finalUsage.TotalTokens,
-				"tool_calls":    len(allToolCalls),
+				"total_tokens": finalUsage.TotalTokens,
+				"tool_calls":   len(allToolCalls),
 			})
 			return &Response{
 				Message:   finalMessage,
@@ -442,8 +442,8 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 
 	// 可观测性：发布 agent.end 事件（步数超限）
 	a.publishEvent("agent.end", map[string]interface{}{
-		"error":       ErrMaxStepsExceeded.Error(),
-		"tool_calls":  len(allToolCalls),
+		"error":      ErrMaxStepsExceeded.Error(),
+		"tool_calls": len(allToolCalls),
 	})
 	return nil, ErrMaxStepsExceeded
 }

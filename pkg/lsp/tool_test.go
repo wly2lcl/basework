@@ -22,11 +22,11 @@ func TestToolsCount(t *testing.T) {
 func TestToolNames(t *testing.T) {
 	tools := Tools(nil)
 	expected := map[string]bool{
-		"lsp_definition":       false,
-		"lsp_references":       false,
-		"lsp_hover":            false,
-		"lsp_diagnostics":      false,
-		"lsp_document_symbols": false,
+		"lsp_definition":        false,
+		"lsp_references":        false,
+		"lsp_hover":             false,
+		"lsp_diagnostics":       false,
+		"lsp_document_symbols":  false,
 		"lsp_workspace_symbols": false,
 	}
 	for _, tool := range tools {
@@ -102,8 +102,8 @@ func TestNilManagerReturnsEmpty(t *testing.T) {
 func TestNilManagerContent(t *testing.T) {
 	ctx := context.Background()
 	tests := []struct {
-		name    string
-		want    string
+		name string
+		want string
 	}{
 		{"lsp_definition", "[]"},
 		{"lsp_references", "[]"},
@@ -193,10 +193,10 @@ func TestToolWithEmptyManager(t *testing.T) {
 		args json.RawMessage
 		want string
 	}{
-		{"lsp_definition",       json.RawMessage(`{"file":"test.go","line":0,"character":0}`), "[]"},
-		{"lsp_references",       json.RawMessage(`{"file":"test.go","line":0,"character":0}`), "[]"},
-		{"lsp_hover",            json.RawMessage(`{"file":"test.go","line":0,"character":0}`), ""},
-		{"lsp_diagnostics",      json.RawMessage(`{"file":"test.go"}`), `{"diagnostics":[],"version":0}`},
+		{"lsp_definition", json.RawMessage(`{"file":"test.go","line":0,"character":0}`), "[]"},
+		{"lsp_references", json.RawMessage(`{"file":"test.go","line":0,"character":0}`), "[]"},
+		{"lsp_hover", json.RawMessage(`{"file":"test.go","line":0,"character":0}`), ""},
+		{"lsp_diagnostics", json.RawMessage(`{"file":"test.go"}`), `{"diagnostics":[],"version":0}`},
 		{"lsp_document_symbols", json.RawMessage(`{"file":"test.go"}`), "[]"},
 		{"lsp_workspace_symbols", json.RawMessage(`{"query":"test"}`), "[]"},
 	}

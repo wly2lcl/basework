@@ -12,9 +12,9 @@ import (
 type ServerStatus string
 
 const (
-	StatusAvailable   ServerStatus = "available"
+	StatusAvailable    ServerStatus = "available"
 	StatusReconnecting ServerStatus = "reconnecting"
-	StatusUnavailable ServerStatus = "unavailable"
+	StatusUnavailable  ServerStatus = "unavailable"
 )
 
 const (

@@ -220,12 +220,12 @@ func runMigrateToWAL() error {
 	// 1. 备份数据库
 	backupPath := sqlitePath + ".backup-" + fmt.Sprintf("%d", os.Getpid())
 	fmt.Printf("📦 备份数据库到 %s\n", backupPath)
-	
+
 	backupData, err := os.ReadFile(sqlitePath)
 	if err != nil {
 		return fmt.Errorf("读取数据库失败: %w", err)
 	}
-	
+
 	if err := os.WriteFile(backupPath, backupData, 0644); err != nil {
 		return fmt.Errorf("创建备份失败: %w", err)
 	}

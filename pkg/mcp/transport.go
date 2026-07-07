@@ -69,9 +69,9 @@ type rpcNotification struct {
 
 // rpcError 表示 JSON-RPC 响应中的错误。
 type rpcError struct {
-	Code    int              `json:"code"`
-	Message string           `json:"message"`
-	Data    json.RawMessage  `json:"data,omitempty"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data,omitempty"`
 }
 
 func (e *rpcError) Error() string {
@@ -117,9 +117,9 @@ type StdioTransport struct {
 
 	started    atomic.Bool
 	readLoopWg sync.WaitGroup // 追踪 readLoop goroutine，供 Reset 等待
-	done      chan struct{}
-	closeOnce sync.Once
-	closed    atomic.Bool
+	done       chan struct{}
+	closeOnce  sync.Once
+	closed     atomic.Bool
 }
 
 // NewStdioTransport 创建一个新的 StdioTransport。

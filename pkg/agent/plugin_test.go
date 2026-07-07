@@ -9,9 +9,9 @@ import (
 
 // testPlugin 测试用插件实现
 type testPlugin struct {
-	name     string
-	initFn   func(ctx context.Context, agent Agent) error
-	shutdown func(ctx context.Context) error
+	name      string
+	initFn    func(ctx context.Context, agent Agent) error
+	shutdown  func(ctx context.Context) error
 	initOrder int
 }
 

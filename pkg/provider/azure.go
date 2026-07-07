@@ -59,12 +59,12 @@ func NewAzureProvider(cfg AzureConfigOpts) (*AzureProvider, error) {
 	}
 
 	return &AzureProvider{
-		resource:    cfg.Resource,
-		deployment:  cfg.Deployment,
-		apiKey:      cfg.APIKey,
-		apiVersion:  cfg.APIVersion,
-		modelID:     cfg.Model,
-		client:      newHTTPClient(10 * time.Minute),
+		resource:   cfg.Resource,
+		deployment: cfg.Deployment,
+		apiKey:     cfg.APIKey,
+		apiVersion: cfg.APIVersion,
+		modelID:    cfg.Model,
+		client:     newHTTPClient(10 * time.Minute),
 		endpointURL: fmt.Sprintf("https://%s.openai.azure.com/openai/deployments/%s/chat/completions?api-version=%s",
 			cfg.Resource, cfg.Deployment, cfg.APIVersion),
 	}, nil

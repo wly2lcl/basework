@@ -4,9 +4,9 @@ import "time"
 
 // 事件类型常量
 const (
-	EventAgentStart  = "agent.start"  // Agent 开始执行
-	EventAgentEnd    = "agent.end"    // Agent 执行结束
-	EventAgentError  = "agent.error"  // Agent 执行出错
+	EventAgentStart = "agent.start" // Agent 开始执行
+	EventAgentEnd   = "agent.end"   // Agent 执行结束
+	EventAgentError = "agent.error" // Agent 执行出错
 
 	EventToolStart = "tool.start" // 工具开始执行
 	EventToolEnd   = "tool.end"   // 工具执行结束

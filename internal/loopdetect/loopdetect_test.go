@@ -842,9 +842,9 @@ func TestExtractText(t *testing.T) {
 
 func TestBuildDetails(t *testing.T) {
 	tests := []struct {
-		name   string
-		parts  []string
-		want   string
+		name  string
+		parts []string
+		want  string
 	}{
 		{"全部为空", []string{"", ""}, "未检测到循环"},
 		{"单个非空", []string{"", "重复内容", ""}, "重复内容"},

@@ -380,7 +380,7 @@ func TestWithRetry_RetryAfterPriority(t *testing.T) {
 		err := WithRetry(context.Background(), Config{
 			Enabled:     true,
 			MaxAttempts: maxAttempts,
-			BaseDelay:   time.Millisecond,     // 基础退避很短
+			BaseDelay:   time.Millisecond,      // 基础退避很短
 			MaxDelay:    10 * time.Millisecond, // 最大退避也很短
 		}, func() error {
 			callCount++
@@ -414,7 +414,7 @@ type retryableWithAfterError struct {
 	after time.Duration
 }
 
-func (e *retryableWithAfterError) Error() string          { return e.msg }
+func (e *retryableWithAfterError) Error() string             { return e.msg }
 func (e *retryableWithAfterError) RetryAfter() time.Duration { return e.after }
 
 // ========== NewRetryAfterError / RetryAfterFromLLMError ==========

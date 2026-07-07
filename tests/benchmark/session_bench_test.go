@@ -281,9 +281,9 @@ func BenchmarkSessionConcurrent(b *testing.B) {
 // BenchmarkSessionConcurrent_DifferentLoad 测试不同并发度下的性能。
 func BenchmarkSessionConcurrent_DifferentLoad(b *testing.B) {
 	loadLevels := []struct {
-		name     string
-		writers  int
-		readers  int
+		name    string
+		writers int
+		readers int
 	}{
 		{"Light_2W1R", 2, 1},
 		{"Medium_4W4R", 4, 4},

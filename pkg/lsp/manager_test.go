@@ -35,7 +35,7 @@ func TestNewManagerDefault(t *testing.T) {
 // TestNewManagerCustom 测试 NewManager 使用自定义配置。
 func TestNewManagerCustom(t *testing.T) {
 	customServers := map[string]ServerConfig{
-		"go": {Command: "gopls", Args: []string{"-logfile", "/tmp/gopls.log"}},
+		"go":   {Command: "gopls", Args: []string{"-logfile", "/tmp/gopls.log"}},
 		"rust": {Command: "rust-analyzer"},
 	}
 	m := NewManager(Config{Servers: customServers})

@@ -62,7 +62,7 @@
 | 任务 | 状态 | 说明 |
 |------|------|------|
 | CI 分层 | ✅ 完成 | build workflow 拆分为 quality、跨平台 test、release dry-run |
-| 静态检查 | ✅ 完成 | 增加本轮触达 Go 文件的 gofmt、带 `sqlite memory` tag 的 vet、race test 子集 |
+| 静态检查 | ✅ 完成 | 增加全仓 gofmt、带 `sqlite memory` tag 的 vet、race test 子集 |
 | 跨平台矩阵 | ✅ 完成 | Ubuntu/macOS/Windows 均运行测试和构建 |
 | Release dry-run | ✅ 完成 | GoReleaser snapshot 验证发布配置但不发布 artifact/镜像 |
 | 发布策略 | ✅ 完成 | tag push 正式发布；手动 dispatch 默认 dry-run，非 dry-run 需版本校验 |
@@ -77,11 +77,11 @@
 | 模型列表 | ✅ 完成 | `basework model list` 增加 OpenCode Zen 免费模型 |
 | 文档对齐 | ✅ 完成 | README、安装、配置、CLI、Provider、FAQ 对齐默认模型、API Key 和配置 schema |
 
-### 后续优化路线
+### 格式化基线（P2，已完成）
 
-| 阶段 | 优先级 | 目标 |
-|------|--------|------|
-| 独立任务 | P2 | 全仓 gofmt 基线：单独提交纯格式化 diff，再启用全仓 gofmt CI |
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| 全仓 gofmt 基线 | ✅ 完成 | 单独执行全仓 gofmt 纯格式化基线，并将 CI gofmt 检查升级为全仓范围 |
 
 ---
 

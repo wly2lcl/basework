@@ -38,7 +38,7 @@ func runSessionStatus() error {
 	}
 
 	sessionDir := fmt.Sprintf("%s/.basework/sessions", home)
-	
+
 	if checkIntegrity {
 		return checkAllSessionsIntegrity(sessionDir)
 	}

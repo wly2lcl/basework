@@ -4,7 +4,7 @@ package oauth
 type Config struct {
 	Enabled        bool                      `json:"enabled"`
 	StorageBackend string                    `json:"storage_backend"` // "file" 或 "keychain"
-	CallbackPort   int                       `json:"callback_port"`  // 默认 8080
+	CallbackPort   int                       `json:"callback_port"`   // 默认 8080
 	Providers      map[string]ProviderConfig `json:"providers"`
 }
 

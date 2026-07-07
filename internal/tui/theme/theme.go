@@ -35,8 +35,8 @@ var requiredRoles = []ColorRole{
 
 // Theme 定义一套完整的颜色方案
 type Theme struct {
-	Name   string                `json:"name"`
-	Colors map[ColorRole]string  `json:"colors"`
+	Name   string               `json:"name"`
+	Colors map[ColorRole]string `json:"colors"`
 }
 
 // LipglossColor 返回 lipgloss.Color 值

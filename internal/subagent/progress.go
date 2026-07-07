@@ -35,16 +35,16 @@ type ProgressEvent struct {
 // NopProgressReporter 空实现进度报告器
 type NopProgressReporter struct{}
 
-func (n *NopProgressReporter) OnStart(task *Task)    {}
+func (n *NopProgressReporter) OnStart(task *Task)                     {}
 func (n *NopProgressReporter) OnProgress(task *Task, progress string) {}
-func (n *NopProgressReporter) OnComplete(task *Task, result *Result) {}
+func (n *NopProgressReporter) OnComplete(task *Task, result *Result)  {}
 
 // CallbackProgressReporter 回调式进度报告器
 type CallbackProgressReporter struct {
-	mu            sync.RWMutex
-	onStartFn     func(event ProgressEvent)
-	onProgressFn  func(event ProgressEvent)
-	onCompleteFn  func(event ProgressEvent)
+	mu           sync.RWMutex
+	onStartFn    func(event ProgressEvent)
+	onProgressFn func(event ProgressEvent)
+	onCompleteFn func(event ProgressEvent)
 }
 
 // NewCallbackProgressReporter 创建回调式进度报告器

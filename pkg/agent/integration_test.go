@@ -357,10 +357,10 @@ func TestIntegration_SystemPrompt(t *testing.T) {
 // TestIntegration_CallbackStreaming 流式回调测试
 func TestIntegration_CallbackStreaming(t *testing.T) {
 	var (
-		textDeltas   []string
-		toolStarted  []string
-		toolEnded    []string
-		turnEnded    bool
+		textDeltas  []string
+		toolStarted []string
+		toolEnded   []string
+		turnEnded   bool
 	)
 
 	model := &mockModel{

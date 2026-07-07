@@ -1093,4 +1093,3 @@ func TestMergeFields_Multiple(t *testing.T) {
 		t.Errorf("c = %v, 期望 '4'", result["c"])
 	}
 }
-

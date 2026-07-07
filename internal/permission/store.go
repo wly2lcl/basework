@@ -23,12 +23,12 @@ type Store interface {
 // StoredRule 是持久化的权限规则。
 type StoredRule struct {
 	ID        string    `json:"id"`
-	RuleType  string    `json:"rule_type"`   // "allow" | "deny" | "ask"
-	Pattern   string    `json:"pattern"`     // 工具名或路径模式
-	Scope     string    `json:"scope"`       // "global" | "session" | "project"
+	RuleType  string    `json:"rule_type"`            // "allow" | "deny" | "ask"
+	Pattern   string    `json:"pattern"`              // 工具名或路径模式
+	Scope     string    `json:"scope"`                // "global" | "session" | "project"
 	SessionID string    `json:"session_id,omitempty"` // 会话 ID（session scope 时使用）
 	ProjectID string    `json:"project_id,omitempty"` // 项目 ID（project scope 时使用）
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Source    string    `json:"source"`      // "user" | "auto" | "migration"
+	Source    string    `json:"source"` // "user" | "auto" | "migration"
 }

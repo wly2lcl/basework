@@ -7,15 +7,15 @@ import (
 
 // costRecord 单次成本记录
 type costRecord struct {
-	taskID      string
-	tokenUsage  TokenUsage
-	cost        float64
+	taskID     string
+	tokenUsage TokenUsage
+	cost       float64
 }
 
 // CostTracker 成本追踪器，跟踪子代理的 token 使用量和成本
 type CostTracker struct {
-	mu      sync.RWMutex
-	records map[string][]costRecord // taskID -> cost records
+	mu        sync.RWMutex
+	records   map[string][]costRecord // taskID -> cost records
 	totalCost float64
 }
 

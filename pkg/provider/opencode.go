@@ -24,8 +24,8 @@ var openCodeFreeModels = []string{
 
 // OpenCodeProvider 实现 Provider 接口，封装 OpenCode Zen API
 type OpenCodeProvider struct {
-	model *compatModel
-	apiKey string
+	model   *compatModel
+	apiKey  string
 	modelID string
 }
 

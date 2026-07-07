@@ -10,10 +10,10 @@ import (
 // Config 是循环检测的配置。
 type Config struct {
 	Enabled           bool     `json:"enabled"`
-	RepeatedThreshold int      `json:"repeated_threshold"`   // 重复内容阈值，默认 3
-	ToolLoopThreshold int      `json:"tool_loop_threshold"`  // 工具循环阈值，默认 5
-	ResponseStrategy  string   `json:"response_strategy"`    // "warn", "interrupt", "prompt"
-	CustomPatterns    []string `json:"custom_patterns"`      // 自定义循环模式
+	RepeatedThreshold int      `json:"repeated_threshold"`  // 重复内容阈值，默认 3
+	ToolLoopThreshold int      `json:"tool_loop_threshold"` // 工具循环阈值，默认 5
+	ResponseStrategy  string   `json:"response_strategy"`   // "warn", "interrupt", "prompt"
+	CustomPatterns    []string `json:"custom_patterns"`     // 自定义循环模式
 }
 
 // DefaultConfig 返回默认的循环检测配置。

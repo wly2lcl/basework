@@ -11,10 +11,10 @@ import (
 
 // mockProvider 测试用模拟 Provider
 type mockProvider struct {
-	name    string
-	text    string
-	err     error
-	delay   time.Duration
+	name  string
+	text  string
+	err   error
+	delay time.Duration
 }
 
 func (m *mockProvider) Name() string { return m.name }

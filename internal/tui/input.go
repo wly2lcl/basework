@@ -20,8 +20,8 @@ type InputView struct {
 	cursorPos   int // 在当前行内的光标位置
 
 	// 输入历史
-	history     []string
-	historyPos  int // -1 表示当前输入，>=0 表示历史中的位置
+	history    []string
+	historyPos int // -1 表示当前输入，>=0 表示历史中的位置
 
 	// Tab 补全
 	showCompletion bool

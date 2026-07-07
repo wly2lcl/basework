@@ -49,8 +49,8 @@ func ParseProtectionLevel(s string) (ProtectionLevel, error) {
 // PathChecker 路径安全检查器。
 type PathChecker struct {
 	level   ProtectionLevel
-	blocked []string // 黑名单（默认 + 自定义）
-	allowed []string // 白名单
+	blocked []string     // 黑名单（默认 + 自定义）
+	allowed []string     // 白名单
 	auditor *AuditLogger // 可选，warn 模式下记录
 }
 

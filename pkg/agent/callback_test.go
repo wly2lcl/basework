@@ -48,9 +48,9 @@ func TestCallbackFuncs_OnToolCallStart(t *testing.T) {
 
 func TestCallbackFuncs_OnToolCallEnd(t *testing.T) {
 	var (
-		gotCall  llm.ToolCall
+		gotCall   llm.ToolCall
 		gotResult *tool.Result
-		gotErr   error
+		gotErr    error
 	)
 	cb := &CallbackFuncs{
 		ToolCallEnd: func(c llm.ToolCall, r *tool.Result, e error) {

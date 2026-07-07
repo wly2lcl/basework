@@ -8,9 +8,9 @@ import (
 
 // Config 是 provider 创建配置
 type Config struct {
-	Type    string         // "openai", "anthropic", "gemini", "openai-compat", 或兼容 provider 名称
+	Type    string // "openai", "anthropic", "gemini", "openai-compat", 或兼容 provider 名称
 	APIKey  string
-	BaseURL string         // 可选，自定义端点
+	BaseURL string // 可选，自定义端点
 	ModelID string
 	Options map[string]any // provider 特定选项
 }

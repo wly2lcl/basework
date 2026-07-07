@@ -18,12 +18,12 @@ type Callback interface {
 // NopCallback 是 Callback 的空实现，所有方法均为 no-op
 type NopCallback struct{}
 
-func (NopCallback) OnTextDelta(string)          {}
-func (NopCallback) OnToolCallStart(llm.ToolCall) {}
+func (NopCallback) OnTextDelta(string)                              {}
+func (NopCallback) OnToolCallStart(llm.ToolCall)                    {}
 func (NopCallback) OnToolCallEnd(llm.ToolCall, *tool.Result, error) {}
-func (NopCallback) OnThinkingDelta(string)       {}
-func (NopCallback) OnTurnEnd(*Response)          {}
-func (NopCallback) OnError(error)                {}
+func (NopCallback) OnThinkingDelta(string)                          {}
+func (NopCallback) OnTurnEnd(*Response)                             {}
+func (NopCallback) OnError(error)                                   {}
 
 // CallbackFuncs 是函数式的 Callback 实现，未设置的字段自动回退到无操作
 type CallbackFuncs struct {

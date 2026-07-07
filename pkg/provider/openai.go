@@ -283,9 +283,9 @@ type openAIResponse struct {
 	Created int64  `json:"created"`
 	Model   string `json:"model"`
 	Choices []struct {
-		Index        int `json:"index"`
-		Message      struct {
-			Role      string `json:"role"`
+		Index   int `json:"index"`
+		Message struct {
+			Role      string  `json:"role"`
 			Content   *string `json:"content"`
 			ToolCalls []struct {
 				ID       string `json:"id"`
@@ -299,11 +299,11 @@ type openAIResponse struct {
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *struct {
-		PromptTokens              int `json:"prompt_tokens"`
-		CompletionTokens          int `json:"completion_tokens"`
-		TotalTokens               int `json:"total_tokens"`
-		CacheCreationInputTokens  int `json:"cache_creation_input_tokens,omitempty"`
-		CacheReadInputTokens      int `json:"cache_read_input_tokens,omitempty"`
+		PromptTokens             int `json:"prompt_tokens"`
+		CompletionTokens         int `json:"completion_tokens"`
+		TotalTokens              int `json:"total_tokens"`
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 	} `json:"usage"`
 }
 
@@ -346,11 +346,11 @@ func fromOpenAIResponse(body []byte) (*llm.Response, error) {
 
 	if resp.Usage != nil {
 		result.Usage = llm.Usage{
-			PromptTokens:              resp.Usage.PromptTokens,
-			CompletionTokens:          resp.Usage.CompletionTokens,
-			TotalTokens:               resp.Usage.TotalTokens,
-			CacheCreationInputTokens:  resp.Usage.CacheCreationInputTokens,
-			CacheReadInputTokens:      resp.Usage.CacheReadInputTokens,
+			PromptTokens:             resp.Usage.PromptTokens,
+			CompletionTokens:         resp.Usage.CompletionTokens,
+			TotalTokens:              resp.Usage.TotalTokens,
+			CacheCreationInputTokens: resp.Usage.CacheCreationInputTokens,
+			CacheReadInputTokens:     resp.Usage.CacheReadInputTokens,
 		}
 	}
 
@@ -427,11 +427,11 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 					FinishReason *string `json:"finish_reason"`
 				} `json:"choices"`
 				Usage *struct {
-					PromptTokens              int `json:"prompt_tokens"`
-					CompletionTokens          int `json:"completion_tokens"`
-					TotalTokens               int `json:"total_tokens"`
-					CacheCreationInputTokens  int `json:"cache_creation_input_tokens,omitempty"`
-					CacheReadInputTokens      int `json:"cache_read_input_tokens,omitempty"`
+					PromptTokens             int `json:"prompt_tokens"`
+					CompletionTokens         int `json:"completion_tokens"`
+					TotalTokens              int `json:"total_tokens"`
+					CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+					CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 				} `json:"usage"`
 			}
 
@@ -445,11 +445,11 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 				ch <- llm.StreamEvent{
 					Type: llm.StreamEventUsage,
 					Usage: &llm.Usage{
-						PromptTokens:              sseEvent.Usage.PromptTokens,
-						CompletionTokens:          sseEvent.Usage.CompletionTokens,
-						TotalTokens:               sseEvent.Usage.TotalTokens,
-						CacheCreationInputTokens:  sseEvent.Usage.CacheCreationInputTokens,
-						CacheReadInputTokens:      sseEvent.Usage.CacheReadInputTokens,
+						PromptTokens:             sseEvent.Usage.PromptTokens,
+						CompletionTokens:         sseEvent.Usage.CompletionTokens,
+						TotalTokens:              sseEvent.Usage.TotalTokens,
+						CacheCreationInputTokens: sseEvent.Usage.CacheCreationInputTokens,
+						CacheReadInputTokens:     sseEvent.Usage.CacheReadInputTokens,
 					},
 				}
 			}

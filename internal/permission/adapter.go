@@ -35,8 +35,8 @@ var _ agent.PermissionChecker = (*PermissionAdapter)(nil)
 
 // PathPermissionAdapter 将 *PathChecker 适配为 agent.PermissionChecker 接口。
 type PathPermissionAdapter struct {
-	inner        *Checker
-	pathChecker  *PathChecker
+	inner       *Checker
+	pathChecker *PathChecker
 }
 
 // NewPathPermissionAdapter 创建同时支持权限和路径检查的适配器。

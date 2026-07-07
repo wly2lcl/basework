@@ -25,9 +25,9 @@ type Rule struct {
 
 // PermissionHook 实现权限 = Hook 模式
 type PermissionHook struct {
-	NopHook              // 嵌入空实现
-	rules  []Rule
-	onAsk  func(action, resource string) (bool, error) // 用户确认回调
+	NopHook // 嵌入空实现
+	rules   []Rule
+	onAsk   func(action, resource string) (bool, error) // 用户确认回调
 }
 
 // NewPermissionHook 创建新的 PermissionHook

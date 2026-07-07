@@ -23,11 +23,11 @@ type FileRecord struct {
 // FileTracker 追踪会话中访问或修改的文件。
 // 线程安全，使用 map 去重。
 type FileTracker struct {
-	mu          sync.Mutex
-	readFiles   map[string]bool
-	writeFiles  map[string]bool
-	editFiles   map[string]bool
-	allFiles    map[string]bool
+	mu         sync.Mutex
+	readFiles  map[string]bool
+	writeFiles map[string]bool
+	editFiles  map[string]bool
+	allFiles   map[string]bool
 }
 
 // NewFileTracker 创建一个新的 FileTracker。

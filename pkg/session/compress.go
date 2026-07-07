@@ -15,9 +15,9 @@ import (
 
 // CompressionConfig 是压缩配置
 type CompressionConfig struct {
-	Enabled       bool  `json:"enabled"`        // 是否启用压缩
-	Threshold     int   `json:"threshold"`      // 触发压缩的消息数阈值（默认 1000）
-	Algorithm     string `json:"algorithm"`     // 压缩算法：snappy/gzip（默认 snappy）
+	Enabled   bool   `json:"enabled"`   // 是否启用压缩
+	Threshold int    `json:"threshold"` // 触发压缩的消息数阈值（默认 1000）
+	Algorithm string `json:"algorithm"` // 压缩算法：snappy/gzip（默认 snappy）
 }
 
 // DefaultCompressionConfig 返回默认压缩配置

@@ -7,9 +7,9 @@ import tea "charm.land/bubbletea/v2"
 type SlotType int
 
 const (
-	SlotTop    SlotType = iota // 状态栏上方
-	SlotBottom                 // 输入框下方
-	SlotSidebar                // 侧边栏
+	SlotTop     SlotType = iota // 状态栏上方
+	SlotBottom                  // 输入框下方
+	SlotSidebar                 // 侧边栏
 )
 
 // TUIPlugin 定义 TUI 插件接口

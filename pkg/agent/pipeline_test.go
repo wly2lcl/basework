@@ -106,9 +106,9 @@ type mockTool struct {
 	executeFunc func(ctx context.Context, args json.RawMessage) (*tool.Result, error)
 }
 
-func (t *mockTool) Name() string                     { return t.name }
-func (t *mockTool) Description() string              { return t.description }
-func (t *mockTool) Parameters() json.RawMessage      { return json.RawMessage(`{}`) }
+func (t *mockTool) Name() string                { return t.name }
+func (t *mockTool) Description() string         { return t.description }
+func (t *mockTool) Parameters() json.RawMessage { return json.RawMessage(`{}`) }
 func (t *mockTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Result, error) {
 	if t.executeFunc != nil {
 		return t.executeFunc(ctx, args)
@@ -118,26 +118,26 @@ func (t *mockTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 
 // testTurnD 是 TurnD 的测试实现
 type testTurnD struct {
-	sysPrompt  string
-	maxSteps   int
-	model      llm.Model
-	session    session.Store
-	sessionID  string
-	history    []llm.ChatMessage
-	hooks      *hook.Chain
-	registry   *tool.Registry
-	callback   Callback
+	sysPrompt string
+	maxSteps  int
+	model     llm.Model
+	session   session.Store
+	sessionID string
+	history   []llm.ChatMessage
+	hooks     *hook.Chain
+	registry  *tool.Registry
+	callback  Callback
 }
 
-func (d *testTurnD) SystemPrompt() string                     { return d.sysPrompt }
-func (d *testTurnD) MaxSteps() int                             { return d.maxSteps }
-func (d *testTurnD) Model() llm.Model                          { return d.model }
-func (d *testTurnD) Session() session.Store                    { return d.session }
-func (d *testTurnD) SessionID() string                         { return d.sessionID }
-func (d *testTurnD) History() ([]llm.ChatMessage, error)       { return d.history, nil }
-func (d *testTurnD) Hooks() *hook.Chain                        { return d.hooks }
-func (d *testTurnD) ToolRegistry() *tool.Registry              { return d.registry }
-func (d *testTurnD) Callback() Callback                        { return d.callback }
+func (d *testTurnD) SystemPrompt() string                { return d.sysPrompt }
+func (d *testTurnD) MaxSteps() int                       { return d.maxSteps }
+func (d *testTurnD) Model() llm.Model                    { return d.model }
+func (d *testTurnD) Session() session.Store              { return d.session }
+func (d *testTurnD) SessionID() string                   { return d.sessionID }
+func (d *testTurnD) History() ([]llm.ChatMessage, error) { return d.history, nil }
+func (d *testTurnD) Hooks() *hook.Chain                  { return d.hooks }
+func (d *testTurnD) ToolRegistry() *tool.Registry        { return d.registry }
+func (d *testTurnD) Callback() Callback                  { return d.callback }
 
 func setupTestTurnD(t *testing.T, model llm.Model, opts ...func(*testTurnD)) *testTurnD {
 	t.Helper()

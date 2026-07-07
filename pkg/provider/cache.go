@@ -33,8 +33,8 @@ func markSystemContentForCache(systemText string) []map[string]any {
 	}
 	return []map[string]any{
 		{
-			"type":         "text",
-			"text":         systemText,
+			"type":          "text",
+			"text":          systemText,
 			"cache_control": cacheControlEphemeral,
 		},
 	}
