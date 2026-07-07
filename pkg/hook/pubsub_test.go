@@ -2,6 +2,7 @@ package hook
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -107,11 +108,11 @@ func TestPublishNonBlocking(t *testing.T) {
 	}()
 
 	// 正常订阅者应能收到一些消息
-	received := 0
+	var received atomic.Int32
 	done := make(chan struct{})
 	go func() {
 		for range ch {
-			received++
+			received.Add(1)
 		}
 		close(done)
 	}()
@@ -121,7 +122,7 @@ func TestPublishNonBlocking(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// 验证没有死锁，且收到至少一条消息
-	if received == 0 {
+	if received.Load() == 0 {
 		t.Error("expected at least one event to be received")
 	}
 }

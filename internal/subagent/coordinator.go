@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
 
 // AgentFactory 创建子代理实例的函数类型
-type AgentFactory func(ctx context.Context, task *Task) (interface{}, error)
+type AgentFactory func(ctx context.Context, task *Task) (AgentTaskRunner, error)
 
 // Config 子代理系统配置
 type Config struct {
@@ -154,20 +155,38 @@ func (c *Coordinator) ExecuteTask(ctx context.Context, task *Task) (*Result, err
 }
 
 // executeAgentTask 与子代理交互执行任务
-func (c *Coordinator) executeAgentTask(ctx context.Context, agent interface{}, task *Task) (*Result, error) {
-	// 这里通过 agent 执行任务
-	// 实际实现中会调用 agent.HandleMessage 等方法
-	// 当前返回占位结果，后续集成 Agent 接口时完善
-	_ = agent
+func (c *Coordinator) executeAgentTask(ctx context.Context, agent AgentTaskRunner, task *Task) (*Result, error) {
+	// 默认超时 30 秒
+	timeout := 30 * time.Second
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	resp, err := agent.HandleMessage(execCtx, task.Description)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return &Result{
+				ID:      task.ID,
+				Success: false,
+				Error:   fmt.Sprintf("任务执行超时（%v）: %s", timeout, task.Description),
+				TokenUsage: TokenUsage{
+					InputTokens:  0,
+					OutputTokens: 0,
+					TotalTokens:  0,
+				},
+				Cost: 0,
+			}, nil
+		}
+		return nil, fmt.Errorf("子代理执行失败: %w", err)
+	}
 
 	return &Result{
 		ID:      task.ID,
 		Success: true,
-		Output:  fmt.Sprintf("任务 '%s' 执行完成（子代理类型: %s）", task.Description, task.AgentType),
+		Output:  resp.Content,
 		TokenUsage: TokenUsage{
-			InputTokens:  0,
-			OutputTokens: 0,
-			TotalTokens:  0,
+			InputTokens:  resp.InputTokens,
+			OutputTokens: resp.OutputTokens,
+			TotalTokens:  resp.TotalTokens,
 		},
 		Cost: 0,
 	}, nil

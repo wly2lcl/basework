@@ -655,9 +655,9 @@ func TestMultipleNotifications(t *testing.T) {
 	f := newConnFixture(t)
 	defer f.close()
 
-	callCount := 0
+	var callCount atomic.Int32
 	handler := func(params json.RawMessage) {
-		callCount++
+		callCount.Add(1)
 	}
 
 	f.conn.OnNotification("test/event", handler)
@@ -669,8 +669,8 @@ func TestMultipleNotifications(t *testing.T) {
 	f.server.sendNotification("test/event", params)
 
 	time.Sleep(100 * time.Millisecond)
-	if callCount != 1 {
-		t.Errorf("handler should be called once, called %d times", callCount)
+	if callCount.Load() != 1 {
+		t.Errorf("handler should be called once, called %d times", callCount.Load())
 	}
 }
 

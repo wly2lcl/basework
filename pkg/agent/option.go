@@ -23,9 +23,10 @@ type config struct {
 	session      session.Store
 	hooks        []hook.Hook
 	maxSteps     int
-	plugins      []Plugin
-	observer     Observer
-	callback     Callback
+	plugins         []Plugin
+	observer        Observer
+	callback        Callback
+	maxContextTokens int
 
 	// 集成模块配置
 	compactor     *compaction.Engine

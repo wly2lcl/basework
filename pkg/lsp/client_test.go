@@ -1233,6 +1233,54 @@ func TestClientStopIdempotent(t *testing.T) {
 	}
 }
 
+// TestClientConnRace 测试并发 Start/Stop/OpenFile 无 race condition。
+func TestClientConnRace(t *testing.T) {
+	cf := newClientFixture(t)
+	defer cf.close()
+
+	var wg sync.WaitGroup
+
+	// 并发调用 OpenFile
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			file := filepath.Join(t.TempDir(), "test.go")
+			_ = os.WriteFile(file, []byte("package main"), 0644)
+			_ = cf.client.OpenFile(file)
+		}()
+	}
+
+	// 并发调用 ChangeFile
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			file := filepath.Join(t.TempDir(), "test.go")
+			_ = cf.client.ChangeFile(file, "package main")
+		}()
+	}
+
+	// 并发调用 CloseFile
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			file := filepath.Join(t.TempDir(), "test.go")
+			_ = cf.client.CloseFile(file)
+		}()
+	}
+
+	// 并发调用 Stop
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = cf.client.Stop()
+	}()
+
+	wg.Wait()
+}
+
 // TestClientEnsureOpen 测试 ensureOpen 自动打开文件。
 func TestClientEnsureOpen(t *testing.T) {
 	f := newClientFixture(t)

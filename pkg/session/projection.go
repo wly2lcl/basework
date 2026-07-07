@@ -36,8 +36,8 @@ func ProjectMessages(events []Event) []llm.ChatMessage {
 	var msgs []llm.ChatMessage
 	var currentAssistant *llm.ChatMessage // 正在累积的 assistant 消息
 
-	// 记录已匹配的 ToolCalled/ToolSuccess 对
-	pendingToolCalls := make(map[string]bool)
+	// 记录已匹配的 ToolCalled/ToolSuccess 对（ToolCallID → Name）
+	pendingToolCalls := make(map[string]string)
 
 	// 累积文本内容的辅助函数
 	flushAssistant := func() {
@@ -121,7 +121,7 @@ func ProjectMessages(events []Event) []llm.ChatMessage {
 				}
 			}
 			currentAssistant.ToolCalls = append(currentAssistant.ToolCalls, data.ToolCall)
-			pendingToolCalls[data.ToolCall.ID] = true
+			pendingToolCalls[data.ToolCall.ID] = data.ToolCall.Name
 
 		case EventToolSuccess:
 			flushAssistant()
@@ -135,7 +135,9 @@ func ProjectMessages(events []Event) []llm.ChatMessage {
 				Content:    []llm.ContentPart{{Type: llm.ContentTypeText, Text: data.Content}},
 			}
 			// 设置 Name 为对应 tool call 的名称（如果有匹配的 pendingToolCall）
-			_ = pendingToolCalls[data.ToolCallID]
+			if name, ok := pendingToolCalls[data.ToolCallID]; ok {
+				msg.Name = name
+			}
 			delete(pendingToolCalls, data.ToolCallID)
 			msgs = append(msgs, msg)
 
@@ -149,6 +151,9 @@ func ProjectMessages(events []Event) []llm.ChatMessage {
 				Role:       llm.RoleTool,
 				ToolCallID: data.ToolCallID,
 				Content:    []llm.ContentPart{{Type: llm.ContentTypeText, Text: data.Error}},
+			}
+			if name, ok := pendingToolCalls[data.ToolCallID]; ok {
+				msg.Name = name
 			}
 			delete(pendingToolCalls, data.ToolCallID)
 			msgs = append(msgs, msg)

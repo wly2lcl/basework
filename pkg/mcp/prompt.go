@@ -50,18 +50,18 @@ func (m *Manager) Prompts(serverName string) ([]mcpPrompt, error) {
 
 // GetPrompt 获取指定名称的提示模板内容，应用大小限制。
 func (m *Manager) GetPrompt(ctx context.Context, serverName, promptName string) (*GetPromptResult, error) {
+	m.mu.RLock()
 	if m.closed.Load() {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("manager is closed")
 	}
-
-	m.mu.RLock()
 	server, ok := m.servers[serverName]
-	m.mu.RUnlock()
 	if !ok {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("server %q not found", serverName)
 	}
-
 	m.wg.Add(1)
+	m.mu.RUnlock()
 	defer m.wg.Done()
 
 	params := map[string]string{

@@ -260,6 +260,75 @@ func TestProjectMessages_InvalidData(t *testing.T) {
 	}
 }
 
+func TestProjectMessages_ToolCallNameInReplay(t *testing.T) {
+	events := []Event{
+		{Seq: 1, Type: EventToolCalled, Data: rawJSON(t, ToolCalledData{
+			ToolCall: llm.ToolCall{ID: "call_1", Name: "get_weather", ArgsJSON: `{"city":"北京"}`},
+		})},
+		{Seq: 2, Type: EventToolSuccess, Data: rawJSON(t, ToolSuccessData{ToolCallID: "call_1", Content: "晴，25°C"})},
+	}
+
+	msgs := ProjectMessages(events)
+	if len(msgs) != 2 {
+		t.Fatalf("期望 2 条消息，得到 %d", len(msgs))
+	}
+
+	// assistant 消息应包含 tool call 的 name
+	if msgs[0].Role != llm.RoleAssistant {
+		t.Errorf("msgs[0].Role = %q, 期望 %q", msgs[0].Role, llm.RoleAssistant)
+	}
+	if len(msgs[0].ToolCalls) != 1 {
+		t.Fatalf("msgs[0].ToolCalls 长度 = %d, 期望 1", len(msgs[0].ToolCalls))
+	}
+	if msgs[0].ToolCalls[0].Name != "get_weather" {
+		t.Errorf("ToolCall.Name = %q, 期望 %q", msgs[0].ToolCalls[0].Name, "get_weather")
+	}
+
+	// tool 消息应包含 Name
+	if msgs[1].Role != llm.RoleTool {
+		t.Errorf("msgs[1].Role = %q, 期望 %q", msgs[1].Role, llm.RoleTool)
+	}
+	if msgs[1].ToolCallID != "call_1" {
+		t.Errorf("msgs[1].ToolCallID = %q, 期望 %q", msgs[1].ToolCallID, "call_1")
+	}
+	if msgs[1].Name != "get_weather" {
+		t.Errorf("msgs[1].Name = %q, 期望 %q", msgs[1].Name, "get_weather")
+	}
+}
+
+func TestProjectMessages_ToolCallNameInReplay_Multiple(t *testing.T) {
+	events := []Event{
+		{Seq: 1, Type: EventToolCalled, Data: rawJSON(t, ToolCalledData{
+			ToolCall: llm.ToolCall{ID: "call_a", Name: "tool_a", ArgsJSON: `{}`},
+		})},
+		{Seq: 2, Type: EventToolCalled, Data: rawJSON(t, ToolCalledData{
+			ToolCall: llm.ToolCall{ID: "call_b", Name: "tool_b", ArgsJSON: `{}`},
+		})},
+		{Seq: 3, Type: EventToolSuccess, Data: rawJSON(t, ToolSuccessData{ToolCallID: "call_a", Content: "结果A"})},
+		{Seq: 4, Type: EventToolFailed, Data: rawJSON(t, ToolFailedData{ToolCallID: "call_b", Error: "失败B"})},
+	}
+
+	msgs := ProjectMessages(events)
+	if len(msgs) != 3 {
+		t.Fatalf("期望 3 条消息，得到 %d", len(msgs))
+	}
+
+	// assistant 消息有 2 个 tool calls
+	if len(msgs[0].ToolCalls) != 2 {
+		t.Fatalf("msgs[0].ToolCalls 长度 = %d, 期望 2", len(msgs[0].ToolCalls))
+	}
+
+	// tool success 消息的 Name 应为 tool_a
+	if msgs[1].Name != "tool_a" {
+		t.Errorf("msgs[1].Name = %q, 期望 %q", msgs[1].Name, "tool_a")
+	}
+
+	// tool failed 消息的 Name 应为 tool_b
+	if msgs[2].Name != "tool_b" {
+		t.Errorf("msgs[2].Name = %q, 期望 %q", msgs[2].Name, "tool_b")
+	}
+}
+
 func TestProjectMessages_DeltaWithoutEnd(t *testing.T) {
 	events := []Event{
 		{Seq: 1, Type: EventPrompted, Data: rawJSON(t, PromptedData{Content: "hi"})},

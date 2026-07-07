@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -580,9 +581,9 @@ func TestEventBus_DifferentEventTypes(t *testing.T) {
 
 func TestEventBus_UnsubscribeAll(t *testing.T) {
 	bus := NewEventBus()
-	count := 0
+	var count atomic.Int32
 	bus.Subscribe("test.event", func(event Event) {
-		count++
+		count.Add(1)
 	})
 
 	bus.Publish(NewEvent("test.event", nil))
@@ -594,8 +595,8 @@ func TestEventBus_UnsubscribeAll(t *testing.T) {
 	bus.Publish(NewEvent("test.event", nil))
 	time.Sleep(50 * time.Millisecond)
 
-	if count != 1 {
-		t.Errorf("取消订阅后不应再接收事件, 得到 %d", count)
+	if count.Load() != 1 {
+		t.Errorf("取消订阅后不应再接收事件, 得到 %d", count.Load())
 	}
 }
 

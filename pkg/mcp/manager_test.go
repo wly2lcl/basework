@@ -540,7 +540,79 @@ func TestManagerCallToolServerNotFound(t *testing.T) {
 	}
 }
 
-// TestManagerToolInterface 测试 Tool() 返回的适配器实现 tool.Tool 接口。
+// TestManagerCallTool_CloseRace 测试并发 CallTool 和 Close 无 race condition。
+func TestManagerCallTool_CloseRace(t *testing.T) {
+	mgr := setupManagerWithMock(t, "test-server")
+
+	var wg sync.WaitGroup
+	// 并发发起多个 CallTool
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = mgr.CallTool(ctx, "test-server", "test_tool", nil)
+		}()
+	}
+
+	// 同时关闭
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = mgr.Close()
+	}()
+
+	wg.Wait()
+}
+
+// TestManagerReadResource_CloseRace 测试并发 ReadResource 和 Close 无 race condition。
+func TestManagerReadResource_CloseRace(t *testing.T) {
+	mgr := setupManagerWithMock(t, "test-server")
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = mgr.ReadResource(ctx, "test-server", "test://resource")
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = mgr.Close()
+	}()
+
+	wg.Wait()
+}
+
+// TestManagerGetPrompt_CloseRace 测试并发 GetPrompt 和 Close 无 race condition。
+func TestManagerGetPrompt_CloseRace(t *testing.T) {
+	mgr := setupManagerWithMock(t, "test-server")
+
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = mgr.GetPrompt(ctx, "test-server", "test_prompt")
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_ = mgr.Close()
+	}()
+
+	wg.Wait()
+}
 func TestManagerToolInterface(t *testing.T) {
 	mgr := setupManagerWithMock(t, "test-server")
 	defer mgr.Close()

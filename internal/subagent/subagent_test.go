@@ -3,11 +3,57 @@ package subagent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/wly2lcl/basework/pkg/tool"
 )
+
+// ===== Mock Agent =====
+
+// mockAgent 实现 AgentTaskRunner 接口，用于测试
+type mockAgent struct {
+	handleMessageFn func(ctx context.Context, input string) (*TaskResult, error)
+}
+
+func (m *mockAgent) HandleMessage(ctx context.Context, input string) (*TaskResult, error) {
+	if m.handleMessageFn != nil {
+		return m.handleMessageFn(ctx, input)
+	}
+	return &TaskResult{
+		Content:      "mock response: " + input,
+		InputTokens:  10,
+		OutputTokens: 20,
+		TotalTokens:  30,
+	}, nil
+}
+
+func (m *mockAgent) Close() error { return nil }
+
+// newMockAgent 创建默认的 mock agent
+func newMockAgent() *mockAgent {
+	return &mockAgent{}
+}
+
+// newErrorMockAgent 创建返回错误的 mock agent
+func newErrorMockAgent(errMsg string) *mockAgent {
+	return &mockAgent{
+		handleMessageFn: func(ctx context.Context, input string) (*TaskResult, error) {
+			return nil, errors.New(errMsg)
+		},
+	}
+}
+
+// newTimeoutMockAgent 创建会超时的 mock agent
+func newTimeoutMockAgent() *mockAgent {
+	return &mockAgent{
+		handleMessageFn: func(ctx context.Context, input string) (*TaskResult, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+}
 
 // ===== AgentType 类型测试 =====
 
@@ -239,8 +285,8 @@ func TestCoordinator_DefaultConfig(t *testing.T) {
 
 func TestCoordinator_NewCoordinator(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 
 	c := NewCoordinator(factory, cfg)
@@ -257,8 +303,8 @@ func TestCoordinator_NewCoordinator(t *testing.T) {
 
 func TestCoordinator_SetProgressReporter(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 
@@ -272,8 +318,8 @@ func TestCoordinator_SetProgressReporter(t *testing.T) {
 
 func TestCoordinator_CreateTask(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 
@@ -339,8 +385,8 @@ func TestCoordinator_CreateTask_DefaultType(t *testing.T) {
 
 func TestCoordinator_ExecuteTask(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 
@@ -380,7 +426,7 @@ func TestCoordinator_ExecuteTask_NoFactory(t *testing.T) {
 
 func TestCoordinator_ExecuteTask_FactoryError(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
 		return nil, assertAnError("factory error")
 	}
 	c := NewCoordinator(factory, cfg)
@@ -407,8 +453,8 @@ func (e *testError) Error() string { return e.msg }
 func TestCoordinator_ExecuteTask_CostLimit(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.CostLimit = 0.001
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 
@@ -433,8 +479,8 @@ func TestCoordinator_ExecuteTask_CostLimit(t *testing.T) {
 
 func TestCoordinator_ExecuteTasks(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 
@@ -482,6 +528,123 @@ func TestCoordinator_ExecuteTasks_Disabled(t *testing.T) {
 	_, err := c.ExecuteTasks(context.Background(), []*Task{{ID: "1"}})
 	if err == nil {
 		t.Error("系统禁用时 ExecuteTasks 应返回错误")
+	}
+}
+
+// ===== executeAgentTask 集成测试 =====
+
+func TestExecuteAgentTask_Success(t *testing.T) {
+	// 验证 executeAgentTask 正确调用 HandleMessage 并映射结果
+	cfg := DefaultConfig()
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
+	}
+	c := NewCoordinator(factory, cfg)
+
+	task := NewTask("集成测试任务", TypeGeneral, nil)
+	agent, err := c.AgentFactory(context.Background(), task)
+	if err != nil {
+		t.Fatalf("创建 agent 失败: %v", err)
+	}
+
+	result, err := c.executeAgentTask(context.Background(), agent, task)
+	if err != nil {
+		t.Fatalf("executeAgentTask 失败: %v", err)
+	}
+	if !result.Success {
+		t.Errorf("执行应成功, 得到错误: %s", result.Error)
+	}
+	if result.Output != "mock response: 集成测试任务" {
+		t.Errorf("Output = %q, 期望 %q", result.Output, "mock response: 集成测试任务")
+	}
+	if result.TokenUsage.InputTokens != 10 {
+		t.Errorf("InputTokens = %d, 期望 %d", result.TokenUsage.InputTokens, 10)
+	}
+	if result.TokenUsage.OutputTokens != 20 {
+		t.Errorf("OutputTokens = %d, 期望 %d", result.TokenUsage.OutputTokens, 20)
+	}
+	if result.TokenUsage.TotalTokens != 30 {
+		t.Errorf("TotalTokens = %d, 期望 %d", result.TokenUsage.TotalTokens, 30)
+	}
+}
+
+func TestExecuteAgentTask_AgentError(t *testing.T) {
+	// 验证 agent 返回错误时 executeAgentTask 正确传播
+	cfg := DefaultConfig()
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newErrorMockAgent("something went wrong"), nil
+	}
+	c := NewCoordinator(factory, cfg)
+
+	task := NewTask("错误测试", TypeGeneral, nil)
+	agent, err := c.AgentFactory(context.Background(), task)
+	if err != nil {
+		t.Fatalf("创建 agent 失败: %v", err)
+	}
+
+	_, err = c.executeAgentTask(context.Background(), agent, task)
+	if err == nil {
+		t.Fatal("期望错误，但没有返回")
+	}
+	if err.Error() != "子代理执行失败: something went wrong" {
+		t.Errorf("错误信息 = %q, 期望包含 'something went wrong'", err.Error())
+	}
+}
+
+func TestExecuteAgentTask_Timeout(t *testing.T) {
+	// 验证超时场景：agent 在 context 超时后返回 DeadlineExceeded
+	cfg := DefaultConfig()
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newTimeoutMockAgent(), nil
+	}
+	c := NewCoordinator(factory, cfg)
+
+	task := NewTask("超时测试", TypeGeneral, nil)
+	agent, err := c.AgentFactory(context.Background(), task)
+	if err != nil {
+		t.Fatalf("创建 agent 失败: %v", err)
+	}
+
+	// 使用极短超时的 context 触发 DeadlineExceeded
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+
+	// 等待 context 超时
+	<-ctx.Done()
+
+	result, err := c.executeAgentTask(ctx, agent, task)
+	if err != nil {
+		t.Fatalf("executeAgentTask 应返回 result, 但返回了 error: %v", err)
+	}
+	if result.Success {
+		t.Error("超时应返回 Success=false")
+	}
+	if result.Error == "" {
+		t.Error("超时应返回错误信息")
+	}
+}
+
+func TestExecuteAgentTask_OutputInExecuteTask(t *testing.T) {
+	// 验证 ExecuteTask 整体链路中 Output 正确传递
+	cfg := DefaultConfig()
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
+	}
+	c := NewCoordinator(factory, cfg)
+
+	task := NewTask("全链路测试任务", TypeGeneral, nil)
+	result, err := c.ExecuteTask(context.Background(), task)
+	if err != nil {
+		t.Fatalf("ExecuteTask 失败: %v", err)
+	}
+	if !result.Success {
+		t.Errorf("执行应成功, 得到错误: %s", result.Error)
+	}
+	if result.Output != "mock response: 全链路测试任务" {
+		t.Errorf("Output = %q, 期望 %q", result.Output, "mock response: 全链路测试任务")
+	}
+	if result.TokenUsage.TotalTokens != 30 {
+		t.Errorf("TotalTokens = %d, 期望 %d", result.TokenUsage.TotalTokens, 30)
 	}
 }
 
@@ -641,8 +804,8 @@ func TestSubAgentTool_Parameters(t *testing.T) {
 
 func TestSubAgentTool_Execute(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 	st := NewSubAgentTool(c)
@@ -668,11 +831,11 @@ func TestSubAgentTool_Execute(t *testing.T) {
 
 func TestSubAgentTool_Execute_ReadonlyType(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
 		if task.AgentType != TypeReadonly {
 			t.Error("期望 readonly 类型")
 		}
-		return "mock-agent", nil
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 	st := NewSubAgentTool(c)
@@ -689,11 +852,11 @@ func TestSubAgentTool_Execute_ReadonlyType(t *testing.T) {
 
 func TestSubAgentTool_Execute_WithContext(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
 		if task.Context == nil {
 			t.Error("Context 不应为 nil")
 		}
-		return "mock-agent", nil
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 	st := NewSubAgentTool(c)
@@ -836,8 +999,8 @@ func TestProgressEvent_Timestamp(t *testing.T) {
 
 func TestCoordinator_ExecuteTask_ReportsProgress(t *testing.T) {
 	cfg := DefaultConfig()
-	factory := func(ctx context.Context, task *Task) (interface{}, error) {
-		return "mock-agent", nil
+	factory := func(ctx context.Context, task *Task) (AgentTaskRunner, error) {
+		return newMockAgent(), nil
 	}
 	c := NewCoordinator(factory, cfg)
 

@@ -381,7 +381,13 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 
 		acc := make(map[int]*accumulatedToolCall)
 
+		streamDone := false
+
 		for scanner.Scan() {
+			if streamDone {
+				break
+			}
+
 			line := scanner.Text()
 
 			// Skip empty lines
@@ -391,8 +397,8 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 
 			// End-of-stream marker
 			if line == "data: [DONE]" {
-				ch <- llm.StreamEvent{Type: llm.StreamEventDone}
-				return
+				streamDone = true
+				continue
 			}
 
 			// Must start with "data: "
@@ -506,6 +512,25 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 			if ctx.Err() == nil {
 				ch <- llm.StreamEvent{Error: err}
 			}
+		}
+
+		// 刷新未完成的 tool call：stream 结束时将 acc 中残留的 tool call 标记为完成
+		for idx, entry := range acc {
+			ch <- llm.StreamEvent{
+				Type: llm.StreamEventToolCall,
+				ToolCall: &llm.ToolCallDelta{
+					Index:    idx,
+					ID:       entry.ID,
+					Name:     entry.Name,
+					ArgsJSON: entry.ArgsJSON,
+					Complete: true,
+				},
+			}
+		}
+
+		// 发送 stream 结束事件
+		if streamDone {
+			ch <- llm.StreamEvent{Type: llm.StreamEventDone}
 		}
 	}()
 

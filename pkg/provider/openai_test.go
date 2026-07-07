@@ -439,6 +439,78 @@ func TestOpenAI_Stream_WithToolCalls(t *testing.T) {
 	}
 }
 
+// TestOpenAI_Stream_FlushIncompleteToolCalls 测试 stream 结束时未完成的 tool call 被刷新。
+// 模拟 stream 突然结束（无 finish_reason），acc 中残留的 tool call 应被 flush 为 Complete=true。
+func TestOpenAI_Stream_FlushIncompleteToolCalls(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(200)
+
+		// 发送 tool call 的 ID 和 Name
+		fmt.Fprintf(w, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"get_weather","arguments":""}}]}}]}`+"\n\n")
+		// 累积参数
+		fmt.Fprintf(w, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"city\":\""}}]}}]}`+"\n\n")
+		fmt.Fprintf(w, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"Beijing\"}"}}]}}]}`+"\n\n")
+		// 没有 finish_reason delta，直接 [DONE]
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}))
+	defer srv.Close()
+
+	model, err := newOpenAI(srv.URL, "test-key", "gpt-4", nil)
+	if err != nil {
+		t.Fatalf("newOpenAI failed: %v", err)
+	}
+
+	events, err := model.Stream(t.Context(), &llm.Request{
+		Messages: []llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Weather?"}}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	var lastToolCall *llm.ToolCallDelta
+	gotDone := false
+	for evt := range events {
+		switch evt.Type {
+		case llm.StreamEventToolCall:
+			if evt.ToolCall != nil {
+				lastToolCall = evt.ToolCall
+			}
+		case llm.StreamEventDone:
+			gotDone = true
+		}
+		if evt.Error != nil {
+			t.Fatalf("unexpected error: %v", evt.Error)
+		}
+	}
+
+	if !gotDone {
+		t.Error("expected StreamEventDone")
+	}
+	if lastToolCall == nil {
+		t.Fatal("expected at least one tool call delta")
+	}
+	if lastToolCall.ID != "call_1" {
+		t.Errorf("expected ID 'call_1', got '%s'", lastToolCall.ID)
+	}
+	if lastToolCall.Name != "get_weather" {
+		t.Errorf("expected Name 'get_weather', got '%s'", lastToolCall.Name)
+	}
+	if lastToolCall.ArgsJSON != `{"city":"Beijing"}` {
+		t.Errorf("expected ArgsJSON '{\"city\":\"Beijing\"}', got '%s'", lastToolCall.ArgsJSON)
+	}
+	if !lastToolCall.Complete {
+		t.Error("expected flushed tool call to be Complete=true")
+	}
+}
+
 func TestOpenAI_Error_RateLimit(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(429)

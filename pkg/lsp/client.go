@@ -35,7 +35,7 @@ type Client struct {
 	env     []string
 	cwd     string
 
-	conn *Conn
+conn atomic.Pointer[Conn]
 	cmd  *exec.Cmd
 	state atomic.Int32
 
@@ -245,13 +245,13 @@ func (c *Client) Start(ctx context.Context, workspacePath string) error {
 // startWithConn 使用已建立的连接执行 LSP 初始化握手。
 // 不负责状态转换——由调用方管理。
 func (c *Client) startWithConn(ctx context.Context, conn *Conn, workspacePath string) error {
-	c.conn = conn
+	c.conn.Store(conn)
 
 	// 注册诊断通知处理器
-	c.conn.OnNotification("textDocument/publishDiagnostics", c.handlePublishDiagnostics)
+	c.conn.Load().OnNotification("textDocument/publishDiagnostics", c.handlePublishDiagnostics)
 
 	// 启动连接的读取循环
-	c.conn.Start()
+	c.conn.Load().Start()
 
 	// 发送 initialize 请求
 	trueVal := true
@@ -272,14 +272,14 @@ func (c *Client) startWithConn(ctx context.Context, conn *Conn, workspacePath st
 		},
 	}
 
-	if _, err := c.conn.Send(ctx, "initialize", initParams); err != nil {
-		c.conn.Close()
+	if _, err := c.conn.Load().Send(ctx, "initialize", initParams); err != nil {
+		c.conn.Load().Close()
 		return fmt.Errorf("initialize request failed: %w", err)
 	}
 
 	// 发送 initialized 通知
-	if err := c.conn.Notify("initialized", struct{}{}); err != nil {
-		c.conn.Close()
+	if err := c.conn.Load().Notify("initialized", struct{}{}); err != nil {
+		c.conn.Load().Close()
 		return fmt.Errorf("initialized notification failed: %w", err)
 	}
 
@@ -301,11 +301,11 @@ func (c *Client) Stop() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if c.conn != nil {
-		_, _ = c.conn.Send(shutdownCtx, "shutdown", nil)
+	if c.conn.Load() != nil {
+		_, _ = c.conn.Load().Send(shutdownCtx, "shutdown", nil)
 
 		// 发送 exit 通知
-		_ = c.conn.Notify("exit", nil)
+		_ = c.conn.Load().Notify("exit", nil)
 	}
 
 	// 等待进程退出
@@ -326,8 +326,8 @@ func (c *Client) Stop() error {
 	}
 
 	// 关闭连接
-	if c.conn != nil {
-		_ = c.conn.Close()
+	if c.conn.Load() != nil {
+		_ = c.conn.Load().Close()
 	}
 
 	c.state.Store(int32(StateUnstarted))
@@ -367,7 +367,7 @@ func (c *Client) OpenFile(file string) error {
 	params.TextDocument.Version = 1
 	params.TextDocument.Text = string(content)
 
-	return c.conn.Notify("textDocument/didOpen", params)
+	return c.conn.Load().Notify("textDocument/didOpen", params)
 }
 
 // ChangeFile 发送 textDocument/didChange 通知更新文件内容。
@@ -391,7 +391,7 @@ func (c *Client) ChangeFile(file, content string) error {
 		{Text: content},
 	}
 
-	return c.conn.Notify("textDocument/didChange", params)
+	return c.conn.Load().Notify("textDocument/didChange", params)
 }
 
 // CloseFile 发送 textDocument/didClose 通知关闭文件。
@@ -409,7 +409,7 @@ func (c *Client) CloseFile(file string) error {
 	params := didCloseParams{}
 	params.TextDocument.URI = uri
 
-	return c.conn.Notify("textDocument/didClose", params)
+	return c.conn.Load().Notify("textDocument/didClose", params)
 }
 
 // ensureOpen 确保文件已打开，如果未打开则自动调用 OpenFile。
@@ -466,7 +466,7 @@ func (c *Client) Definition(ctx context.Context, file string, pos Position) ([]L
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Send(lspCtx, "textDocument/definition", textDocumentPositionParams{
+	raw, err := c.conn.Load().Send(lspCtx, "textDocument/definition", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -484,7 +484,7 @@ func (c *Client) References(ctx context.Context, file string, pos Position) ([]L
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Send(lspCtx, "textDocument/references", referencesParams{
+	raw, err := c.conn.Load().Send(lspCtx, "textDocument/references", referencesParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 		Context:      referenceContext{IncludeDeclaration: true},
@@ -503,7 +503,7 @@ func (c *Client) Hover(ctx context.Context, file string, pos Position) (string, 
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Send(lspCtx, "textDocument/hover", textDocumentPositionParams{
+	raw, err := c.conn.Load().Send(lspCtx, "textDocument/hover", textDocumentPositionParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 		Position:     pos,
 	})
@@ -533,7 +533,7 @@ func (c *Client) DocumentSymbols(ctx context.Context, file string) ([]SymbolInfo
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Send(lspCtx, "textDocument/documentSymbol", textDocumentParams{
+	raw, err := c.conn.Load().Send(lspCtx, "textDocument/documentSymbol", textDocumentParams{
 		TextDocument: textDocumentID{URI: c.fileToURI(file)},
 	})
 	if err != nil {
@@ -548,7 +548,7 @@ func (c *Client) WorkspaceSymbols(ctx context.Context, query string) ([]SymbolIn
 	lspCtx, cancel := c.withTimeout(ctx)
 	defer cancel()
 
-	raw, err := c.conn.Send(lspCtx, "workspace/symbol", map[string]string{"query": query})
+	raw, err := c.conn.Load().Send(lspCtx, "workspace/symbol", map[string]string{"query": query})
 	if err != nil {
 		return nil, err
 	}

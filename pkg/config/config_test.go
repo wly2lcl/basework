@@ -86,15 +86,20 @@ func TestConfigDefaults(t *testing.T) {
 	}
 }
 
-// TestConfigGet 验证 Get() 返回当前配置的快照。
+// TestConfigGet 验证 Get() 返回配置的深拷贝。
 func TestConfigGet(t *testing.T) {
 	store := NewStore("")
 	cfg1 := store.Get()
 	cfg2 := store.Get()
 
-	// 同一指针（零拷贝）
-	if cfg1 != cfg2 {
-		t.Error("Get() should return the same pointer for zero-copy reads")
+	// 应为不同指针（深拷贝）
+	if cfg1 == cfg2 {
+		t.Error("Get() should return a deep copy (different pointer)")
+	}
+
+	// 值应相等
+	if cfg1.Provider != cfg2.Provider {
+		t.Errorf("values should be equal, got %q vs %q", cfg1.Provider, cfg2.Provider)
 	}
 }
 
@@ -568,6 +573,46 @@ func TestConfigMutateCopyOnWrite(t *testing.T) {
 	// 之前的指针应保持不变
 	if original.Provider != "openai" {
 		t.Errorf("original snapshot should have 'openai', got %q", original.Provider)
+	}
+}
+
+// TestConfigGetDeepCopy 验证 Get() 返回的深拷贝修改不影响内部状态。
+func TestConfigGetDeepCopy(t *testing.T) {
+	store := NewStore("")
+
+	// 获取深拷贝并修改
+	cfg := store.Get()
+	cfg.Provider = "hacked"
+	cfg.MaxTokens = 9999
+	cfg.MaxContextTokens = 9999
+	cfg.MCPConfigs = map[string]interface{}{
+		"evil": "value",
+	}
+	cfg.StopSequences = []string{"evil"}
+	cfg.Tools.Timeout.Overrides = map[string]int{"evil": 999}
+
+	// 重新获取，内部状态应不受影响
+	cfg2 := store.Get()
+	if cfg2.Provider != "openai" {
+		t.Errorf("internal state Provider should be 'openai', got %q", cfg2.Provider)
+	}
+	if cfg2.MaxTokens != 4096 {
+		t.Errorf("internal state MaxTokens should be 4096, got %d", cfg2.MaxTokens)
+	}
+	if cfg2.MaxContextTokens != 128000 {
+		t.Errorf("internal state MaxContextTokens should be 128000, got %d", cfg2.MaxContextTokens)
+	}
+	if cfg2.MCPConfigs != nil {
+		t.Error("internal state MCPConfigs should be nil")
+	}
+	if cfg2.StopSequences != nil {
+		t.Error("internal state StopSequences should be nil")
+	}
+	if cfg2.Tools.Timeout.Overrides["bash"] != 60 {
+		t.Errorf("internal state Overrides should still have bash=60, got %v", cfg2.Tools.Timeout.Overrides)
+	}
+	if _, ok := cfg2.Tools.Timeout.Overrides["evil"]; ok {
+		t.Error("internal state should not have 'evil' override")
 	}
 }
 

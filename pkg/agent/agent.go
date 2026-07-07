@@ -64,7 +64,8 @@ func registerBuiltinTools(registry *tool.Registry, permChecker *permission.Check
 // New 创建 agent，应用提供的选项进行配置
 func New(opts ...Option) (Agent, error) {
 	cfg := &config{
-		maxSteps: 25,
+		maxSteps:         25,
+		maxContextTokens: 128000,
 	}
 	for _, opt := range opts {
 		opt(cfg)

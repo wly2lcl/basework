@@ -160,12 +160,16 @@ func (a *AgentLoop) HandleMessage(ctx context.Context, input string) (*Response,
 	}
 
 	// 1. 追加 Prompted 事件
-	promptData, _ := session.EncodeData(&session.PromptedData{Content: input})
-	_ = a.session.AppendEvent(session.Event{
+	promptData, encodeErr := session.EncodeData(&session.PromptedData{Content: input})
+	if encodeErr != nil {
+		log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventPrompted)
+	} else if err := a.session.AppendEvent(session.Event{
 		SessionID: a.sessionID,
 		Type:      session.EventPrompted,
 		Data:      promptData,
-	})
+	}); err != nil {
+		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventPrompted)
+	}
 
 	// 2. 运行工具循环
 	resp, err := a.runLoop(ctx)
@@ -209,12 +213,16 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 					text += part.Text
 				}
 			}
-			data, _ := session.EncodeData(&session.PromptedData{Content: text})
-			_ = a.session.AppendEvent(session.Event{
+			data, encodeErr := session.EncodeData(&session.PromptedData{Content: text})
+			if encodeErr != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventPrompted)
+			} else if err := a.session.AppendEvent(session.Event{
 				SessionID: a.sessionID,
 				Type:      session.EventPrompted,
 				Data:      data,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventPrompted)
+			}
 
 		case llm.RoleAssistant:
 			text := ""
@@ -224,26 +232,36 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 				}
 			}
 			if text != "" {
-				deltaData, _ := session.EncodeData(&session.TextDeltaData{Delta: text})
-				_ = a.session.AppendEvent(session.Event{
+				deltaData, encodeErr := session.EncodeData(&session.TextDeltaData{Delta: text})
+				if encodeErr != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventTextDelta)
+				} else if err := a.session.AppendEvent(session.Event{
 					SessionID: a.sessionID,
 					Type:      session.EventTextDelta,
 					Data:      deltaData,
-				})
+				}); err != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventTextDelta)
+				}
 			}
 			for _, tc := range msg.ToolCalls {
-				callData, _ := session.EncodeData(&session.ToolCalledData{ToolCall: tc})
-				_ = a.session.AppendEvent(session.Event{
+				callData, encodeErr := session.EncodeData(&session.ToolCalledData{ToolCall: tc})
+				if encodeErr != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventToolCalled)
+				} else if err := a.session.AppendEvent(session.Event{
 					SessionID: a.sessionID,
 					Type:      session.EventToolCalled,
 					Data:      callData,
-				})
+				}); err != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventToolCalled)
+				}
 			}
 			if text != "" || len(msg.ToolCalls) > 0 {
-				_ = a.session.AppendEvent(session.Event{
+				if err := a.session.AppendEvent(session.Event{
 					SessionID: a.sessionID,
 					Type:      session.EventTextEnded,
-				})
+				}); err != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventTextEnded)
+				}
 			}
 
 		case llm.RoleTool:
@@ -256,15 +274,19 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 					text += part.Text
 				}
 			}
-			succData, _ := session.EncodeData(&session.ToolSuccessData{
+			succData, encodeErr := session.EncodeData(&session.ToolSuccessData{
 				ToolCallID: msg.ToolCallID,
 				Content:    text,
 			})
-			_ = a.session.AppendEvent(session.Event{
+			if encodeErr != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventToolSuccess)
+			} else if err := a.session.AppendEvent(session.Event{
 				SessionID: a.sessionID,
 				Type:      session.EventToolSuccess,
 				Data:      succData,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventToolSuccess)
+			}
 		}
 	}
 
@@ -283,9 +305,7 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 	// 1. 压缩：检查是否需要压缩上下文
 	history, err := a.td().History()
 	if err == nil && a.compactor != nil {
-		maxTokens := a.cfg.model.ID()
-		_ = maxTokens // 占位，实际需要从 model 获取 max tokens
-		if a.compactor.ShouldCompact(history, 128000) { // 使用默认 maxTokens
+		if a.compactor.ShouldCompact(history, a.cfg.maxContextTokens) {
 			compacted, cerr := a.compactor.Compact(history)
 			if cerr == nil && len(compacted) < len(history) {
 				// 清空 session 并写入压缩后的消息
@@ -301,12 +321,16 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		p := NewPipeline(inst.TurnD())
 
 		// 追加 turn started 事件
-		turnData, _ := session.EncodeData(&session.TurnStartedData{Step: step})
-		_ = a.session.AppendEvent(session.Event{
+		turnData, encodeErr := session.EncodeData(&session.TurnStartedData{Step: step})
+		if encodeErr != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventTurnStarted)
+		} else if err := a.session.AppendEvent(session.Event{
 			SessionID: a.sessionID,
 			Type:      session.EventTurnStarted,
 			Data:      turnData,
-		})
+		}); err != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventTurnStarted)
+		}
 
 		result, err := p.Run(ctx)
 		if err != nil {
@@ -317,10 +341,12 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 			})
 
 			// 追加 turn failed 事件
-			_ = a.session.AppendEvent(session.Event{
+			if err := a.session.AppendEvent(session.Event{
 				SessionID: a.sessionID,
 				Type:      session.EventTurnFailed,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventTurnFailed)
+			}
 			return nil, err
 		}
 
@@ -351,12 +377,16 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		}
 
 		// 追加 turn ended 事件
-		endData, _ := session.EncodeData(&session.TurnEndedData{Usage: result.Usage})
-		_ = a.session.AppendEvent(session.Event{
+		endData, encodeErr := session.EncodeData(&session.TurnEndedData{Usage: result.Usage})
+		if encodeErr != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, a.sessionID, session.EventTurnEnded)
+		} else if err := a.session.AppendEvent(session.Event{
 			SessionID: a.sessionID,
 			Type:      session.EventTurnEnded,
 			Data:      endData,
-		})
+		}); err != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", err, a.sessionID, session.EventTurnEnded)
+		}
 
 		finalMessage = result.Message
 		finalUsage = result.Usage

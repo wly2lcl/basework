@@ -156,6 +156,16 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 		}
 	}
 
+	// 刷新未完成的 tool call：stream 结束时将 toolCallMap 中残留的 tool call 标记为完成
+	for _, tc := range toolCallMap {
+		fullCall := llm.ToolCall{
+			ID:       tc.id,
+			Name:     tc.name,
+			ArgsJSON: tc.argsJSON,
+		}
+		toolCalls = append(toolCalls, fullCall)
+	}
+
 	// 构建 assistant message
 	content := []llm.ContentPart{}
 	if textContent != "" {
@@ -179,29 +189,39 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 	store := p.td.Session()
 
 	if textContent != "" {
-		deltaData, _ := session.EncodeData(&session.TextDeltaData{Delta: textContent})
-		_ = store.AppendEvent(session.Event{
+		deltaData, encodeErr := session.EncodeData(&session.TextDeltaData{Delta: textContent})
+		if encodeErr != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventTextDelta)
+		} else if err := store.AppendEvent(session.Event{
 			SessionID: p.sessionID,
 			Type:      session.EventTextDelta,
 			Data:      deltaData,
-		})
+		}); err != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventTextDelta)
+		}
 	}
 
 	for _, tc := range toolCalls {
-		callData, _ := session.EncodeData(&session.ToolCalledData{ToolCall: tc})
-		_ = store.AppendEvent(session.Event{
+		callData, encodeErr := session.EncodeData(&session.ToolCalledData{ToolCall: tc})
+		if encodeErr != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventToolCalled)
+		} else if err := store.AppendEvent(session.Event{
 			SessionID: p.sessionID,
 			Type:      session.EventToolCalled,
 			Data:      callData,
-		})
+		}); err != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventToolCalled)
+		}
 	}
 
 	// TextEnded 标记 assistant 消息结束
 	if textContent != "" || len(toolCalls) > 0 {
-		_ = store.AppendEvent(session.Event{
+		if err := store.AppendEvent(session.Event{
 			SessionID: p.sessionID,
 			Type:      session.EventTextEnded,
-		})
+		}); err != nil {
+			log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventTextEnded)
+		}
 	}
 
 	return resp, nil
@@ -235,15 +255,19 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 			} else if !allowed {
 				errMsg := "权限拒绝: 工具 " + call.Name + " 未被允许执行"
 				records = append(records, ToolCallRecord{Call: call, Err: errors.New(errMsg)})
-				failData, _ := session.EncodeData(&session.ToolFailedData{
+				failData, encodeErr := session.EncodeData(&session.ToolFailedData{
 					ToolCallID: call.ID,
 					Error:      errMsg,
 				})
-				_ = store.AppendEvent(session.Event{
+				if encodeErr != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventToolFailed)
+				} else if err := store.AppendEvent(session.Event{
 					SessionID: p.sessionID,
 					Type:      session.EventToolFailed,
 					Data:      failData,
-				})
+				}); err != nil {
+					log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventToolFailed)
+				}
 				continue
 			}
 		}
@@ -253,15 +277,19 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 		if err != nil {
 			records = append(records, ToolCallRecord{Call: call, Err: err})
 			// 追加失败事件
-			failData, _ := session.EncodeData(&session.ToolFailedData{
+			failData, encodeErr := session.EncodeData(&session.ToolFailedData{
 				ToolCallID: call.ID,
 				Error:      err.Error(),
 			})
-			_ = store.AppendEvent(session.Event{
+			if encodeErr != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventToolFailed)
+			} else if err := store.AppendEvent(session.Event{
 				SessionID: p.sessionID,
 				Type:      session.EventToolFailed,
 				Data:      failData,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventToolFailed)
+			}
 			continue
 		}
 		if modifiedCall != nil {
@@ -301,29 +329,37 @@ func (p *Pipeline) executeTools(ctx context.Context, calls []llm.ToolCall) ([]To
 
 		// 6. 追加事件到 session
 		if execErr != nil {
-			failData, _ := session.EncodeData(&session.ToolFailedData{
+			failData, encodeErr := session.EncodeData(&session.ToolFailedData{
 				ToolCallID: call.ID,
 				Error:      execErr.Error(),
 			})
-			_ = store.AppendEvent(session.Event{
+			if encodeErr != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventToolFailed)
+			} else if err := store.AppendEvent(session.Event{
 				SessionID: p.sessionID,
 				Type:      session.EventToolFailed,
 				Data:      failData,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventToolFailed)
+			}
 		} else {
 			content := ""
 			if result != nil {
 				content = result.Content
 			}
-			succData, _ := session.EncodeData(&session.ToolSuccessData{
+			succData, encodeErr := session.EncodeData(&session.ToolSuccessData{
 				ToolCallID: call.ID,
 				Content:    content,
 			})
-			_ = store.AppendEvent(session.Event{
+			if encodeErr != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", encodeErr, p.sessionID, session.EventToolSuccess)
+			} else if err := store.AppendEvent(session.Event{
 				SessionID: p.sessionID,
 				Type:      session.EventToolSuccess,
 				Data:      succData,
-			})
+			}); err != nil {
+				log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventToolSuccess)
+			}
 		}
 
 		records = append(records, ToolCallRecord{

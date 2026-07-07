@@ -206,22 +206,22 @@ func (m *Manager) Tools() []tool.Tool {
 
 // CallTool 调用指定服务器上的工具。
 func (m *Manager) CallTool(ctx context.Context, serverName, toolName string, arguments json.RawMessage) (*tool.Result, error) {
+	m.mu.RLock()
 	if m.closed.Load() {
+		m.mu.RUnlock()
 		return nil, errors.New("manager is closed")
 	}
-
-	m.mu.RLock()
 	server, ok := m.servers[serverName]
-	m.mu.RUnlock()
 	if !ok {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("server %q not found", serverName)
 	}
-
 	if !server.IsAvailable() {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("server unavailable: %s", serverName)
 	}
-
 	m.wg.Add(1)
+	m.mu.RUnlock()
 	defer m.wg.Done()
 
 	// 解析参数
@@ -293,6 +293,9 @@ func (m *Manager) GetServers() map[string]*ServerConnection {
 
 // Close 关闭 Manager，等待所有进行中的调用完成，然后关闭所有连接（幂等）。
 func (m *Manager) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.closed.Swap(true) {
 		return nil
 	}
@@ -301,9 +304,6 @@ func (m *Manager) Close() error {
 	m.wg.Wait()
 
 	// 关闭所有服务器连接
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	for name, server := range m.servers {
 		server.Transport.Close()
 		delete(m.servers, name)

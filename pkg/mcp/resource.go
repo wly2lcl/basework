@@ -47,18 +47,18 @@ func (m *Manager) Resources(serverName string) ([]mcpResource, error) {
 
 // ReadResource 读取指定 URI 的资源内容，应用大小限制。
 func (m *Manager) ReadResource(ctx context.Context, serverName, resourceURI string) (*ReadResourceResult, error) {
+	m.mu.RLock()
 	if m.closed.Load() {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("manager is closed")
 	}
-
-	m.mu.RLock()
 	server, ok := m.servers[serverName]
-	m.mu.RUnlock()
 	if !ok {
+		m.mu.RUnlock()
 		return nil, fmt.Errorf("server %q not found", serverName)
 	}
-
 	m.wg.Add(1)
+	m.mu.RUnlock()
 	defer m.wg.Done()
 
 	params := map[string]string{

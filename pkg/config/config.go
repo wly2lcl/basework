@@ -432,12 +432,11 @@ func NewStore(path string) *Store {
 	}
 }
 
-// Get 返回当前配置的不可变快照（零拷贝读取）。
-// 调用方不应修改返回的 Config。
+// Get 返回当前配置的深拷贝，调用方修改返回的 Config 不会影响内部状态。
 func (s *Store) Get() *Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.config
+	return s.config.clone()
 }
 
 // Mutate 原子地修改配置。
