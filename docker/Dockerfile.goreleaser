@@ -1,0 +1,16 @@
+FROM alpine:latest
+
+ARG TARGETPLATFORM
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /root
+
+# Copy binary
+COPY $TARGETPLATFORM/basework /usr/local/bin/basework
+
+# Config directory for volume mount
+VOLUME ["/root/.config/basework"]
+
+ENTRYPOINT ["basework"]
+CMD ["tui"]

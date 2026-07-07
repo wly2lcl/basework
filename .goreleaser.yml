@@ -1,23 +1,21 @@
-# GoReleaser 配置文件
-# 文档: https://goreleaser.com
-
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
 before:
   hooks:
     - go mod tidy
-    - go test -tags "sqlite memory" ./...
 
 builds:
   - id: basework
-    binary: basework
     main: ./cmd/basework
+    binary: basework
+    env:
+      - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -X main.builtBy=goreleaser
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
     tags:
       - sqlite
       - memory
@@ -33,71 +31,41 @@ builds:
         goarch: arm64
 
 archives:
-  - id: default
-    format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
-    files:
-      - README.md
-      - LICENSE
-      - CHANGELOG.md
+        formats: [zip]
 
-checksum:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
-  algorithm: sha256
+dockers_v2:
+  - id: basework
+    dockerfile: docker/Dockerfile.goreleaser
+    ids: [basework]
+    images:
+      - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/basework"
+    tags:
+      - "{{ .Tag }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
 changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - '^chore:'
-      - Merge pull request
-      - Merge branch
+      - "^ci:"
+      - "^docs:"
+      - "^test:"
 
 release:
-  github:
-    owner: wly2lcl
-    name: basework
-  draft: false
-  prerelease: auto
-  name_template: "v{{ .Version }}"
+  footer: >-
 
-# Homebrew 暂未启用（需要 wly2lcl/homebrew-tap 仓库）
-# 创建 tap 仓库后取消注释即可启用
-# brews:
-#   - name: basework
-#     repository:
-#       owner: wly2lcl
-#       name: homebrew-tap
-#       token: "{{ .Env.GITHUB_TOKEN }}"
-#     directory: Formula
-#     commit_author:
-#       name: goreleaserbot
-#       email: bot@goreleaser.com
-#     homepage: "https://github.com/wly2lcl/basework"
-#     description: "AI Agent 框架和独立终端产品"
-#     license: "MIT"
-#     test: |
-#       system "#{bin}/basework --version"
-#     install: |
-#       bin.install "basework"
+    ---
 
-dockers:
-  - image_templates:
-      - "ghcr.io/wly2lcl/basework:{{ .Tag }}"
-      - "ghcr.io/wly2lcl/basework:{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/wly2lcl/basework:{{ .Major }}"
-      - "ghcr.io/wly2lcl/basework:latest"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).

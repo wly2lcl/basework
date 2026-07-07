@@ -1,0 +1,42 @@
+name: CI Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -count=1 ./...
+
+      - name: Build binary
+        run: go build -tags "sqlite memory" -o build/basework ./cmd/basework
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: basework-binary
+          path: build/basework
+          retention-days: 7
