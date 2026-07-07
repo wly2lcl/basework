@@ -67,23 +67,25 @@ release:
   prerelease: auto
   name_template: "v{{ .Version }}"
 
-brews:
-  - name: basework
-    repository:
-      owner: wly2lcl
-      name: homebrew-tap
-      token: "{{ .Env.GITHUB_TOKEN }}"
-    directory: Formula
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    homepage: "https://github.com/wly2lcl/basework"
-    description: "AI Agent 框架和独立终端产品"
-    license: "MIT"
-    test: |
-      system "#{bin}/basework --version"
-    install: |
-      bin.install "basework"
+# Homebrew 暂未启用（需要 wly2lcl/homebrew-tap 仓库）
+# 创建 tap 仓库后取消注释即可启用
+# brews:
+#   - name: basework
+#     repository:
+#       owner: wly2lcl
+#       name: homebrew-tap
+#       token: "{{ .Env.GITHUB_TOKEN }}"
+#     directory: Formula
+#     commit_author:
+#       name: goreleaserbot
+#       email: bot@goreleaser.com
+#     homepage: "https://github.com/wly2lcl/basework"
+#     description: "AI Agent 框架和独立终端产品"
+#     license: "MIT"
+#     test: |
+#       system "#{bin}/basework --version"
+#     install: |
+#       bin.install "basework"
 
 dockers:
   - image_templates:
