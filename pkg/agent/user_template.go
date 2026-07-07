@@ -102,12 +102,6 @@ func (m *UserTemplateManager) Reload() (bool, error) {
 		}
 
 		modTime := info.ModTime()
-		prevModTime, exists := m.modTimes[name]
-
-		if exists && !modTime.After(prevModTime) {
-			continue // 未变更
-		}
-
 		data, err := os.ReadFile(filepath.Join(m.dir, entry.Name()))
 		if err != nil {
 			continue
@@ -116,6 +110,12 @@ func (m *UserTemplateManager) Reload() (bool, error) {
 		content := string(data)
 		if err := m.Validate(content); err != nil {
 			continue // 语法错误时跳过
+		}
+
+		prevContent, contentExists := m.templates[name]
+		if contentExists && content == prevContent {
+			m.modTimes[name] = modTime
+			continue
 		}
 
 		m.templates[name] = content

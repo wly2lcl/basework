@@ -80,6 +80,12 @@ func (l *FileLock) Unlock() error {
 
 // ForceUnlock 强制删除锁文件（用于死锁恢复）。
 func (l *FileLock) ForceUnlock() error {
+	if l.file != nil {
+		if err := l.Unlock(); err != nil {
+			return err
+		}
+	}
+
 	err := os.Remove(l.path)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("session: 强制解锁失败: %w", err)

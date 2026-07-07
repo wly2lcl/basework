@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -21,6 +22,9 @@ func buildCLIBinary(t *testing.T) string {
 
 	tmpDir := t.TempDir()
 	binaryPath := filepath.Join(tmpDir, "basework")
+	if runtime.GOOS == "windows" {
+		binaryPath += ".exe"
+	}
 
 	// 编译 CLI 二进制（带 sqlite tag）
 	cmd := exec.Command("go", "build", "-tags", "sqlite", "-o", binaryPath, "github.com/wly2lcl/basework/cmd/basework")
