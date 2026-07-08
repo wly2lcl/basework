@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/wly2lcl/basework/pkg/llm"
@@ -140,6 +141,61 @@ func TestAgentLoop_HandleMessage_MaxStepsExceeded(t *testing.T) {
 	}
 }
 
+func TestAgentLoop_LoopDetectorReceivesAccumulatedToolCalls(t *testing.T) {
+	loopErr := errors.New("tool loop detected")
+	model := &mockModel{
+		responses: []llm.Response{
+			{
+				Message: llm.ChatMessage{
+					Role: llm.RoleAssistant,
+					ToolCalls: []llm.ToolCall{
+						{ID: "call_1", Name: "always_tool", ArgsJSON: `{"command":"pwd"}`},
+					},
+				},
+			},
+			{
+				Message: llm.ChatMessage{
+					Role: llm.RoleAssistant,
+					ToolCalls: []llm.ToolCall{
+						{ID: "call_2", Name: "always_tool", ArgsJSON: `{"command":"pwd"}`},
+					},
+				},
+			},
+			{
+				Message: llm.ChatMessage{
+					Role: llm.RoleAssistant,
+					ToolCalls: []llm.ToolCall{
+						{ID: "call_3", Name: "always_tool", ArgsJSON: `{"command":"pwd"}`},
+					},
+				},
+			},
+		},
+	}
+	detector := &recordingLoopDetector{stopAt: 3, err: loopErr}
+
+	a, err := New(
+		WithModel(model),
+		WithTools(&mockTool{name: "always_tool"}),
+		WithLoopDetector(detector),
+		WithMaxSteps(10),
+	)
+	if err != nil {
+		t.Fatalf("New 返回错误: %v", err)
+	}
+	defer a.Close()
+
+	_, err = a.HandleMessage(context.Background(), "循环测试")
+	if !errors.Is(err, loopErr) {
+		t.Fatalf("期望循环检测错误, 得到 %v", err)
+	}
+	if detector.maxCallsSeen != 3 {
+		t.Fatalf("期望循环检测看到 3 条累计工具调用, 得到 %d", detector.maxCallsSeen)
+	}
+	if got := detector.lastCall.Args["command"]; got != "pwd" {
+		t.Fatalf("期望解析工具参数 command=pwd, 得到 %v", got)
+	}
+}
+
 func TestAgentLoop_HandleMessages(t *testing.T) {
 	model := &mockModel{
 		responses: []llm.Response{
@@ -183,6 +239,24 @@ func TestAgentLoop_HandleMessages(t *testing.T) {
 	if text != "这是回答" {
 		t.Errorf("期望文本='这是回答', 得到 '%s'", text)
 	}
+}
+
+type recordingLoopDetector struct {
+	stopAt       int
+	err          error
+	maxCallsSeen int
+	lastCall     LoopToolCall
+}
+
+func (d *recordingLoopDetector) Check(_ []llm.ChatMessage, toolCalls []LoopToolCall) (*LoopDetectResult, error) {
+	if len(toolCalls) > d.maxCallsSeen {
+		d.maxCallsSeen = len(toolCalls)
+		d.lastCall = toolCalls[len(toolCalls)-1]
+	}
+	if len(toolCalls) >= d.stopAt {
+		return &LoopDetectResult{IsLoop: true, Signal: "test", Details: "test"}, d.err
+	}
+	return &LoopDetectResult{}, nil
 }
 
 func TestAgentLoop_Close_Idempotent(t *testing.T) {

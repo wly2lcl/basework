@@ -41,6 +41,53 @@ func (m *mockModel) Stream(_ context.Context, req *llm.Request) (<-chan llm.Stre
 
 func (m *mockModel) Supports(cap llm.Capability) bool { return true }
 
+type cumulativeToolCallModel struct{}
+
+func (cumulativeToolCallModel) ID() string { return "cumulative-tool-call" }
+
+func (cumulativeToolCallModel) Generate(context.Context, *llm.Request) (*llm.Response, error) {
+	return nil, errors.New("Generate should not be called")
+}
+
+func (cumulativeToolCallModel) Stream(context.Context, *llm.Request) (<-chan llm.StreamEvent, error) {
+	ch := make(chan llm.StreamEvent, 6)
+	ch <- llm.StreamEvent{
+		Type: llm.StreamEventToolCall,
+		ToolCall: &llm.ToolCallDelta{
+			Index: 0,
+			ID:    "call_1",
+			Name:  "bash",
+		},
+	}
+	ch <- llm.StreamEvent{
+		Type: llm.StreamEventToolCall,
+		ToolCall: &llm.ToolCallDelta{
+			Index:    0,
+			ArgsJSON: `{"command":`,
+		},
+	}
+	ch <- llm.StreamEvent{
+		Type: llm.StreamEventToolCall,
+		ToolCall: &llm.ToolCallDelta{
+			Index:    0,
+			ArgsJSON: `{"command":"pwd"}`,
+		},
+	}
+	ch <- llm.StreamEvent{
+		Type: llm.StreamEventToolCall,
+		ToolCall: &llm.ToolCallDelta{
+			Index:    0,
+			ArgsJSON: `{"command":"pwd"}`,
+			Complete: true,
+		},
+	}
+	ch <- llm.StreamEvent{Type: llm.StreamEventDone}
+	close(ch)
+	return ch, nil
+}
+
+func (cumulativeToolCallModel) Supports(llm.Capability) bool { return true }
+
 // eventsFromResponse 将 Response 转为 stream event 序列
 func eventsFromResponse(resp *llm.Response) <-chan llm.StreamEvent {
 	ch := make(chan llm.StreamEvent, 10)
@@ -307,6 +354,26 @@ func TestPipeline_CallLLM_WithToolCalls(t *testing.T) {
 	}
 	if !hasToolCalled {
 		t.Error("期望 session 中有 EventToolCalled 事件")
+	}
+}
+
+func TestPipeline_CallLLM_CompleteToolCallArgsOverrideAccumulatedDeltas(t *testing.T) {
+	model := cumulativeToolCallModel{}
+	td := setupTestTurnD(t, model)
+	p := NewPipeline(td)
+
+	resp, err := p.callLLM(context.Background(), []llm.ChatMessage{
+		{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "run pwd"}}},
+	}, nil)
+	if err != nil {
+		t.Fatalf("callLLM 返回错误: %v", err)
+	}
+
+	if len(resp.Message.ToolCalls) != 1 {
+		t.Fatalf("期望 1 个 tool call, 得到 %d", len(resp.Message.ToolCalls))
+	}
+	if got := resp.Message.ToolCalls[0].ArgsJSON; got != `{"command":"pwd"}` {
+		t.Fatalf("期望完整工具参数不重复, 得到 %q", got)
 	}
 }
 

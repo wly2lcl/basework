@@ -152,8 +152,10 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 			if evt.ToolCall.Name != "" {
 				tc.name = evt.ToolCall.Name
 			}
-			tc.argsJSON += evt.ToolCall.ArgsJSON
 			if evt.ToolCall.Complete {
+				if evt.ToolCall.ArgsJSON != "" {
+					tc.argsJSON = evt.ToolCall.ArgsJSON
+				}
 				fullCall := llm.ToolCall{
 					ID:       tc.id,
 					Name:     tc.name,
@@ -164,6 +166,8 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 				if cb := p.td.Callback(); cb != nil {
 					cb.OnToolCallStart(fullCall)
 				}
+			} else {
+				tc.argsJSON += evt.ToolCall.ArgsJSON
 			}
 		case llm.StreamEventUsage:
 			if evt.Usage != nil {

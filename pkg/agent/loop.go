@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"sync"
@@ -309,6 +310,7 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 // runLoop 执行工具循环，每次迭代调用 pipeline.Run()
 func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 	var allToolCalls []ToolCallRecord
+	var loopToolCalls []LoopToolCall
 	var finalUsage llm.Usage
 	var finalMessage llm.ChatMessage
 
@@ -389,16 +391,11 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		if a.loopDetector != nil {
 			// 从 session 获取当前消息历史
 			messages, _ := a.td().History()
-			// 构建 tool call 列表供循环检测
-			var ldCalls []LoopToolCall
 			for _, tc := range result.ToolCalls {
-				ldCalls = append(ldCalls, LoopToolCall{
-					ToolName: tc.Call.Name,
-					Args:     nil,
-				})
+				loopToolCalls = append(loopToolCalls, loopToolCallFromRecord(tc))
 			}
 
-			detectResult, dErr := a.loopDetector.Check(messages, ldCalls)
+			detectResult, dErr := a.loopDetector.Check(messages, loopToolCalls)
 			if dErr != nil {
 				// 中断策略返回的错误，直接返回
 				return nil, dErr
@@ -457,6 +454,17 @@ func (a *AgentLoop) td() TurnD {
 func (a *AgentLoop) publishEvent(eventType string, data map[string]interface{}) {
 	if a.eventBus != nil && a.obsEnabled {
 		a.eventBus.PublishEvent(eventType, data)
+	}
+}
+
+func loopToolCallFromRecord(record ToolCallRecord) LoopToolCall {
+	var args map[string]interface{}
+	if record.Call.ArgsJSON != "" {
+		_ = json.Unmarshal([]byte(record.Call.ArgsJSON), &args)
+	}
+	return LoopToolCall{
+		ToolName: record.Call.Name,
+		Args:     args,
 	}
 }
 

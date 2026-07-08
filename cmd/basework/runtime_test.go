@@ -57,6 +57,22 @@ func TestRuntimeToolsOmitsSubAgentWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestRuntimeToolsEnabledForOpenCodeFreeModelWithoutAPIKey(t *testing.T) {
+	t.Setenv("BASEWORK_PROVIDER", "")
+	t.Setenv("OPENCODE_API_KEY", "")
+	t.Setenv("OG_API_KEY", "")
+
+	cfg := config.NewStore("").Get()
+	cfg.Provider = "opencode"
+	cfg.Model = "big-pickle"
+	cfg.OpenCode.APIKey = ""
+
+	tools := runtimeTools(cfg, t.TempDir(), nil, lsp.Tools(lsp.NewManager(lsp.Config{})), nil)
+	if len(tools) == 0 {
+		t.Fatal("opencode free model without API key should keep runtime tools enabled")
+	}
+}
+
 func TestRuntimeBehaviorOptionsFollowConfig(t *testing.T) {
 	cfg := config.NewStore("").Get()
 	model := &runtimeMockModel{}

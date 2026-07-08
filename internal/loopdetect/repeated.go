@@ -19,6 +19,9 @@ func CheckRepeatedContent(messages []llm.ChatMessage, threshold int) (bool, int)
 		if msg.Role == llm.RoleAssistant {
 			// 提取文本内容并规范化空白
 			content := normalizeContent(msg.Content)
+			if content == "" {
+				continue
+			}
 			assistantContents = append(assistantContents, content)
 		}
 	}

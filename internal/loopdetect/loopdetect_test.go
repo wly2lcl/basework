@@ -140,6 +140,21 @@ func TestCheckRepeatedContent_消息不足阈值(t *testing.T) {
 	}
 }
 
+func TestCheckRepeatedContent_忽略空Assistant消息(t *testing.T) {
+	msgs := []llm.ChatMessage{
+		assistantMsg(""),
+		assistantMsg(""),
+		assistantMsg(""),
+	}
+	loop, count := CheckRepeatedContent(msgs, 3)
+	if loop {
+		t.Error("空 assistant 消息不应触发重复内容循环")
+	}
+	if count != 0 {
+		t.Errorf("空消息被忽略时 count 应为0, 得到 %d", count)
+	}
+}
+
 // ---------- CheckToolLoop 测试 ----------
 
 func TestCheckToolLoop_检测重复(t *testing.T) {
