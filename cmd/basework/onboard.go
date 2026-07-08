@@ -66,6 +66,7 @@ func runInit() error {
 
 	// 2. 选择 provider
 	var selectedProvider string
+	var enteredAPIKey string
 	if len(detected) == 1 {
 		selectedProvider = detected[0].provider
 		fmt.Printf("使用检测到的 provider: %s\n", detected[0].label)
@@ -109,6 +110,7 @@ func runInit() error {
 		scanner.Scan()
 		apiKey := strings.TrimSpace(scanner.Text())
 		if apiKey != "" {
+			enteredAPIKey = apiKey
 			os.Setenv(strings.ToUpper(selectedProvider)+"_API_KEY", apiKey)
 		}
 	}
@@ -126,6 +128,9 @@ func runInit() error {
 		defaultModel = "gemini-2.5-flash"
 	default:
 		defaultModel = "gpt-4o"
+	}
+	if selectedProvider == "opencode" && enteredAPIKey == "" && providerAPIKey(config.NewStore("").Get(), "opencode") == "" {
+		defaultModel = promptOpenCodeFreeModel(scanner, defaultModel)
 	}
 	fmt.Printf("默认模型: %s\n", defaultModel)
 	fmt.Println()
@@ -154,4 +159,29 @@ func runInit() error {
 	fmt.Printf("配置文件已写入: %s\n", cfgPath)
 	fmt.Println("初始化完成！现在可以使用 `basework agent` 开始对话。")
 	return nil
+}
+
+func promptOpenCodeFreeModel(scanner *bufio.Scanner, fallback string) string {
+	models := openCodeFreeModelEntries()
+	if len(models) == 0 {
+		return fallback
+	}
+
+	fmt.Println("OpenCode 未配置 API Key，将使用免费模型。可选模型：")
+	for i, m := range models {
+		fmt.Printf("  %d) %s\n", i+1, m.ModelID)
+	}
+	fmt.Printf("请输入编号 (1-%d，默认 %s): ", len(models), fallback)
+	scanner.Scan()
+	choice := strings.TrimSpace(scanner.Text())
+	if choice == "" {
+		return fallback
+	}
+	idx := 0
+	fmt.Sscanf(choice, "%d", &idx)
+	if idx < 1 || idx > len(models) {
+		fmt.Printf("使用默认免费模型: %s\n", fallback)
+		return fallback
+	}
+	return models[idx-1].ModelID
 }

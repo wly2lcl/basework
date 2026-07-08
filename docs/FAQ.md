@@ -85,11 +85,11 @@ basework 支持两种方式配置 API Key，优先级从上到下递减：
 # 列出可用模型
 basework model list
 
-# 设置默认模型
-basework model set <model-id>
+# 只显示免费模型
+basework model list --free
 
-# 查看当前默认模型
-basework model default
+# 切换当前模型
+basework model use <model-id>
 ```
 
 ---

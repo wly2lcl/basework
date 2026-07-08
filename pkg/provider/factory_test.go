@@ -94,6 +94,20 @@ func TestCreate_Compat_Groq(t *testing.T) {
 	}
 }
 
+// TestCreate_OpenCode_FreeModel_NoAPIKey 验证 OpenCode 免费模型无需 API key
+func TestCreate_OpenCode_FreeModel_NoAPIKey(t *testing.T) {
+	model, err := Create(Config{
+		Type:    "opencode",
+		ModelID: "big-pickle",
+	})
+	if err != nil {
+		t.Fatalf("Create should allow opencode free model without API key: %v", err)
+	}
+	if model.ID() != "big-pickle" {
+		t.Errorf("expected ID 'big-pickle', got '%s'", model.ID())
+	}
+}
+
 // TestCreate_UnknownType 未知类型但提供 BaseURL → 返回 *compatModel
 func TestCreate_UnknownType(t *testing.T) {
 	model, err := Create(Config{

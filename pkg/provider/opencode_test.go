@@ -30,11 +30,14 @@ func TestOpenCode_NewProvider(t *testing.T) {
 	}
 }
 
-// TestOpenCode_NewProvider_EmptyKey 验证空 API Key 报错
+// TestOpenCode_NewProvider_EmptyKey 验证免费模型允许空 API Key
 func TestOpenCode_NewProvider_EmptyKey(t *testing.T) {
-	_, err := NewOpenCodeProvider("", "big-pickle", nil)
-	if err == nil {
-		t.Fatal("expected error for empty API key")
+	p, err := NewOpenCodeProvider("", "big-pickle", nil)
+	if err != nil {
+		t.Fatalf("NewOpenCodeProvider should allow empty API key for free model: %v", err)
+	}
+	if p.ID() != "big-pickle" {
+		t.Errorf("expected ID 'big-pickle', got '%s'", p.ID())
 	}
 }
 
@@ -129,6 +132,48 @@ func TestOpenCode_Generate(t *testing.T) {
 	}
 	if resp.Usage.TotalTokens != 15 {
 		t.Errorf("expected 15 total tokens, got %d", resp.Usage.TotalTokens)
+	}
+}
+
+// TestOpenCode_Generate_EmptyKey_NoAuthHeader 验证空 API Key 请求不带 Authorization
+func TestOpenCode_Generate_EmptyKey_NoAuthHeader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if auth := r.Header.Get("Authorization"); auth != "" {
+			t.Errorf("expected no Authorization header, got '%s'", auth)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprint(w, `{
+			"id": "chatcmpl-free",
+			"object": "chat.completion",
+			"created": 123456,
+			"model": "big-pickle",
+			"choices": [{
+				"index": 0,
+				"message": {"role": "assistant", "content": "Hello from free OpenCode!"},
+				"finish_reason": "stop"
+			}],
+			"usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7}
+		}`)
+	}))
+	defer srv.Close()
+
+	p, err := NewOpenCodeProvider("", "big-pickle", map[string]any{"baseURL": srv.URL})
+	if err != nil {
+		t.Fatalf("NewOpenCodeProvider failed: %v", err)
+	}
+
+	resp, err := p.Chat(t.Context(), &llm.Request{
+		Messages: []llm.ChatMessage{
+			{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "Hi"}}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Chat failed: %v", err)
+	}
+	if resp.Message.Content[0].Text != "Hello from free OpenCode!" {
+		t.Errorf("unexpected content: %s", resp.Message.Content[0].Text)
 	}
 }
 

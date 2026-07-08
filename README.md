@@ -89,6 +89,12 @@ basework agent -m "写一个 Go 反转字符串的函数"
 
 # 列出可用模型
 basework model list
+
+# 只列出无需 API key 的免费模型
+basework model list --free
+
+# 切换到 OpenCode 免费模型
+basework model use mimo-v2.5-free
 ```
 
 ## 快速开始（嵌入使用）

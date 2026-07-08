@@ -29,14 +29,9 @@ type OpenCodeProvider struct {
 	modelID string
 }
 
-// NewOpenCodeProvider 创建新的 OpenCode Zen Provider
+// NewOpenCodeProvider 创建新的 OpenCode Zen Provider.
+// OpenCode Zen 的免费模型（例如 big-pickle 和 -free 后缀模型）无需 API key。
 func NewOpenCodeProvider(apiKey, modelID string, opts map[string]any) (*OpenCodeProvider, error) {
-	if apiKey == "" {
-		return nil, &llm.Error{
-			Type:    llm.ErrorTypeAuth,
-			Message: "OpenCode Zen API key is required",
-		}
-	}
 	if modelID == "" {
 		modelID = "big-pickle"
 	}

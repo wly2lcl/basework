@@ -151,9 +151,11 @@ model, err := provider.Create(provider.Config{
 
 ```bash
 basework model list
+basework model list --free
+basework model use mimo-v2.5-free
 ```
 
-该命令列出当前配置的 Provider 下所有可用模型及其元数据（上下文长度、定价、能力标签）。
+`model list` 列出已知模型；`--free` 只显示无需 API key 的免费模型；`model use` 会把选中的模型写入当前配置。
 
 ---
 

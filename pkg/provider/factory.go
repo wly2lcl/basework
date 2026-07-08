@@ -35,7 +35,7 @@ var protocols = map[string]protocolMeta{
 	"xai":        {defaultBaseURL: "https://api.x.ai/v1", allowEmptyKey: false},
 	"mistral":    {defaultBaseURL: "https://api.mistral.ai/v1", allowEmptyKey: false},
 	// Phase 20 新增 Provider
-	"opencode": {defaultBaseURL: "https://opencode.ai/zen/v1", allowEmptyKey: false},
+	"opencode": {defaultBaseURL: "https://opencode.ai/zen/v1", allowEmptyKey: true},
 	"bedrock":  {defaultBaseURL: "", allowEmptyKey: true},
 	"azure":    {defaultBaseURL: "", allowEmptyKey: false},
 	"copilot":  {defaultBaseURL: "", allowEmptyKey: true},

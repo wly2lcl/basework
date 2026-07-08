@@ -102,14 +102,14 @@ basework init
 # 列出所有可用模型
 basework model list
 
-# 设置默认模型（✅ 已实现）
-basework model set anthropic/claude-sonnet-4-20250514
+# 只列出无需 API key 的免费模型
+basework model list --free
 
-# 显示当前默认模型（✅ 已实现）
-basework model default
+# 切换当前模型
+basework model use mimo-v2.5-free
 ```
 
-`model list` 会显示每个 Provider 下的可用模型列表，包括模型 ID、名称和上下文窗口大小等信息。
+`model list` 会显示已知模型的 Provider、模型 ID 和是否免费；`model use` 会把选中的模型写入配置文件。默认的 OpenCode Zen 免费模型无需 API key。
 
 ### basework session
 

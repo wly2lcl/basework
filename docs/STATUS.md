@@ -601,6 +601,8 @@
 basework agent        # 启动 Agent（简单 REPL）
 basework init         # 初始化配置
 basework model list   # 列出模型
+basework model list --free            # 只列出免费模型
+basework model use <model-id>         # 切换当前模型
 basework session list # 列出会话
 basework session clear # 清除会话
 basework permission list              # 列出权限规则
@@ -618,8 +620,6 @@ basework logs [--tail N] [--follow]   # 查看日志
 
 ```
 basework tui                          # 启动 TUI 模式
-basework model set <model-id>         # 设置默认模型
-basework model default                # 显示当前默认模型
 basework session resume <id>          # 恢复指定会话
 basework session export <id>          # 导出会话（markdown/json）
 basework session search <query>       # 搜索会话内容
@@ -633,7 +633,7 @@ basework migrate sessions             # JSONL → SQLite 迁移
 | 15 | ✅ `permission list/add/remove`（已实现） |
 | 18 | ✅ `tui`（已实现） |
 | 19 | ✅ `session resume/export/search`, `migrate`（已实现） |
-| 20 | ✅ `model set/default`（已实现） |
+| 20 | ✅ `model list --free`, `model use`（已实现） |
 | 25 | ✅ `auth login/logout/status`（已实现） |
 
 ---
