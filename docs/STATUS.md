@@ -1,6 +1,6 @@
 # Basework 项目状态
 
-> 最后更新：2026-07-07
+> 最后更新：2026-07-08
 
 ## 项目概述
 
@@ -82,6 +82,16 @@
 | 任务 | 状态 | 说明 |
 |------|------|------|
 | 全仓 gofmt 基线 | ✅ 完成 | 单独执行全仓 gofmt 纯格式化基线，并将 CI gofmt 检查升级为全仓范围 |
+
+### 第七轮优化（P1，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| Runtime 行为配置闭环 | ✅ 完成 | `compaction/loop_detect/observability/sub_agent` 配置接入 CLI/TUI 共享 runtime |
+| 子代理主路径接入 | ✅ 完成 | 默认注册 `sub_agent` 工具；子代理使用隔离内存会话，避免递归注册自身 |
+| 只读子代理工具边界 | ✅ 完成 | readonly 子代理仅暴露 `read/grep/glob` 与只读 LSP/MCP 工具 |
+| 可观测性事件总线 | ✅ 完成 | `observability.enabled` 时 runtime 注入 agent event bus，并同步给内置工具超时事件 |
+| Runtime 回归测试 | ✅ 完成 | 覆盖行为 option、compactor/loop detector 开关、子代理执行和 readonly 工具集 |
 
 ---
 

@@ -11,10 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wly2lcl/basework/internal/compaction"
+	"github.com/wly2lcl/basework/internal/loopdetect"
+	"github.com/wly2lcl/basework/internal/observability"
 	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/internal/subagent"
 	runtimetools "github.com/wly2lcl/basework/internal/tools"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
+	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/lsp"
 	"github.com/wly2lcl/basework/pkg/mcp"
 	"github.com/wly2lcl/basework/pkg/provider"
@@ -78,14 +83,16 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 		permissionCleanups = permissionChecker.Cleanups
 	}
 	plugin, extraTools := initializeRuntimeExtensions(context.Background(), cfg, cwd, permissionCleanups...)
+	subAgentCoordinator := newRuntimeSubAgentCoordinator(cfg, model, cwd, coreChecker, permissionChecker, extraTools)
 
 	agentOpts := []agent.Option{
 		agent.WithModel(model),
 		agent.WithSession(sess),
 		agent.WithSystemPrompt(runtimeSystemPrompt(cfg, cwd)),
 		agent.WithMaxSteps(cfg.MaxIterations),
-		agent.WithTools(runtimeTools(cfg, cwd, coreChecker, extraTools)...),
+		agent.WithTools(runtimeTools(cfg, cwd, coreChecker, extraTools, subAgentCoordinator)...),
 	}
+	agentOpts = append(agentOpts, runtimeBehaviorOptions(cfg, model, subAgentCoordinator)...)
 	if plugin != nil {
 		agentOpts = append(agentOpts, agent.WithPlugin(plugin))
 	}
@@ -113,6 +120,9 @@ func configureBuiltinToolRuntime(cfg *config.Config) error {
 		DefaultTimeout: cfg.Tools.Timeout.Default,
 		Overrides:      cfg.Tools.Timeout.Overrides,
 	})
+	if !cfg.Observability.Enabled {
+		builtin.SetEventBus(nil)
+	}
 
 	level := cfg.Security.ProtectionLevel
 	if level == "" {
@@ -144,7 +154,7 @@ func baseTools(cfg *config.Config) []tool.Tool {
 	return tools
 }
 
-func runtimeTools(cfg *config.Config, workDir string, checker *permission.Checker, extraTools []tool.Tool) []tool.Tool {
+func runtimeTools(cfg *config.Config, workDir string, checker *permission.Checker, extraTools []tool.Tool, subAgentCoordinator *subagent.Coordinator) []tool.Tool {
 	tools := baseTools(cfg)
 	tools = append(tools,
 		runtimetools.NewApplyPatchTool(workDir),
@@ -153,8 +163,171 @@ func runtimeTools(cfg *config.Config, workDir string, checker *permission.Checke
 		runtimetools.NewWebFetchTool(cfg),
 		runtimetools.NewWebSearchTool(cfg),
 	)
+	if subAgentCoordinator != nil {
+		tools = append(tools, subagent.NewSubAgentTool(subAgentCoordinator))
+	}
 	tools = append(tools, extraTools...)
 	return tools
+}
+
+func runtimeBehaviorOptions(cfg *config.Config, model llm.Model, subAgentCoordinator *subagent.Coordinator) []agent.Option {
+	var opts []agent.Option
+	if c := newRuntimeCompactor(cfg, model); c != nil {
+		opts = append(opts, agent.WithCompactor(c))
+	}
+	if d := newRuntimeLoopDetector(cfg); d != nil {
+		opts = append(opts, agent.WithLoopDetector(d))
+	}
+	if bus := newRuntimeEventBus(cfg); bus != nil {
+		builtin.SetEventBus(bus)
+		opts = append(opts, agent.WithEventBus(observability.NewEventBusAdapter(bus)))
+	}
+	if subAgentCoordinator != nil {
+		opts = append(opts, agent.WithSubAgentRunner(subagent.NewSubAgentRunnerAdapter(subAgentCoordinator)))
+	}
+	return opts
+}
+
+func newRuntimeCompactor(cfg *config.Config, model llm.Model) agent.Compactor {
+	if !cfg.Compaction.Enabled {
+		return nil
+	}
+	compactionCfg := compaction.Config{
+		Enabled:    cfg.Compaction.Enabled,
+		Strategy:   cfg.Compaction.Strategy,
+		Threshold:  cfg.Compaction.Threshold,
+		WindowSize: cfg.Compaction.WindowSize,
+	}
+	var strategy compaction.Strategy
+	switch cfg.Compaction.Strategy {
+	case "summarization":
+		strategy = compaction.NewSummarizationStrategy(compaction.NewLLMSummarizer(model))
+	case "selective":
+		strategy = compaction.NewSelectiveStrategy(cfg.Compaction.WindowSize)
+	default:
+		strategy = compaction.NewSlidingWindowStrategy(cfg.Compaction.WindowSize)
+	}
+	return compaction.NewEngine(compactionCfg, strategy)
+}
+
+func newRuntimeLoopDetector(cfg *config.Config) agent.LoopDetector {
+	if !cfg.LoopDetect.Enabled {
+		return nil
+	}
+	loopCfg := loopdetect.Config{
+		Enabled:           cfg.LoopDetect.Enabled,
+		RepeatedThreshold: cfg.LoopDetect.RepeatedThreshold,
+		ToolLoopThreshold: cfg.LoopDetect.ToolLoopThreshold,
+		ResponseStrategy:  cfg.LoopDetect.ResponseStrategy,
+		CustomPatterns:    cfg.LoopDetect.CustomPatterns,
+	}
+	return loopdetect.NewLoopDetectorAdapter(loopdetect.NewDetector(loopCfg))
+}
+
+func newRuntimeEventBus(cfg *config.Config) *observability.EventBus {
+	if !cfg.Observability.Enabled {
+		return nil
+	}
+	return observability.NewEventBus()
+}
+
+func newRuntimeSubAgentCoordinator(cfg *config.Config, model llm.Model, workDir string, checker *permission.Checker, permissionChecker *runtimePermissionChecker, extraTools []tool.Tool) *subagent.Coordinator {
+	if !cfg.SubAgent.Enabled {
+		return nil
+	}
+	subAgentCfg := subagent.Config{
+		Enabled:       cfg.SubAgent.Enabled,
+		DefaultType:   cfg.SubAgent.DefaultType,
+		CostLimit:     cfg.SubAgent.CostLimit,
+		MaxConcurrent: cfg.SubAgent.MaxConcurrent,
+	}
+	factory := func(ctx context.Context, task *subagent.Task) (subagent.AgentTaskRunner, error) {
+		childTools := runtimeSubAgentTools(cfg, workDir, checker, extraTools, task.AgentType)
+		childOpts := []agent.Option{
+			agent.WithModel(model),
+			agent.WithSession(session.NewMemoryStore()),
+			agent.WithSystemPrompt(runtimeSubAgentPrompt(cfg, workDir, task)),
+			agent.WithMaxSteps(cfg.MaxIterations),
+			agent.WithTools(childTools...),
+		}
+		if permissionChecker != nil {
+			childOpts = append(childOpts, agent.WithPermissionChecker(permissionChecker.Adapter))
+		}
+		if c := newRuntimeCompactor(cfg, model); c != nil {
+			childOpts = append(childOpts, agent.WithCompactor(c))
+		}
+		if d := newRuntimeLoopDetector(cfg); d != nil {
+			childOpts = append(childOpts, agent.WithLoopDetector(d))
+		}
+		child, err := agent.New(childOpts...)
+		if err != nil {
+			return nil, err
+		}
+		return &runtimeSubAgentRunner{agent: child}, nil
+	}
+	return subagent.NewCoordinator(factory, subAgentCfg)
+}
+
+func runtimeSubAgentTools(cfg *config.Config, workDir string, checker *permission.Checker, extraTools []tool.Tool, agentType subagent.AgentType) []tool.Tool {
+	if agentType == subagent.TypeReadonly {
+		return readonlyRuntimeTools(cfg, extraTools)
+	}
+	return runtimeTools(cfg, workDir, checker, extraTools, nil)
+}
+
+func readonlyRuntimeTools(cfg *config.Config, extraTools []tool.Tool) []tool.Tool {
+	allowed := map[string]bool{
+		"read": true,
+		"grep": true,
+		"glob": true,
+	}
+	var tools []tool.Tool
+	for _, t := range baseTools(cfg) {
+		if allowed[t.Name()] {
+			tools = append(tools, t)
+		}
+	}
+	for _, t := range extraTools {
+		name := t.Name()
+		if strings.HasPrefix(name, "lsp_") || name == "mcp_read" || name == "mcp_prompt" {
+			tools = append(tools, t)
+		}
+	}
+	return tools
+}
+
+func runtimeSubAgentPrompt(cfg *config.Config, workDir string, task *subagent.Task) string {
+	prompt := runtimeSystemPrompt(cfg, workDir)
+	if task.AgentType == subagent.TypeReadonly {
+		prompt += "\n\n你是只读子代理。只能读取和分析信息，不要修改文件、执行写入操作或运行破坏性命令。"
+	}
+	if len(task.Context) > 0 {
+		if data, err := json.Marshal(task.Context); err == nil {
+			prompt += "\n\n子代理上下文：" + string(data)
+		}
+	}
+	return strings.TrimSpace(prompt)
+}
+
+type runtimeSubAgentRunner struct {
+	agent agent.Agent
+}
+
+func (r *runtimeSubAgentRunner) HandleMessage(ctx context.Context, input string) (*subagent.TaskResult, error) {
+	resp, err := r.agent.HandleMessage(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	return &subagent.TaskResult{
+		Content:      responseText(resp),
+		InputTokens:  resp.Usage.PromptTokens,
+		OutputTokens: resp.Usage.CompletionTokens,
+		TotalTokens:  resp.Usage.TotalTokens,
+	}, nil
+}
+
+func (r *runtimeSubAgentRunner) Close() error {
+	return r.agent.Close()
 }
 
 type runtimePermissionChecker struct {

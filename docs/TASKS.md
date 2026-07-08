@@ -172,6 +172,28 @@
 - [x] CI 使用同一套全仓 gofmt 检查
 - [x] 该轮 diff 为格式化基线和 CI 检查范围更新
 
+### Task 35.11: 第七轮 Runtime 行为配置闭环 ✅
+
+**文件**：`cmd/basework/runtime.go`, `cmd/basework/runtime_test.go`, `docs/STATUS.md`, `docs/TASKS.md`
+
+**内容**：
+- 将 `compaction` 配置接入 runtime，启用时创建对应压缩引擎并传入 `agent.WithCompactor`
+- 将 `loop_detect` 配置接入 runtime，启用时创建循环检测器并传入 `agent.WithLoopDetector`
+- 将 `observability` 配置接入 runtime，启用时创建 EventBus，传入 `agent.WithEventBus`，并同步给内置工具超时事件
+- 将 `sub_agent` 配置接入 runtime，默认注册 `sub_agent` 工具，并传入 `agent.WithSubAgentRunner`
+- 子代理使用隔离内存会话；子 agent 不再递归注册 `sub_agent`
+- readonly 子代理只暴露 `read/grep/glob` 和只读 LSP/MCP 工具，避免写入类工具泄漏
+- 增加 runtime 回归测试覆盖工具注册、开关语义、子代理执行和 readonly 工具集
+
+**验收标准**：
+- [x] `compaction.enabled` 为 true 时 runtime 创建 compactor；默认关闭时不创建
+- [x] `loop_detect.enabled` 控制循环检测器是否注入 agent
+- [x] `observability.enabled` 控制 EventBus 注入和内置工具超时事件总线
+- [x] 默认 runtime 工具列表包含 `sub_agent`
+- [x] `sub_agent.enabled=false` 时不注册 `sub_agent`
+- [x] readonly 子代理不包含 `bash/write/edit/apply_patch/web_fetch/web_search/sub_agent`
+- [x] 子代理工具可执行并返回隔离子 agent 的输出和 token usage
+
 ---
 
 ## 依赖关系总览
