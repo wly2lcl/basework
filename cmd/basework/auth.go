@@ -63,7 +63,7 @@ func init() {
 }
 
 // getOAuthConfig 加载配置并返回 OAuth 配置和 token 存储
-func getOAuthConfig() (*oauth.Config, *oauth.FileStore, error) {
+func getOAuthConfig() (*oauth.Config, oauth.Store, error) {
 	cfgPath := cfgFile
 	if cfgPath == "" {
 		var err error
@@ -85,17 +85,32 @@ func getOAuthConfig() (*oauth.Config, *oauth.FileStore, error) {
 	oauthCfg.Enabled = cfg.OAuth.Enabled
 	oauthCfg.StorageBackend = cfg.OAuth.StorageBackend
 	oauthCfg.CallbackPort = cfg.OAuth.CallbackPort
-	// Providers 需从配置文件中读取（当前 Config 暂未内嵌 Provider OAuth 配置
-	// 此处留空，由调用方自行处理）
-
-	// 创建 token 存储
-	tokenDir := getTokenDir()
-	fileStore, err := oauth.NewFileStore(tokenDir)
-	if err != nil {
-		return nil, nil, fmt.Errorf("创建 token 存储失败: %w", err)
+	oauthCfg.Providers = make(map[string]oauth.ProviderConfig, len(cfg.OAuth.Providers))
+	for name, provider := range cfg.OAuth.Providers {
+		oauthCfg.Providers[name] = oauth.ProviderConfig{
+			AuthorizationEndpoint: provider.AuthorizationEndpoint,
+			TokenEndpoint:         provider.TokenEndpoint,
+			ClientID:              provider.ClientID,
+			ClientSecret:          provider.ClientSecret,
+			Scopes:                append([]string(nil), provider.Scopes...),
+			RedirectURI:           provider.RedirectURI,
+		}
 	}
 
-	return &oauthCfg, fileStore, nil
+	// 创建 token 存储
+	switch oauthCfg.StorageBackend {
+	case "", "file":
+		tokenDir := getTokenDir()
+		fileStore, err := oauth.NewFileStore(tokenDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("创建 token 存储失败: %w", err)
+		}
+		return &oauthCfg, fileStore, nil
+	case "keychain":
+		return nil, nil, fmt.Errorf("oauth.storage_backend=keychain 尚未实现，请先使用 storage_backend=file")
+	default:
+		return nil, nil, fmt.Errorf("不支持的 OAuth 存储后端: %s", oauthCfg.StorageBackend)
+	}
 }
 
 // getTokenDir 返回 token 存储目录

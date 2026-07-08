@@ -67,6 +67,9 @@ func New(opts ...Option) (Agent, error) {
 	if cfg.toolFactory != nil {
 		cfg.toolFactory(cfg.registry)
 	}
+	if cfg.subAgentRunner != nil && cfg.subAgentRunner.Enabled() && cfg.registry.Get("sub_agent") == nil {
+		_ = cfg.registry.Register(newSubAgentTool(cfg.subAgentRunner))
+	}
 
 	// 创建 hook chain
 	chain := hook.NewChain()

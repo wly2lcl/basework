@@ -27,6 +27,7 @@
 | `mcp_configs` | object | `null` | MCP 服务器配置 |
 | `max_tool_calls` | int | `20` | 每轮最大工具调用数 |
 | `max_context_tokens` | int | `128000` | 最大上下文 token 数 |
+| `oauth` | object | disabled | OAuth 认证配置 |
 
 ---
 
@@ -194,6 +195,32 @@ store.Mutate(func(c *config.Config) {
 // 保存到文件
 store.Save()
 ```
+
+### OAuth 认证配置
+
+`oauth.providers` 是 `basework auth login <provider>` 使用的 OAuth 端点配置，不是普通 LLM Provider API Key 配置。
+
+```json
+{
+  "oauth": {
+    "enabled": true,
+    "storage_backend": "file",
+    "callback_port": 8181,
+    "providers": {
+      "copilot": {
+        "authorization_endpoint": "https://github.com/login/oauth/authorize",
+        "token_endpoint": "https://github.com/login/oauth/access_token",
+        "client_id": "...",
+        "client_secret": "...",
+        "scopes": ["read:user"],
+        "redirect_uri": "http://127.0.0.1:8181/callback"
+      }
+    }
+  }
+}
+```
+
+当前 `storage_backend` 支持 `file`。`keychain` 是保留配置值，但系统密钥链后端尚未实现，启用时会明确报错。
 
 ---
 

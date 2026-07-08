@@ -131,6 +131,101 @@ func TestLoadPartialConfigMergesDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadOAuthProviders(t *testing.T) {
+	dir, cleanup := tempConfigDir(t)
+	defer cleanup()
+
+	path := filepath.Join(dir, "config.json")
+	data := []byte(`{
+		"oauth": {
+			"enabled": true,
+			"storage_backend": "file",
+			"callback_port": 8181,
+			"providers": {
+				"copilot": {
+					"authorization_endpoint": "https://github.com/login/oauth/authorize",
+					"token_endpoint": "https://github.com/login/oauth/access_token",
+					"client_id": "client-id",
+					"scopes": ["read:user"]
+				}
+			}
+		}
+	}`)
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	store, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg := store.Get()
+	provider := cfg.OAuth.Providers["copilot"]
+	if !cfg.OAuth.Enabled {
+		t.Fatal("expected oauth enabled")
+	}
+	if cfg.OAuth.CallbackPort != 8181 {
+		t.Fatalf("expected callback_port=8181, got %d", cfg.OAuth.CallbackPort)
+	}
+	if provider.ClientID != "client-id" {
+		t.Fatalf("expected provider client_id, got %q", provider.ClientID)
+	}
+	if len(provider.Scopes) != 1 || provider.Scopes[0] != "read:user" {
+		t.Fatalf("unexpected scopes: %v", provider.Scopes)
+	}
+}
+
+func TestConfigGetDeepCopiesOAuthProviders(t *testing.T) {
+	store := NewStore("")
+	if err := store.Mutate(func(cfg *Config) {
+		cfg.OAuth.Providers = map[string]OAuthProviderConfig{
+			"test": {
+				AuthorizationEndpoint: "https://example.com/auth",
+				TokenEndpoint:         "https://example.com/token",
+				ClientID:              "client",
+				Scopes:                []string{"a", "b"},
+			},
+		}
+	}); err != nil {
+		t.Fatalf("Mutate: %v", err)
+	}
+
+	cfg := store.Get()
+	cfg.OAuth.Providers["test"] = OAuthProviderConfig{ClientID: "changed", Scopes: []string{"changed"}}
+
+	cfg2 := store.Get()
+	provider := cfg2.OAuth.Providers["test"]
+	if provider.ClientID != "client" {
+		t.Fatalf("expected original provider client_id, got %q", provider.ClientID)
+	}
+	if len(provider.Scopes) != 2 || provider.Scopes[0] != "a" {
+		t.Fatalf("expected original scopes, got %v", provider.Scopes)
+	}
+}
+
+func TestValidateOAuthProviderRequiresEndpoints(t *testing.T) {
+	cfg := NewStore("").Get()
+	cfg.OAuth.Providers = map[string]OAuthProviderConfig{
+		"broken": {
+			TokenEndpoint: "https://example.com/token",
+			ClientID:      "client",
+		},
+	}
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected missing authorization endpoint validation error")
+	}
+}
+
+func TestValidateOAuthStorageBackend(t *testing.T) {
+	cfg := NewStore("").Get()
+	cfg.OAuth.StorageBackend = "unknown"
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected invalid storage backend validation error")
+	}
+}
+
 // TestConfigGet 验证 Get() 返回配置的深拷贝。
 func TestConfigGet(t *testing.T) {
 	store := NewStore("")

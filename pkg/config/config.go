@@ -160,9 +160,20 @@ type ObservabilityConfig struct {
 
 // OAuthConfig 是 OAuth 认证模块的配置
 type OAuthConfig struct {
-	Enabled        bool   `json:"enabled"`
-	StorageBackend string `json:"storage_backend"` // file / keychain
-	CallbackPort   int    `json:"callback_port"`   // 默认 8080
+	Enabled        bool                           `json:"enabled"`
+	StorageBackend string                         `json:"storage_backend"` // file / keychain
+	CallbackPort   int                            `json:"callback_port"`   // 默认 8080
+	Providers      map[string]OAuthProviderConfig `json:"providers,omitempty"`
+}
+
+// OAuthProviderConfig 是 OAuth provider 的端点和客户端配置。
+type OAuthProviderConfig struct {
+	AuthorizationEndpoint string   `json:"authorization_endpoint"`
+	TokenEndpoint         string   `json:"token_endpoint"`
+	ClientID              string   `json:"client_id"`
+	ClientSecret          string   `json:"client_secret,omitempty"`
+	Scopes                []string `json:"scopes,omitempty"`
+	RedirectURI           string   `json:"redirect_uri,omitempty"`
 }
 
 // PromptCacheConfig 是 Prompt 缓存功能的配置
@@ -380,6 +391,7 @@ func defaultConfig() *Config {
 			Enabled:        false,
 			StorageBackend: "file",
 			CallbackPort:   8080,
+			Providers:      nil,
 		},
 	}
 }
@@ -421,6 +433,15 @@ func (c *Config) clone() *Config {
 		cp.Security.SensitivePaths.Allow = make([]string, len(c.Security.SensitivePaths.Allow))
 		copy(cp.Security.SensitivePaths.Allow, c.Security.SensitivePaths.Allow)
 	}
+	if cp.OAuth.Providers != nil {
+		cp.OAuth.Providers = make(map[string]OAuthProviderConfig, len(c.OAuth.Providers))
+		for name, provider := range c.OAuth.Providers {
+			if provider.Scopes != nil {
+				provider.Scopes = append([]string(nil), provider.Scopes...)
+			}
+			cp.OAuth.Providers[name] = provider
+		}
+	}
 	return &cp
 }
 
@@ -443,6 +464,20 @@ func (c *Config) Validate() error {
 	}
 	if c.OAuth.CallbackPort != 0 && (c.OAuth.CallbackPort < 1024 || c.OAuth.CallbackPort > 65535) {
 		return fmt.Errorf("callback port must be between 1024 and 65535, got %d", c.OAuth.CallbackPort)
+	}
+	if c.OAuth.StorageBackend != "" && c.OAuth.StorageBackend != "file" && c.OAuth.StorageBackend != "keychain" {
+		return fmt.Errorf("oauth storage_backend must be file or keychain, got %q", c.OAuth.StorageBackend)
+	}
+	for name, provider := range c.OAuth.Providers {
+		if provider.AuthorizationEndpoint == "" {
+			return fmt.Errorf("oauth provider %q authorization_endpoint is required", name)
+		}
+		if provider.TokenEndpoint == "" {
+			return fmt.Errorf("oauth provider %q token_endpoint is required", name)
+		}
+		if provider.ClientID == "" {
+			return fmt.Errorf("oauth provider %q client_id is required", name)
+		}
 	}
 	if c.TopP < 0.0 || c.TopP > 1.0 {
 		return fmt.Errorf("top_p must be between 0.0 and 1.0, got %f", c.TopP)

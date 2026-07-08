@@ -74,22 +74,23 @@ export TOGETHER_API_KEY=...
 
 ```json
 {
-  "model": {
-    "type": "anthropic",
-    "api_key": "sk-ant-...",
-    "model_id": "claude-sonnet-4-20250514"
+  "provider": "opencode",
+  "model": "big-pickle",
+  "opencode": {
+    "api_key": "..."
   }
 }
 ```
 
-配置文件支持所有 Provider 参数：
+配置文件使用顶层 `provider` 和 `model` 选择当前 Provider，并通过 provider 专属块补充凭证或端点配置：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `type` | string | 是 | Provider 类型（见支持列表） |
-| `api_key` | string | 是 | API Key |
-| `model_id` | string | 否 | 模型名称，不填使用默认模型 |
-| `base_url` | string | 否 | 自定义端点，不填使用默认端点 |
+| `provider` | string | 是 | Provider 类型（见支持列表） |
+| `model` | string | 否 | 模型名称，不填使用默认模型 |
+| `opencode.api_key` | string | 否 | OpenCode Zen API Key |
+| `azure.api_key` | string | 否 | Azure OpenAI API Key |
+| `bedrock.access_key` / `bedrock.secret_key` | string | 否 | Amazon Bedrock 凭证 |
 
 ### 代码中配置
 
@@ -111,18 +112,7 @@ if err != nil {
 
 ## 自定义端点
 
-可通过 `base_url` 字段使用自定义端点，适用于代理、本地模型或企业网关：
-
-```json
-{
-  "model": {
-    "type": "openai-compat",
-    "api_key": "sk-...",
-    "base_url": "https://my-proxy.example.com/v1",
-    "model_id": "my-custom-model"
-  }
-}
-```
+嵌入式使用时，可通过 `provider.Config.BaseURL` 设置自定义端点，适用于代理、本地模型或企业网关：
 
 ```go
 model, err := provider.Create(provider.Config{
@@ -147,10 +137,8 @@ model, err := provider.Create(provider.Config{
 
 ```json
 {
-  "model": {
-    "default": "opencode/big-pickle",
-    "small": "opencode/deepseek-v4-flash-free"
-  }
+  "provider": "opencode",
+  "model": "big-pickle"
 }
 ```
 
@@ -169,26 +157,22 @@ basework model list
 
 ---
 
-## 多 Provider 配置
+## Provider 专属配置
 
 ```json
 {
-  "providers": {
-    "primary": {
-      "type": "anthropic",
-      "api_key": "...",
-      "model_id": "claude-sonnet-4-20250514"
-    },
-    "fallback": {
-      "type": "openai",
-      "api_key": "...",
-      "model_id": "gpt-4o"
-    }
+  "provider": "azure",
+  "model": "gpt-4o",
+  "azure": {
+    "resource": "my-resource",
+    "deployment": "gpt-4o",
+    "api_key": "...",
+    "api_version": "2024-02-01"
   }
 }
 ```
 
-多 Provider 配置支持主备切换：当主 Provider 返回错误或超时时，自动切换到备用 Provider。
+当前 CLI runtime 使用单个 active provider；主备切换可在嵌入式场景中通过自定义 `llm.Model` 或上层调度实现。
 
 ---
 

@@ -93,6 +93,16 @@
 | 可观测性事件总线 | ✅ 完成 | `observability.enabled` 时 runtime 注入 agent event bus，并同步给内置工具超时事件 |
 | Runtime 回归测试 | ✅ 完成 | 覆盖行为 option、compactor/loop detector 开关、子代理执行和 readonly 工具集 |
 
+### 第八轮优化（P1，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| OAuth 配置闭环 | ✅ 完成 | `pkg/config` 支持 `oauth.providers`，`auth login/status` 能读取 Provider OAuth 端点配置 |
+| OAuth 存储后端语义 | ✅ 完成 | `storage_backend=keychain` 在系统密钥链未实现前明确报错，避免静默退回文件存储 |
+| SubAgent Option 闭环 | ✅ 完成 | `agent.WithSubAgentRunner` 会自动注册 `sub_agent` 适配工具，且不覆盖 runtime 显式工具 |
+| 本地构建入口对齐 | ✅ 完成 | `Makefile build-full/test-all/vet` 统一使用 `sqlite memory` tag，与 CI/Release 保持一致 |
+| Build Tag 文档收口 | ✅ 完成 | README/FAQ/Provider/配置文档移除不存在的 `tui/otel` tag 与旧 Provider schema |
+
 ---
 
 ## 代码量对比
@@ -228,7 +238,7 @@
 |------|------|------|
 | `internal/permission/` | ✅ 完成（Phase 15） | 权限系统：规则引擎、交互提示、YOLO 模式 |
 | `pkg/tool/builtin/blacklist.go` | ✅ 完成（Phase 23） | 命令黑名单：12+ 内置危险模式、自定义扩展、权限集成 |
-| `internal/oauth/` | ✅ 完成（Phase 25） | OAuth 2.0：PKCE 流程、令牌刷新、凭证安全存储 |
+| `internal/oauth/` | ✅ 完成（Phase 25） | OAuth 2.0：PKCE 流程、令牌刷新、加密文件凭证存储 |
 
 ### ✅ 子代理系统
 

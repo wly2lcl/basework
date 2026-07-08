@@ -194,6 +194,28 @@
 - [x] readonly 子代理不包含 `bash/write/edit/apply_patch/web_fetch/web_search/sub_agent`
 - [x] 子代理工具可执行并返回隔离子 agent 的输出和 token usage
 
+### Task 35.12: 第八轮 OAuth/SubAgent/构建文档收口 ✅
+
+**文件**：`pkg/config/config.go`, `cmd/basework/auth.go`, `pkg/agent/agent.go`, `pkg/agent/subagent_tool.go`, `Makefile`, `README.md`, `docs/FAQ.md`, `docs/guides/configuration.md`, `docs/guides/provider-guide.md`, `docs/STATUS.md`, `docs/TASKS.md`
+
+**内容**：
+- 在配置 schema 中补齐 `oauth.providers`，支持 OAuth provider 端点、client、scope 和 redirect_uri 配置
+- `basework auth login/status` 从主配置读取 OAuth providers，不再保留空 map 导致登录必然失败
+- `oauth.storage_backend=keychain` 在系统密钥链后端未实现前明确报错，避免静默使用文件存储造成安全误解
+- `agent.WithSubAgentRunner` 自动注册 `sub_agent` 适配工具，并在 runtime 已显式注册 `sub_agent` 时不覆盖
+- Makefile 的 `build-full/test-all/vet` 统一使用 `sqlite memory` build tags
+- README/FAQ/Provider/配置文档对齐当前真实配置 schema 和 build tag，仅保留 `sqlite/memory`
+
+**验收标准**：
+- [x] `oauth.providers` 可从 JSON 配置加载并深拷贝
+- [x] OAuth provider 缺少必要端点或 client_id 时配置校验失败
+- [x] `getOAuthConfig` 能把配置中的 OAuth providers 转为内部 OAuth 配置
+- [x] `storage_backend=keychain` 返回清晰错误
+- [x] `WithSubAgentRunner` 会注册可执行的 `sub_agent` 工具
+- [x] 显式注册的 `sub_agent` 工具不会被 `WithSubAgentRunner` 覆盖
+- [x] 本地 Makefile、CI、Release 使用一致的 `sqlite memory` tag 语义
+- [x] 文档不再推荐不存在的 `tui/otel` build tags 或旧 `providers/default_provider` schema
+
 ---
 
 ## 依赖关系总览

@@ -14,13 +14,13 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **可扩展** — Hook + Plugin + Skill 三层扩展体系
 - **统一类型** — 一套 `ChatMessage`/`ToolCall` 类型贯穿始终
 - **可观测** — 事件溯源 Session + PubSub 事件总线 + 结构化日志 + 成本追踪
-- **可选复杂度** — Build Tag 控制可选模块（memory, tui, otel）
+- **可选复杂度** — Build Tag 控制可选模块（sqlite, memory）
 - **上下文压缩** — 自动摘要、滑动窗口、选择性保留
 - **重试机制** — 指数退避、错误分类、可恢复错误自动重试
 - **权限系统** — 规则引擎（allow/deny/ask）、YOLO 模式、命令黑名单
 - **子代理** — 任务委托、隔离子会话、成本传播
 - **循环检测** — SHA-256 签名 + 模式匹配，防止工具调用死循环
-- **OAuth 2.0** — PKCE 流程、令牌刷新、凭证安全存储
+- **OAuth 2.0** — PKCE 流程、令牌刷新、加密文件凭证存储
 - **Prompt 缓存** — 自动注入 `cache_control` 标记，减少 50-90% 重复 token 计费（Anthropic/OpenAI/Gemini）
 - **命令黑名单** — 12+ 内置危险命令模式 + 自定义扩展，支持交互/YOLO 权限模式
 - **15+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
@@ -294,8 +294,6 @@ export OPENCODE_API_KEY="..."
 |-----|------|------|
 | `memory` | 关 | SQLite 持久化记忆 + FTS5 全文搜索 |
 | `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
-| `tui` | 关 | Bubble Tea 终端 UI |
-| `otel` | 关 | OpenTelemetry 追踪导出 |
 
 ```bash
 # 启用记忆模块构建
@@ -304,11 +302,8 @@ go build -tags memory ./...
 # 启用 SQLite 会话存储
 go build -tags sqlite ./...
 
-# 启用终端 UI
-go build -tags tui ./...
-
-# 启用 OpenTelemetry 追踪
-go build -tags otel ./...
+# 启用完整终端产品能力（与 CI/Release 保持一致）
+go build -tags "sqlite memory" ./cmd/basework
 ```
 
 ## 环境要求

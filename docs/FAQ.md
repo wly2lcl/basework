@@ -41,7 +41,7 @@ basework 原生支持 **15+ 个 Provider**，同时兼容所有标准 OpenAI API
 **方式一：go install（推荐）**
 
 ```bash
-go install github.com/wly2lcl/basework/cmd/basework@latest
+go install -tags "sqlite memory" github.com/wly2lcl/basework/cmd/basework@latest
 ```
 
 **方式二：源码构建**
@@ -61,15 +61,11 @@ basework 支持两种方式配置 API Key，优先级从上到下递减：
 
 ```json
 {
-  "providers": {
-    "anthropic": {
-      "api_key": "sk-ant-..."
-    },
-    "openai": {
-      "api_key": "sk-..."
-    }
-  },
-  "default_provider": "anthropic"
+  "provider": "opencode",
+  "model": "big-pickle",
+  "opencode": {
+    "api_key": "..."
+  }
 }
 ```
 
