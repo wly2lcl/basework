@@ -216,6 +216,24 @@
 - [x] 本地 Makefile、CI、Release 使用一致的 `sqlite memory` tag 语义
 - [x] 文档不再推荐不存在的 `tui/otel` build tags 或旧 `providers/default_provider` schema
 
+### Task 35.13: 发布体验/文档一致性最终收口 ✅
+
+**文件**：`.github/workflows/release.yml`, `.goreleaser.yml`, `README.md`, `docs/installation.md`, `docs/docker.md`, `docs/release.md`, `docs/ROADMAP.md`, `docs/STATUS.md`, `docs/TASKS.md`
+
+**内容**：
+- 新增发布指南，明确 GitHub Actions 手动发布、tag push 发布、dry-run 和本地验证命令
+- README/安装指南不再把未接入 GoReleaser 的 Homebrew tap 写成已支持安装方式
+- Docker 文档对齐当前 GoReleaser 镜像标签，稳定版发布完整版本 tag 和 `latest`，预发布不更新 `latest`
+- 修复手动 `prerelease=true` 只传环境变量但未标记 GitHub Release 的发布体验缺口
+- ROADMAP/STATUS 从旧审计状态更新为当前 Phase 26-30 和第 1-8 轮收口后的状态
+
+**验收标准**：
+- [x] 维护者能按文档完成正式发布或 dry-run
+- [x] 用户安装入口只包含当前真实支持的渠道
+- [x] 发布产物说明与 `.goreleaser.yml` 一致
+- [x] 手动预发布会标记 GitHub Release 为 pre-release，且不会更新 Docker `latest`
+- [x] 状态文档不再把已完成的 CI/CD、发布、安全和 TUI 增强列为未完成主项
+
 ---
 
 ## 依赖关系总览
@@ -2142,43 +2160,41 @@ Week 10:  Phase 24 (MCP 增强) + Phase 25 (OAuth) — 可并行
 **预计行数**：~500 行（workflow 配置）
 **依赖**：无
 
-### Task 27.1: GitHub Actions 基础 workflow
+### Task 27.1: GitHub Actions 基础 workflow ✅
 
-**文件**：`.github/workflows/test.yml`
+**文件**：`.github/workflows/build.yml`
 **任务**：
-1. PR/push 触发测试
-2. 多 Go 版本测试（1.21, 1.22, 1.23）
-3. 代码覆盖率上传
-4. lint 检查（golangci-lint）
+1. PR/push 触发 quality 和跨平台 test
+2. 全仓 gofmt 检查
+3. `sqlite memory` build tags 下运行 vet
+4. race test 子集覆盖关键包
 
-**预计行数**：~100 行
 **测试**：CI 验证
 
-### Task 27.2: 交叉编译 workflow
+### Task 27.2: 交叉编译 workflow ✅
 
 **文件**：`.github/workflows/build.yml`
 **任务**：
 1. Linux/macOS/Windows 三平台编译
 2. ARM64 支持
-3. 二进制打包（tar.gz）
-4. 上传到 GitHub Releases
+3. `sqlite memory` build tags 下运行完整测试
+4. release dry-run 验证 GoReleaser snapshot
 
-**预计行数**：~150 行
 **测试**：CI 验证
 
-### Task 27.3: goreleaser 集成
+### Task 27.3: goreleaser 集成 ✅
 
-**文件**：`.goreleaser.yml`
+**文件**：`.goreleaser.yml`, `.github/workflows/release.yml`
 **任务**：
 1. 配置 goreleaser
 2. 自动生成 CHANGELOG
-3. 多平台打包（brew, npm, scoop）
-4. Docker 镜像构建
+3. 多平台打包（Linux/macOS/Windows）
+4. Docker 镜像构建并推送 GHCR
+5. 支持 tag push 和手动 workflow_dispatch 发布
 
-**预计行数**：~150 行
 **测试**：发布测试
 
-### Task 27.4: Homebrew 发布
+### Task 27.4: Homebrew 发布（后续项）
 
 **文件**：`.github/workflows/homebrew.yml` + `Formula/basework.rb`
 **任务**：
@@ -2187,8 +2203,7 @@ Week 10:  Phase 24 (MCP 增强) + Phase 25 (OAuth) — 可并行
 3. `brew install basework` 支持
 4. 版本同步
 
-**预计行数**：~100 行
-**测试**：安装测试
+**状态**：当前 GoReleaser 配置尚未接入 Homebrew tap，因此 README/安装指南暂不把 Homebrew 作为已支持安装方式。
 
 ---
 

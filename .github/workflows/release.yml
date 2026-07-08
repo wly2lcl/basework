@@ -122,3 +122,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ env.RELEASE_TAG }}
           GORELEASER_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
+
+      - name: Mark manual release as pre-release
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false && inputs.prerelease == true
+        run: gh release edit "${RELEASE_TAG}" --prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

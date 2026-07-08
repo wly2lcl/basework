@@ -29,10 +29,10 @@ docker run ghcr.io/wly2lcl/basework version
 
 ## 镜像标签
 
-- `latest`: 最新稳定版
+- `latest`: 最新稳定版，预发布不会更新该标签
 - `v1.3.0`: 特定版本
-- `v1.3`: 主版本
-- `v1`: 大版本
+
+当前 GoReleaser 配置只发布完整版本标签和 `latest`，暂不发布 `v1.3` 或 `v1` 这类滚动标签。
 
 ## 数据持久化
 

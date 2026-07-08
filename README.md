@@ -49,12 +49,11 @@ import "github.com/wly2lcl/basework/pkg/agent"
 
 ## 安装
 
-### Homebrew (macOS/Linux)
+### 下载二进制文件
 
-```bash
-brew tap wly2lcl/tap
-brew install basework
-```
+从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的预编译二进制文件。
+
+支持平台：Linux (amd64/arm64)、macOS (amd64/arm64)、Windows (amd64)。
 
 ### Docker
 
@@ -77,13 +76,7 @@ cd basework
 go build -tags "sqlite memory" -o basework ./cmd/basework
 ```
 
-### 下载二进制文件
-
-从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的预编译二进制文件。
-
-支持平台：Linux (amd64/arm64)、macOS (amd64/arm64)、Windows (amd64)。
-
-详细安装说明请参阅 [安装指南](docs/installation.md)。
+Homebrew tap 尚未接入当前发布配置。详细安装说明请参阅 [安装指南](docs/installation.md)，发布流程请参阅 [发布指南](docs/release.md)。
 
 ## 快速开始（CLI）
 

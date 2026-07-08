@@ -103,6 +103,16 @@
 | 本地构建入口对齐 | ✅ 完成 | `Makefile build-full/test-all/vet` 统一使用 `sqlite memory` tag，与 CI/Release 保持一致 |
 | Build Tag 文档收口 | ✅ 完成 | README/FAQ/Provider/配置文档移除不存在的 `tui/otel` tag 与旧 Provider schema |
 
+### 发布体验/文档一致性收口（P2，已完成）
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| 发布路径文档 | ✅ 完成 | 新增 `docs/release.md`，明确手动发布、tag 发布、dry-run 和本地验证步骤 |
+| 安装渠道校准 | ✅ 完成 | README/安装指南移除 Homebrew 已支持表述，保留 GitHub Releases、Go install、Docker |
+| Docker 标签校准 | ✅ 完成 | Docker 文档和 GoReleaser 对齐：稳定版发布完整版本 tag 和 `latest`，预发布不更新 `latest` |
+| 预发布语义修复 | ✅ 完成 | GoReleaser 自动识别预发布 tag，手动 prerelease 输入会标记 GitHub Release 为预发布 |
+| 路线图状态校准 | ✅ 完成 | ROADMAP 不再把已完成的 CI/CD、发布、安全和 TUI 增强列为未完成阶段 |
+
 ---
 
 ## 代码量对比
@@ -315,17 +325,17 @@
 **预计新增代码**：~2,000 行
 **依赖**：无
 
-### Phase 27: CI/CD + 发布流程 🔲
+### Phase 27: CI/CD + 发布流程 ✅
 **目标**：建立自动化测试、构建、发布流水线
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| GitHub Actions 基础 | P0 | test + build + lint workflow |
-| 交叉编译 | P0 | Linux/macOS/Windows 三平台 |
-| goreleaser 集成 | P1 | 自动化版本发布 + 二进制打包 |
-| Homebrew 发布 | P2 | `brew install basework` |
-| Docker 镜像 | P2 | 可选，用于容器化部署 |
-| 自动 CHANGELOG | P2 | 基于 git commit 生成 CHANGELOG |
+| GitHub Actions 基础 | P0 | ✅ quality + test + release dry-run workflow |
+| 交叉编译 | P0 | ✅ Linux/macOS/Windows 三平台 |
+| goreleaser 集成 | P1 | ✅ 自动化版本发布 + 二进制打包 |
+| Homebrew 发布 | P2 | 后续接入 tap 后再开放文档入口 |
+| Docker 镜像 | P2 | ✅ GHCR 镜像发布 |
+| 自动 CHANGELOG | P2 | ✅ GoReleaser 基于 git commit 生成 |
 
 **预计新增代码**：~500 行（workflow 配置）
 **依赖**：无
@@ -478,7 +488,6 @@
 | 依赖 | 用途 | 条件 |
 |------|------|------|
 | `github.com/alecthomas/chroma/v2` | 语法高亮 | TUI 模式启用时 |
-| `go.opentelemetry.io/otel` | OpenTelemetry 追踪 | build tag `otel` |
 
 ### 依赖增长估算
 

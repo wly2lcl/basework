@@ -19,14 +19,14 @@ Basework 是一个 **Go 语言的可嵌入 AI Agent 框架**。与 opencode（�
 | **可扩展** | Hook + Plugin + Skill 三层扩展点 |
 | **类型安全** | 统一类型系统，一套 Message/ToolCall 贯穿始终 |
 | **可观测** | 事件溯源 Session + PubSub 事件总线 |
-| **可选复杂度** | Build Tag 控制可选模块（memory, sqlite, tui, otel） |
+| **可选复杂度** | Build Tag 控制可选模块（memory, sqlite） |
 
 ### 非目标
 
 - 不做桌面应用
 - 不做 Web UI
 - 不做 IDE 插件（但可以被 IDE 插件嵌入）
-- 不内置 TUI（但提供 `cmd/basework` CLI 参考实现）
+- `pkg/` 核心不内置 TUI；终端产品能力放在 `cmd/basework` 和 `internal/tui`
 
 ---
 
@@ -768,7 +768,7 @@ description: "做什么用的"
 这一层不在 `pkg/` 中，而是作为参考实现：
 
 - `cmd/basework/` — CLI 入口
-- `internal/tui/` — 可选 TUI（build tag: `tui`）
+- `internal/tui/` — 终端产品 TUI（默认随 CLI 构建）
 - 宿主应用可以完全不用这一层，直接使用 `pkg/agent`
 
 ---
@@ -802,10 +802,8 @@ description: "做什么用的"
 |-----|------|------|
 | `memory` | 关 | SQLite 上下文管理（FTS5 全文搜索） |
 | `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
-| `tui` | 关 | TUI 界面（Bubble Tea） |
-| `otel` | 关 | OpenTelemetry 追踪导出 |
 
-无 `slim`、`bedrock`、`isolation` 标签。所有可选模块默认关闭，需要时显式开启。
+无 `slim`、`bedrock`、`isolation`、`tui`、`otel` 标签。TUI 和 observability 是终端产品代码路径的一部分，不再通过 build tag 控制。SQLite/FTS5 相关能力需要时显式开启。
 
 > **说明**：bedrock 和 isolation 在 openwork 中是可选模块，但在 basework 中不作为核心设计。
 > 如需 AWS Bedrock，通过 `openai-compat` provider 配置 BaseURL 即可。
@@ -2456,7 +2454,7 @@ observability/
 - **事件驱动**：订阅 `pkg/hook.Broker` 事件，将日志写入文件
 - **日志级别**：debug/info/warn/error，通过配置控制输出级别
 - **成本估算**：基于 Provider 返回的 Usage + 预设的每千 token 单价估算费用
-- **OpenTelemetry 可选**：通过 build tag `otel` 启用 OTel 追踪（Hook 模式实现）
+- **追踪扩展可选**：默认使用 `log/slog` 和事件总线；如需 OpenTelemetry，可在上层通过 Hook/EventBus 适配
 
 ### 26.8 OAuth 2.0 (`internal/oauth/`)
 

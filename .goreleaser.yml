@@ -50,7 +50,7 @@ dockers_v2:
       - "ghcr.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/basework"
     tags:
       - "{{ .Tag }}"
-      - "latest"
+      - '{{ if and (not .Prerelease) (ne .Env.GORELEASER_PRERELEASE "true") }}latest{{ end }}'
     platforms:
       - linux/amd64
       - linux/arm64
@@ -64,6 +64,7 @@ changelog:
       - "^test:"
 
 release:
+  prerelease: auto
   footer: >-
 
     ---

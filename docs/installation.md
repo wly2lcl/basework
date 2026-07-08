@@ -2,12 +2,14 @@
 
 ## 安装方式
 
-### 方式 1: Homebrew (macOS/Linux)
+### 方式 1: 下载二进制文件
 
-```bash
-brew tap wly2lcl/tap
-brew install basework
-```
+从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的二进制文件。
+
+支持平台：
+- Linux (amd64, arm64)
+- macOS (amd64, arm64)
+- Windows (amd64)
 
 ### 方式 2: Go Install
 
@@ -22,14 +24,7 @@ docker pull ghcr.io/wly2lcl/basework:latest
 docker run -it -v ~/.config/basework:/root/.config/basework ghcr.io/wly2lcl/basework
 ```
 
-### 方式 4: 下载二进制文件
-
-从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的二进制文件。
-
-支持平台：
-- Linux (amd64, arm64)
-- macOS (amd64, arm64)
-- Windows (amd64)
+> Homebrew tap 尚未接入当前 GoReleaser 配置；新增 tap 自动发布前，请使用 GitHub Releases、Go install 或 Docker。
 
 ## 验证安装
 
@@ -62,11 +57,6 @@ basework version
 
 ## 升级
 
-### Homebrew
-```bash
-brew upgrade basework
-```
-
 ### Go Install
 ```bash
 go install -tags "sqlite memory" github.com/wly2lcl/basework/cmd/basework@latest
@@ -79,15 +69,14 @@ docker pull ghcr.io/wly2lcl/basework:latest
 
 ## 卸载
 
-### Homebrew
-```bash
-brew uninstall basework
-```
-
 ### Docker
 ```bash
 docker rmi ghcr.io/wly2lcl/basework:latest
 ```
+
+## 发布流程
+
+正式发布由 GitHub Actions `Release` workflow 和 GoReleaser 驱动，会生成 GitHub Release 二进制包和 GHCR Docker 镜像。维护者操作步骤见 [发布指南](release.md)。
 
 ## 故障排除
 
