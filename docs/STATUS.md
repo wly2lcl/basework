@@ -65,7 +65,7 @@
 | 静态检查 | ✅ 完成 | 增加全仓 gofmt、带 `sqlite memory` tag 的 vet、race test 子集 |
 | 跨平台矩阵 | ✅ 完成 | Ubuntu/macOS/Windows 均运行测试和构建 |
 | Release dry-run | ✅ 完成 | GoReleaser snapshot 验证发布配置但不发布 artifact/镜像 |
-| 发布策略 | ✅ 完成 | tag push 正式发布；手动 dispatch 默认 dry-run，非 dry-run 需版本校验 |
+| 发布策略 | ✅ 完成 | tag push 正式发布；手动 dispatch 默认正式发布并创建 tag，dry-run 需显式开启 |
 
 ### 第六轮优化（P2，已完成）
 

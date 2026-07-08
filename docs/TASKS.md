@@ -129,14 +129,14 @@
 - quality job 增加全仓 gofmt、带 `sqlite memory` tag 的 vet、race test 子集
 - test job 覆盖 Ubuntu/macOS/Windows
 - release dry-run 使用 GoReleaser snapshot 验证发布配置
-- release workflow 支持 tag push 正式发布，workflow_dispatch 默认 dry-run
-- 手动非 dry-run 发布增加版本格式校验，避免误打无效 tag
+- release workflow 支持 tag push 正式发布，workflow_dispatch 默认正式发布并创建 tag
+- 手动 dry-run 需显式开启；手动发布增加版本格式校验，避免误打无效 tag
 
 **验收标准**：
 - [x] CI 覆盖 lint/vet/test/build/release dry-run
 - [x] 跨平台 matrix 覆盖 Linux/macOS/Windows
-- [x] 正式发布只在 tag push 或显式关闭 dry-run 时执行
-- [x] 手动 dry-run 不发布 artifact、不推送镜像
+- [x] 正式发布在 tag push 或手动默认发布时执行
+- [x] 手动 dry-run 需显式开启，且不发布 artifact、不推送镜像
 
 ### Task 35.9: 第六轮默认配置与文档对齐 ✅
 

@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (required only when dry_run is false, e.g. v0.1.0)"
-        required: false
+        description: "Release version (e.g. v0.1.0)"
+        required: true
         type: string
       dry_run:
         description: "Run GoReleaser snapshot without publishing"
         required: false
         type: boolean
-        default: true
+        default: false
       prerelease:
         description: "Mark as pre-release"
         required: false
@@ -29,6 +29,8 @@ jobs:
   release:
     name: GoReleaser
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -37,10 +39,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate manual release input
-        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
+        if: github.event_name == 'workflow_dispatch'
         run: |
           if [ -z "${{ inputs.version }}" ]; then
-            echo "version is required when dry_run is false"
+            echo "version is required"
             exit 1
           fi
           if ! echo "${{ inputs.version }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
@@ -57,8 +59,18 @@ jobs:
       - name: Create and push tag
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
         run: |
+          if git rev-parse "refs/tags/${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "tag ${{ inputs.version }} already exists"
+            exit 1
+          fi
           git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
-          git push origin "${{ inputs.version }}"
+          git push origin "refs/tags/${{ inputs.version }}"
+
+      - name: Checkout release tag
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        run: |
+          git fetch --force --tags
+          git checkout --detach "${RELEASE_TAG}"
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -108,4 +120,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_PRERELEASE: ${{ inputs.prerelease }}
+          GORELEASER_CURRENT_TAG: ${{ env.RELEASE_TAG }}
+          GORELEASER_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
