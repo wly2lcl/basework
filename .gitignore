@@ -24,5 +24,6 @@ vendor/
 coverage.out
 *.prof
 
+# 外部工具 / Agent 本地数据（含 memory 日志、备份包，不进仓库）
 .opencode/
-openspec/
+.workbuddy/

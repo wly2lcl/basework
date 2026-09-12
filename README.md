@@ -9,7 +9,7 @@ import "github.com/wly2lcl/basework/pkg/agent"
 ## 特性
 
 - **双模式** — 嵌入式框架 + 独立终端产品
-- **最小核心** — Agent loop + provider + tool + session < 3000 行
+- **可嵌入核心** — Agent loop + provider + tool + session 四个包即可独立使用，无需 TUI/CLI（规模见 [docs/STATS.md](docs/STATS.md)）
 - **可嵌入** — `agent.New(WithModel(...), WithTools(...))` 即可使用
 - **可扩展** — Hook + Plugin + Skill 三层扩展体系
 - **统一类型** — 一套 `ChatMessage`/`ToolCall` 类型贯穿始终
@@ -23,7 +23,7 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **OAuth 2.0** — PKCE 流程、令牌刷新、加密文件凭证存储
 - **Prompt 缓存** — 自动注入 `cache_control` 标记，减少 50-90% 重复 token 计费（Anthropic/OpenAI/Gemini）
 - **命令黑名单** — 12+ 内置危险命令模式 + 自定义扩展，支持交互/YOLO 权限模式
-- **15+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API
+- **15+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API；含 Amazon Bedrock、Azure、GitHub Copilot、Ollama
 - **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
 - **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
 - **MCP 支持** — Model Context Protocol 外部工具服务器、资源读取、提示模板获取
@@ -32,7 +32,6 @@ import "github.com/wly2lcl/basework/pkg/agent"
 - **会话增强** — SQLite 存储、文件追踪、自动标题、会话队列
 - **终端 UI** — Bubble Tea 构建的完整 TUI
 - **增强工具** — web_fetch、web_search、todowrite、apply_patch、question
-- **15+ LLM 提供商** — 含 Amazon Bedrock、Azure、GitHub Copilot、Ollama
 - **会话稳定性** — SQLite WAL 模式、文件锁、自动恢复、长会话压缩
 - **权限持久化** — SQLite 持久化权限规则、审计日志、权限迁移
 - **敏感路径保护** — 白名单/黑名单机制、三种保护级别
@@ -312,6 +311,7 @@ go build -tags "sqlite memory" ./cmd/basework
 ## 文档
 
 ### 快速开始
+- [安装指南](docs/installation.md) — 下载、Docker、Go install、源码构建
 - [嵌入指南](docs/guides/embedder-guide.md) — 将 basework 嵌入 Go 应用
 - [CLI 使用指南](docs/guides/cli-guide.md) — CLI 完整命令参考
 - [Provider 配置](docs/guides/provider-guide.md) — Provider 配置、模型选择、故障排查
@@ -323,23 +323,30 @@ go build -tags "sqlite memory" ./cmd/basework
 - [终端 UI](docs/guides/tui-guide.md) — TUI 启动、快捷键、主题配置（Phase 18）
 - [主题配置](docs/guides/theme.md) — 内置主题、自定义主题、终端自适应（Phase 29）
 - [模板系统](docs/guides/templates.md) — Provider 感知模板、自定义模板、环境注入（Phase 29）
+- [安全指南](docs/guides/security.md) — 权限边界、敏感路径保护、审计与威胁模型
+- [性能分析](docs/guides/profiling.md) — pprof 端点、CPU/内存/goroutine 分析、benchmark 套件
 
 ### 常见问题
 - [FAQ](docs/FAQ.md) — 常见问题解答
 
 ### 架构与设计
 - [架构概览](ARCHITECTURE.md) — 系统架构、模块依赖、API 兼容性
-- [设计文档](docs/DESIGN.md) — 架构设计、接口定义、设计决策
-- [项目状态](docs/STATUS.md) — 已完成功能、待完成功能、对比分析
+- [设计文档索引](docs/DESIGN.md) — 分册设计文档入口（概览、分层、集成、运行时、Prompt、安全可观测、终端产品）
+- [项目状态](docs/STATUS.md) — 当前已建成能力（不含规划）
+- [代码规模统计](docs/STATS.md) — 行数、文件数、测试与覆盖率（`make stats` 生成）
 
 ### 开发指南
 - [扩展指南](docs/guides/extending.md) — Hook、Plugin、Skill、自定义 Provider/Tool
 - [迁移指南](docs/guides/migration.md) — 版本升级、JSONL → SQLite 迁移
 - [贡献指南](CONTRIBUTING.md) — 如何贡献代码
 
+### 部署与发布
+- [Docker 部署](docs/docker.md) — 镜像标签、挂载与运行方式
+- [发布流程](docs/release.md) — tag 发布、手动发布、dry-run、本地验证
+
 ### 项目管理
-- [任务清单](docs/TASKS.md) — Phase 1-25 完整任务列表
-- [路线图](ROADMAP.md) — 高层路线图
+- [路线图](ROADMAP.md) — 阶段状态、Phase 36 规划、设计原则（唯一路线图）
+- [任务清单](docs/TASKS.md) — 各 Phase 可执行待办与验收标准
 - [变更日志](CHANGELOG.md) — 版本变更记录
 - [安全策略](SECURITY.md) — 漏洞报告、安全更新
 - [行为准则](CODE_OF_CONDUCT.md) — 社区行为准则

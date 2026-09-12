@@ -3,7 +3,62 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+> **版本口径说明（重要）**
+>
+> 已发布版本的唯一权威来源是 **git tag**。当前仓库实际打出的 tag 只有
+> `v0.1.0`、`v0.1.1`、`v0.1.2`；下方 `0.3.0` / `0.4.0` / `0.5.0` 等条目
+> 是开发期的内部编号，**尚未对应到任何 git tag**，其 release 链接暂不可达。
+> 后续发布请以 tag 为准，并补齐两条链路：`git tag` ↔ 本文件条目 ↔
+> [ROADMAP.md](./ROADMAP.md) 的版本字段。
+
 ## [Unreleased]
+
+### 架构边界清理 + 主路径缺陷修复（目标 v0.2.0，破坏性）
+
+**Breaking**
+- `pkg/tool/builtin` 不再依赖 `basework/internal/*`：移除对
+  `internal/observability` 的类型依赖，改为在 `pkg` 内定义最小接口
+  （`PathChecker`、`EventPublisher`）。使用方从直接传
+  `*observability.EventBus` 改为经由 `builtin.SetEventBus(EventPublisher)`
+  注入 —— 结构体实现该接口，故现有调用点无需改动类型，语义等价。
+- 该改动是 `pkg/` 层实现「可独立发布为 Go module」的前置条件。
+
+**Fixed**
+- TUI 流式回调从未接线：`cmd/basework tui` 构造的 agent option 中
+  `Callback` 恒为 nil，导致流式文本、thinking、工具开始/结束事件全部丢失。
+  现改为「构造回调 → 拿到 `tea.Program` 后再绑定 `Send`」的 post-binding
+  模式，避免回调在 `tea.Cmd` goroutine 中直接修改 `App` 造成数据竞争。
+- 会话目录三处不一致：`session status`、`session unlock`、`migrate` 曾分别
+  使用 `~/.local/share/basework/sessions` 与 `~/.basework/sessions`，读不到同一份
+  数据。现统一为——**写入固定规范目录** `~/.local/share/basework/sessions`，
+  **所有读取路径**（`session list/status/unlock`、`migrate`）走
+  `resolveSessionDir()`：优先规范目录，仅当规范目录不存在且旧目录存在时回退到
+  `~/.basework/sessions`。
+- `session` 子命令在会话 ID 短于 12 字符时切片越界 panic，新增
+  `shortSessionID` 统一截断。
+
+**Added**
+- 架构防护测试 `TestPkgDoesNotImportInternal`（`tests/pkg_no_internal_test.go`）：
+  用 `go/parser` 静态扫描 `pkg/`，出现 `basework/internal` 导入即失败。
+  已接入 `make check-arch` 与 CI `quality` job。
+- 代码统计生成器 `scripts/docstats`（纯标准库）+ `make stats`，输出
+  [docs/STATS.md](./docs/STATS.md)，杜绝文档手写数字漂移。
+
+**Docs**
+- `ARCHITECTURE.md`：补充 §分层硬约束（`pkg/` 不得依赖 `internal/` + 守护测试 +
+  接口注入白名单表）；修正 `internal/` 结构图中并不存在的 `cache/`；修正
+  「`pkg/` 零第三方依赖」为登记 `golang.org/x/image` 例外；兼容性表补充
+  「形参引用 `internal/` 类型的导出符号不计入承诺」。
+- `docs/design/07-terminal-product.md` §26.10：修正 TUI 通信模型 —— 原文档描述的
+  是「回调直接调 `app.AddToolCall` / `UpdateStreamingText`」这一已被移除的竞态
+  写法，改为「回调只投递 `tea.Msg`、状态变更在事件循环内」，并补充
+  `callback.go`、4 个流式 Msg 与 post-binding 接线说明。
+- 会话目录文档对齐：`cli-guide.md`、`tui-guide.md`、`installation.md`、
+  `migration.md` 中 `~/.config/basework/sessions/` 与 `~/.basework/sessions/`
+  改为规范目录 + 旧目录回退说明。
+- 合并互斥的两份 ROADMAP 为根目录单一份；删除 `docs/ROADMAP.md` 与 `openspec/`。
+- 拆分 3239 行 `docs/DESIGN.md` 为 `docs/design/01-07`（内容逐字保留）。
+- `docs/STATUS.md` 收敛为「仅描述当前状态」，移除与代码矛盾的 Phase 26-30 规划段。
 
 ### Phase 34: 深度修复 — 协议/数据/可靠性 (2026-07-07)
 

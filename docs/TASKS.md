@@ -2,7 +2,11 @@
 
 > 从可嵌入框架到独立终端产品的完整实施计划
 > 
-> Phase 1-12：核心框架（已完成 ✅）| Phase 13-25：终端产品化（已完成 ✅）| Phase 26-27：稳定性+CI/CD（已完成 ✅）| Phase 28：安全加固+性能基线（已完成 ✅）| Phase 29-30：TUI 增强 + 模板系统 + 多模态 + 插件生态（已完成 ✅）
+> Phase 1-12：核心框架（已完成 ✅）| Phase 13-25：终端产品化（已完成 ✅）| Phase 26-30：稳定性、CI/CD、TUI 基础和生态（已完成 ✅）| Phase 35：主路径收口（已完成 ✅）| Phase 36：核心能力追赶 crush（规划中）
+>
+> **本文件职责**：只记录**可执行待办与验收标准**（checklist）。
+> 阶段状态判定、依赖顺序与设计原则见 [ROADMAP.md](../ROADMAP.md)；
+> 当前已建成能力见 [STATUS.md](./STATUS.md)。
 
 ---
 
@@ -233,6 +237,133 @@
 - [x] 发布产物说明与 `.goreleaser.yml` 一致
 - [x] 手动预发布会标记 GitHub Release 为 pre-release，且不会更新 Docker `latest`
 - [x] 状态文档不再把已完成的 CI/CD、发布、安全和 TUI 增强列为未完成主项
+
+---
+
+## Phase 36: 核心能力追赶 crush（规划中）
+
+**背景**：2026-07-09 与 crush 对比后确认，basework 底层模块覆盖较完整，但真实编程任务体验仍弱于成熟终端产品。后续不再优先堆更多 provider 或零散 UI，而是围绕“稳定工具调用、后台命令、可靠编辑、workspace 上下文、backend 分层、TUI 产品化”补齐核心能力。
+
+**总体验收标准**：
+- [ ] 免费模型、OpenAI-compatible 模型和常见商业模型都能稳定保留工具调用能力
+- [ ] 长命令可后台运行、流式输出、取消并查询历史输出
+- [ ] 多文件编辑有 diff 预览、确认、结果追踪和回滚边界
+- [ ] 会话能记录已读文件、已改文件、运行命令和诊断结果
+- [ ] TUI 能展示工具状态、权限确认、diff、模型选择、会话切换和通知
+- [ ] backend/server 分层完成最小可用原型，支持 TUI 与 agent runtime 解耦
+
+### Task 36.1: Provider + tool call 稳定性
+
+**优先级**：P0
+
+**文件**：`pkg/provider/`, `pkg/agent/pipeline.go`, `cmd/basework/runtime.go`, `cmd/basework/model.go`, `pkg/llm/`
+
+**内容**：
+- 统一处理 OpenAI-compatible provider 的流式 tool call delta 和 complete event 语义
+- 增加模型能力探测：tools、streaming、vision、json mode、requires_api_key
+- OpenCode 免费模型不得禁用工具能力；无 key 时只选择确实可用的免费模型
+- `model list/use` 显示模型是否免费、是否需要 key、是否支持工具
+- 增加真实协议兼容性回归测试，覆盖增量 args、最终完整 args、空 assistant content 等边界
+
+**验收标准**：
+- [ ] `opencode/big-pickle` 无 API key 时仍可调用工具
+- [ ] OpenAI-compatible 流式工具参数不会重复拼接或丢失
+- [ ] 模型列表能清晰显示免费/key/tools 能力
+- [ ] 不支持工具的模型在运行前给出清晰提示或自动切换可用模型
+
+### Task 36.2: 后台 shell/job 管理
+
+**优先级**：P0
+
+**文件**：`pkg/tool/builtin/`, `internal/tools/`, `pkg/session/`, `internal/tui/`
+
+**内容**：
+- 引入 shell job manager，支持前台命令和后台命令
+- 支持流式 stdout/stderr、退出码、超时、取消、force kill
+- 新增 `job_output`、`job_kill` 或等价工具
+- 会话持久化命令、输出摘要、退出码和错误状态
+- TUI/CLI 能展示运行中、成功、失败、取消状态
+
+**验收标准**：
+- [ ] 长命令不会阻塞整个 agent loop
+- [ ] 用户可取消正在运行的命令
+- [ ] agent 可读取后台任务最新输出
+- [ ] 命令输出进入 session，并可在恢复会话后查看摘要
+
+### Task 36.3: 可靠编辑与 diff 工作流
+
+**优先级**：P0
+
+**文件**：`pkg/tool/builtin/edit.go`, `internal/tools/applypatch.go`, `pkg/session/`, `internal/tui/`
+
+**内容**：
+- 增加 multi-edit 能力，支持同文件多处替换和跨文件编辑
+- 每次编辑生成结构化 diff，记录 touched files
+- 可选权限确认：写入前展示 diff，允许/拒绝/始终允许
+- 编辑失败时返回可操作错误：匹配失败、上下文过期、文件已变更
+- 为 TUI diff view 预留渲染数据结构
+
+**验收标准**：
+- [ ] 多处编辑要么全部成功，要么明确报告部分失败边界
+- [ ] 所有写入类工具都能生成 touched files 和 diff 摘要
+- [ ] 权限 ask 模式下写入前可确认 diff
+- [ ] 编辑结果可被 session 和 TUI 消费
+
+### Task 36.4: Workspace 上下文与文件追踪
+
+**优先级**：P1
+
+**文件**：`pkg/session/`, `pkg/agent/environment.go`, `pkg/lsp/`, `internal/tui/`
+
+**内容**：
+- 记录 read files、written files、searched patterns、executed commands
+- 将 git status、当前分支、最近 touched files 注入 agent 环境
+- LSP 诊断结果和文件引用进入 workspace context
+- 会话恢复时重建 workspace 摘要
+- 为子代理提供只读 workspace context，避免重复扫描
+
+**验收标准**：
+- [ ] agent 能知道当前会话读过/改过哪些文件
+- [ ] 恢复会话后仍能看到 workspace 摘要
+- [ ] prompt 不盲目塞全量历史，而是注入高价值上下文
+- [ ] 子代理可继承必要上下文但不继承写权限
+
+### Task 36.5: Backend/server/client 最小分层
+
+**优先级**：P1
+
+**文件**：`internal/backend/`, `internal/server/`, `internal/client/`, `internal/proto/`, `cmd/basework/`
+
+**内容**：
+- 抽出 agent runtime backend，管理 session、tool jobs、event bus 和配置热加载
+- 定义最小 proto：send message、cancel run、list sessions、subscribe events、tool permission response
+- CLI/TUI 通过 client 调用 backend，保留 embedded/pkg 使用方式不受影响
+- 本地单进程模式继续可用；server 模式作为可选能力逐步启用
+
+**验收标准**：
+- [ ] TUI 不直接持有复杂 agent runtime 状态
+- [ ] 同一 backend 可服务 CLI/TUI 的基础请求
+- [ ] 可取消运行中的 agent turn
+- [ ] `pkg/` 可嵌入 API 不被 backend 分层污染
+
+### Task 36.6: TUI 产品化第一阶段
+
+**优先级**：P1
+
+**文件**：`internal/tui/`
+
+**内容**：
+- 将单一 App 状态拆分为 chat、input、status、tool view、dialogs、session/model 子模型
+- 工具调用按状态展示：等待权限、运行中、成功、失败、取消
+- 增加 diff view、模型选择、会话选择、权限确认、通知基础组件
+- 支持命令补全、文件选择、最近模型/会话记忆
+- 增加布局和渲染回归测试，覆盖窄屏/宽屏/长输出
+
+**验收标准**：
+- [ ] TUI 不再只显示最终文本，能看到工具调用过程
+- [ ] 写入类工具可在 TUI 中展示 diff 并确认
+- [ ] 模型和会话可在 TUI 内切换
+- [ ] 长输出不会破坏布局或阻塞输入
 
 ---
 

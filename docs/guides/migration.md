@@ -24,8 +24,12 @@ basework 的会话存储从 JSONL 迁移到 SQLite（Phase 19）。SQLite 提供
 - 备份现有会话数据
 
 ```bash
-cp -r ~/.basework/sessions/ ~/.basework/sessions.backup.$(date +%Y%m%d)
+# 规范目录（当前版本使用）
+cp -r ~/.local/share/basework/sessions/ \
+     ~/.local/share/basework/sessions.backup.$(date +%Y%m%d)
 ```
+
+- 若你是从旧版本升级，旧数据可能在 `~/.basework/sessions/`，一并备份
 
 - 确认磁盘空间充足（SQLite 数据库约为 JSONL 的 30%-50% 大小）
 
@@ -41,10 +45,15 @@ basework session list
 
 迁移命令会自动执行以下步骤：
 
-1. 扫描 `~/.basework/sessions/` 下的所有 `.jsonl` 文件
+1. 扫描会话源目录下的所有 `.jsonl` 文件。源目录优先 `~/.local/share/basework/sessions/`，
+   该目录不存在而 `~/.basework/sessions/` 存在时回退到后者
 2. 逐行解析 JSON 事件，写入 SQLite 数据库
-3. 在 `~/.basework/sessions/` 下生成 `sessions.db`
+3. 在源目录下生成 `sessions.db`（可用 `--sqlite-path` 覆盖）
 4. 输出迁移统计（总会话数、事件数、耗时）
+
+> **注意**：回退判定依据是「规范目录是否存在」。一旦你运行过新版本的
+> `basework agent` / `basework tui`，规范目录会被创建，回退随之失效。
+> 因此**升级后请先迁移、再启动 agent/TUI**，否则旧数据不会被自动扫描到。
 
 ### 手动迁移
 
@@ -95,7 +104,7 @@ basework migrate sessions --rollback
 
 | 现象 | 可能原因 | 解决方法 |
 |------|----------|----------|
-| migration failed: permission denied | 文件权限不足 | 检查 `~/.basework/sessions/` 读写权限 |
+| migration failed: permission denied | 文件权限不足 | 检查会话目录（`~/.local/share/basework/sessions/` 或旧目录 `~/.basework/sessions/`）读写权限 |
 | migration failed: disk full | 磁盘空间不足 | 清理磁盘后重试 |
 | session list 为空 | SQLite 路径配置错误 | 检查 `session.store` 配置值，确认 `.jsonl` 文件位置 |
 | rollback 后数据丢失 | SQLite 数据未完全导出 | 检查 `--rollback` 日志，确认无解析错误 |
@@ -242,8 +251,8 @@ type ExtendedHook interface {
 ## 版本升级检查清单
 
 - [ ] 阅读 `CHANGELOG.md` 了解当前版本与目标版本之间的所有变更
-- [ ] 备份配置文件（`~/.basework/config.json`）
-- [ ] 备份会话数据（`~/.basework/sessions/`）
+- [ ] 备份配置文件（`~/.config/basework/config.json`）
+- [ ] 备份会话数据（`~/.local/share/basework/sessions/`，旧版本为 `~/.basework/sessions/`）
 - [ ] 运行 `basework migrate sessions` 迁移会话存储
 - [ ] 运行 `basework session list` 验证迁移结果
 - [ ] 测试核心功能（会话管理、工具调用、模型切换）

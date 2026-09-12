@@ -4,27 +4,27 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  cmd/basework/ — CLI 入口（cobra + TUI）                 │
+│  cmd/basework/ — CLI 入口（cobra + 增强 REPL + TUI）     │
 ├─────────────────────────────────────────────────────────┤
 │  internal/ — 终端产品专用逻辑                            │
-│  ├── tui/          终端 UI（Bubble Tea）                 │
-│  ├── compaction/   上下文压缩                            │
-│  ├── retry/        重试机制                              │
-│  ├── permission/   权限系统                              │
-│  ├── subagent/     子代理                                │
-│  ├── loopdetect/   循环检测                              │
-│  ├── observability/ 可观测性                             │
-│  ├── cache/        Prompt 缓存                          │
-│  ├── oauth/        OAuth 认证                           │
-│  └── tools/        增强工具                              │
+│  ├── tui/            终端 UI（Bubble Tea）               │
+│  ├── compaction/     上下文压缩                          │
+│  ├── retry/          重试机制                            │
+│  ├── permission/     权限系统                            │
+│  ├── subagent/       子代理                              │
+│  ├── loopdetect/     循环检测                            │
+│  ├── observability/  可观测性（日志 + 成本追踪 + 事件总线）│
+│  ├── oauth/          OAuth 认证                          │
+│  └── tools/          增强工具                            │
 ├─────────────────────────────────────────────────────────┤
 │  pkg/ — 核心框架（可嵌入，稳定 API）                      │
-│  ├── llm/          类型系统 + 错误分类                   │
-│  ├── tool/         工具接口 + 注册表 + 6 个内置工具      │
+│  ├── llm/          类型系统 + 错误分类 + 图片处理         │
+│  ├── tool/         工具接口 + 注册表 + 内置工具          │
 │  ├── hook/         Hook 系统 + PubSub                   │
 │  ├── session/      会话管理 + 事件溯源                   │
 │  ├── agent/        Agent 循环 + 流式处理                 │
 │  ├── provider/     Provider 工厂（15+ 个 Provider）       │
+│  │                 + Prompt 缓存（cache.go）             │
 │  ├── lsp/          LSP 集成                              │
 │  ├── mcp/          MCP 集成                              │
 │  ├── memory/       记忆系统（FTS5, build tag）           │
@@ -32,6 +32,22 @@
 │  └── skill/        技能加载                              │
 └─────────────────────────────────────────────────────────┘
 ```
+
+> **分层硬约束**：`pkg/` **不得**依赖 `internal/`（含 `basework/internal/*`）。
+> `pkg/` 是可独立嵌入、面向外部使用者的核心层；`internal/` 是终端产品专用实现，
+> 反向依赖会让核心层无法独立发布。
+>
+> 该约束由测试 `TestPkgDoesNotImportInternal`（`tests/pkg_no_internal_test.go`，
+> 用 `go/parser` 静态扫描 `pkg/` 的 import）强制守护，已接入 `make check-arch`
+> 与 CI `quality` job。
+
+`pkg/` 需要接收产品层实现（如路径检查、事件发布）时，做法是**在 `pkg` 内定义最小
+接口**，由 `internal/` 的具体类型结构化满足，而不是反向 import。现有示例：
+
+| `pkg` 内接口 | `internal/` 实现方 | 注入点 |
+|---|---|---|
+| `pkg/tool/builtin.PathChecker` | `*permission.PathChecker` | `builtin.SetPathChecker` |
+| `pkg/tool/builtin.EventPublisher` | `*observability.EventBusAdapter` | `builtin.SetEventBus` |
 
 ## 核心数据流
 
@@ -98,6 +114,14 @@ llm + tool ← mcp
 | 扩展 API | `pkg/provider/`, `pkg/hook/`, `pkg/mcp/`, `pkg/lsp/` | **SemVer 次版本兼容**：可新增，不可删除 |
 | 内部实现 | `internal/*` | **无兼容性承诺**：随时可重构 |
 
+**例外（不计入兼容性承诺）**：`pkg/` 中形参或返回类型**直接引用 `internal/` 类型**的
+导出符号。这类签名外部使用者无法构造（外部 module 不能 import `basework/internal/*`），
+因此对外本来不可用；修正它们时的签名变更不算破坏性变更。
+
+> 实际案例：`pkg/tool/builtin.SetEventBus` 原签名为
+> `SetEventBus(*observability.EventBus)`，2026-09 的架构边界清理将其改为
+> `SetEventBus(EventPublisher)`（接口在 `pkg` 内定义）。见 `CHANGELOG.md`。
+
 ### 扩展原则
 
 ```go
@@ -161,16 +185,22 @@ description: "代码审查最佳实践"
 | 技术 | 用途 | 说明 |
 |------|------|------|
 | Go 1.26+ | 开发语言 | 泛型、`log/slog`、`net/http` 增强 |
-| 标准库优先 | 核心依赖 | HTTP/JSON/SSE 自实现，无第三方依赖 |
+| 标准库优先 | 核心依赖 | HTTP/JSON/SSE 自实现；`pkg/` 层第三方依赖仅限明确批准的例外（见下） |
 | `modernc.org/sqlite` | 持久化 | 纯 Go SQLite，build tag 控制 |
+| `golang.org/x/image` | WebP 解码 + 图片缩放 | `pkg/llm/image.go`（多模态图片输入），见下方例外说明 |
 | cobra | CLI 框架 | 子命令、标志解析 |
-| Bubble Tea + Lip Gloss + Glamour | TUI | Phase 18 引入，build tag 控制 |
+| Bubble Tea + Lip Gloss + Glamour | TUI | Phase 18 引入，可独立于 `pkg/` 使用 |
 
 ## 关键技术决策
 
 ### 为什么用标准库优先？
 
-核心框架（`pkg/` 层）不依赖任何第三方库，确保最小依赖和长期可维护性。第三方依赖仅在终端产品（`internal/`、`cmd/`）或可选模块（`pkg/memory/`）中使用。
+核心框架（`pkg/` 层）尽量不依赖第三方库，确保最小依赖和长期可维护性。第三方依赖主要
+出现在终端产品（`internal/`、`cmd/`）或可选模块（`pkg/memory/`）中。
+
+**已批准的例外**（唯一一个）：`golang.org/x/image`，用于 `pkg/llm/image.go` 的 WebP
+解码与图片缩放（多模态输入）。理由：标准库无 WebP 解码器，自实现不现实；该包由 Go
+官方团队维护，无传递依赖负担。新增其他 `pkg/` 层第三方依赖需要在此登记。
 
 ### 为什么用事件溯源？
 

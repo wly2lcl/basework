@@ -132,7 +132,10 @@ basework session export <session-id>
 basework session search "关键词"
 ```
 
-会话数据默认存储在 `~/.config/basework/sessions/` 目录下。
+会话数据默认存储在 `~/.local/share/basework/sessions/` 目录下（数据目录，遵循 XDG：
+配置放 `~/.config/basework/`，会话数据放 `$XDG_DATA_HOME`）。早期版本的
+`~/.basework/sessions/` 作为只读回退仍可被读取，可用 `basework migrate sessions`
+合并到规范目录。
 
 ### basework tui
 

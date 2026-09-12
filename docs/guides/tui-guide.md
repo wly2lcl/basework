@@ -278,7 +278,7 @@ basework agent --no-tui
 
 ### 自动保存
 
-会话自动保存到 `~/.config/basework/sessions/`，重启 TUI 后可通过 `--resume` 恢复。
+会话自动保存到 `~/.local/share/basework/sessions/`，重启 TUI 后可通过 `--resume` 恢复。
 
 ## 故障排查
 

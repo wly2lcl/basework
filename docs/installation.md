@@ -47,7 +47,7 @@ basework version
   "model": "big-pickle",
   "session": {
     "store": "sqlite",
-    "sqlite_path": "~/.basework/sessions/sessions.db"
+    "sqlite_path": "~/.local/share/basework/sessions/sessions.db"
   },
   "database": {
     "mode": "wal"
