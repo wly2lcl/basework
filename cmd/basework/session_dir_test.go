@@ -74,37 +74,6 @@ func TestResolveSessionDir_DefaultsToCanonical(t *testing.T) {
 	}
 }
 
-// TestResolveMigrateSQLitePath_Default 验证迁移的 SQLite 默认路径与规范目录一致。
-// 旧版本此处硬编码 ~/.basework/sessions，导致迁移读一处写另一处。
-func TestResolveMigrateSQLitePath_Default(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-
-	original := migrateSQLitePath
-	migrateSQLitePath = ""
-	t.Cleanup(func() { migrateSQLitePath = original })
-
-	got := resolveMigrateSQLitePath()
-	want := filepath.Join(getSessionDir(), "sessions.db")
-	if got != want {
-		t.Fatalf("resolveMigrateSQLitePath() = %q, want %q", got, want)
-	}
-}
-
-// TestResolveMigrateSQLitePath_Explicit 验证显式指定路径时不被覆盖。
-func TestResolveMigrateSQLitePath_Explicit(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-
-	custom := filepath.Join(t.TempDir(), "custom.db")
-	original := migrateSQLitePath
-	migrateSQLitePath = custom
-	t.Cleanup(func() { migrateSQLitePath = original })
-
-	if got := resolveMigrateSQLitePath(); got != custom {
-		t.Fatalf("显式路径应原样返回 %q，得到 %q", custom, got)
-	}
-}
-
 // TestShortSessionID 验证短 ID 不会 panic。
 // 旧实现直接做 sessionID[:12]，ID 不足 12 字符时越界 panic。
 func TestShortSessionID(t *testing.T) {

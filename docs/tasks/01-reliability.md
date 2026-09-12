@@ -89,6 +89,8 @@
 
 **前置任务**：REL-001。依赖尚未完成时，只能调查或细化方案，不能宣称本项已验收。
 
+当前 system prompt / steering 事件写入失败会阻断本轮 Provider 调用，并保留可重试状态；这项失败处理不等于 REL-004 的严格审计策略已完成。`request.built` 仍是 best-effort，失败只记日志并继续；本卡还需覆盖请求重建失败、严格模式配置及其时序验收。
+
 **先读 / 主要修改范围**：`pkg/agent/request.go`、`pkg/agent/pipeline.go`、`pkg/session/`。首次阅读应确认实际文件/符号，拟新增路径不存在属正常。
 
 **实施步骤**：

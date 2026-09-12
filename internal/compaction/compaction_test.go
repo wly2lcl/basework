@@ -188,13 +188,13 @@ func TestSlidingWindowStrategy_Compact(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Compact() 返回错误: %v", err)
 			}
-			if len(got) < tt.wantLenMin || len(got) > tt.wantLenMax {
+			if len(got.Messages) < tt.wantLenMin || len(got.Messages) > tt.wantLenMax {
 				t.Errorf("Compact() 返回 %d 条消息, 期望在 [%d, %d] 范围内",
-					len(got), tt.wantLenMin, tt.wantLenMax)
+					len(got.Messages), tt.wantLenMin, tt.wantLenMax)
 			}
 			if tt.checkSys {
 				hasSys := false
-				for _, msg := range got {
+				for _, msg := range got.Messages {
 					if msg.Role == llm.RoleSystem {
 						hasSys = true
 						break
@@ -291,13 +291,17 @@ func TestSummarizationStrategy_Compact(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Compact() 返回意外错误: %v", err)
 			}
-			if len(got) < tt.wantMinLen || len(got) > tt.wantMaxLen {
+			if len(got.Messages) < tt.wantMinLen || len(got.Messages) > tt.wantMaxLen {
 				t.Errorf("Compact() 返回 %d 条消息, 期望在 [%d, %d] 范围内",
-					len(got), tt.wantMinLen, tt.wantMaxLen)
+					len(got.Messages), tt.wantMinLen, tt.wantMaxLen)
+			}
+			// 摘要必须通过 Result.Summary 回传，否则它永远到不了模型面前。
+			if tt.summary != "" && got.Summary != tt.summary {
+				t.Errorf("Summary = %q, 期望 %q", got.Summary, tt.summary)
 			}
 			if tt.checkSys {
 				hasSys := false
-				for _, msg := range got {
+				for _, msg := range got.Messages {
 					if msg.Role == llm.RoleSystem {
 						hasSys = true
 						break
@@ -402,14 +406,14 @@ func TestSelectiveStrategy_Compact(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Compact() 返回错误: %v", err)
 			}
-			if len(got) != tt.wantLen {
-				t.Errorf("Compact() 返回 %d 条消息, 期望 %d 条", len(got), tt.wantLen)
+			if len(got.Messages) != tt.wantLen {
+				t.Errorf("Compact() 返回 %d 条消息, 期望 %d 条", len(got.Messages), tt.wantLen)
 			}
 
 			userCount := 0
 			assistantCount := 0
 			sysCount := 0
-			for _, msg := range got {
+			for _, msg := range got.Messages {
 				switch msg.Role {
 				case llm.RoleUser:
 					userCount++

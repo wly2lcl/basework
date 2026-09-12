@@ -21,9 +21,11 @@ type TurnResult struct {
 
 // Pipeline 实现了四阶段 turn 执行管线：setup → callLLM → executeTools → finalize
 type Pipeline struct {
-	td           TurnD
-	sessionID    string
-	steeringMsgs []llm.ChatMessage // 从 SteeringManager.Drain() 获取的消息，在 setupTurn 中 prepend
+	td        TurnD
+	sessionID string
+	// sources 由 setupTurn 从事件日志推导，记录请求各片段来源，
+	// 供 callLLM 写入 RequestBuilt 事件时使用（避免重复读一遍日志）。
+	sources []session.RequestSource
 }
 
 // NewPipeline 创建管线
@@ -51,53 +53,23 @@ func (p *Pipeline) Run(ctx context.Context) (*TurnResult, error) {
 	return p.finalize(ctx, resp, results)
 }
 
-// setupTurn 准备 LLM 请求所需的 messages 和 tools
+// setupTurn 准备 LLM 请求所需的 messages 和 tools。
+//
+// messages 完全由事件日志重建（BuildRequestMessages），不再从配置直接注入
+// system prompt、也不使用内存态的 steering 队列：两者都已落成事件，请求因此是
+// 事件日志的纯函数。之前那两条路径是「静默漂移」的来源——模型看得到，日志里
+// 却没有，事后无法解释模型为什么那样回答。
 func (p *Pipeline) setupTurn(_ context.Context) ([]llm.ChatMessage, []llm.ToolDefinition, error) {
-	// 1. 获取历史消息
-	msgs, err := p.td.History()
+	events, err := p.td.Session().Events(session.EventFilter{SessionID: p.sessionID})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 2. 如果有 system prompt，prepend 或替换
-	if prompt := p.td.SystemPrompt(); prompt != "" {
-		sysMsg := llm.ChatMessage{
-			Role:    llm.RoleSystem,
-			Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: prompt}},
-		}
-		// 如果已有 system 消息则替换，否则 prepend
-		inserted := false
-		for i, msg := range msgs {
-			if msg.Role == llm.RoleSystem {
-				msgs[i] = sysMsg
-				inserted = true
-				break
-			}
-		}
-		if !inserted {
-			msgs = append([]llm.ChatMessage{sysMsg}, msgs...)
-		}
-	}
-
-	// 3. prepend steering 消息（以 system 角色出现）到 system prompt 之后、历史消息之前
-	if len(p.steeringMsgs) > 0 {
-		// 在第一条非 system 消息之前插入 steering 消息，如果全是 system 则追加到最后
-		insertPos := 0
-		for i, msg := range msgs {
-			if msg.Role != llm.RoleSystem {
-				break
-			}
-			insertPos = i + 1
-		}
-		// 在 insertPos 处插入 steering 消息
-		msgs = append(msgs[:insertPos], append(p.steeringMsgs, msgs[insertPos:]...)...)
-		p.steeringMsgs = nil
-	}
-
-	// 4. 获取工具定义
+	p.sources = describeRequestSources(events)
+	messages := BuildRequestMessages(events)
 	tools := p.td.ToolRegistry().Materialize()
 
-	return msgs, tools, nil
+	return messages, tools, nil
 }
 
 // callLLM 调用 LLM stream 并消费，累积 assistant message 和 tool calls
@@ -109,14 +81,19 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 		return nil, err
 	}
 
-	// 2. 调用 stream
+	// 2. 记录请求指纹：每个真正发给 provider 的请求都在日志里留下指纹，
+	//    可事后核对「模型看到的就是日志里记录的那份」。放在 hook 之后、Stream
+	//    之前，记录的正是最终形态。
+	p.recordRequestBuilt(msgs, tools)
+
+	// 3. 调用 stream
 	ch, err := p.td.Model().Stream(ctx, &llm.Request{Messages: msgs, Tools: tools})
 	if err != nil {
 		p.td.Hooks().RunAfterLLM(nil, err)
 		return nil, err
 	}
 
-	// 3. 消费 stream
+	// 4. 消费 stream
 	var textContent string
 	type accToolCall struct {
 		id       string
@@ -209,10 +186,10 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 		Usage:   usage,
 	}
 
-	// 4. 执行 AfterLLM hooks
+	// 5. 执行 AfterLLM hooks
 	p.td.Hooks().RunAfterLLM(resp, nil)
 
-	// 5. 将 assistant message 存储为 session 事件
+	// 6. 将 assistant message 存储为 session 事件
 	store := p.td.Session()
 
 	if textContent != "" {
@@ -252,6 +229,33 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 	}
 
 	return resp, nil
+}
+
+// recordRequestBuilt 把本次真实请求的指纹写入事件日志。
+//
+// 只记指纹（条数 + 哈希 + 来源），不记请求全文：全文可由事件日志重建，
+// 重复存一份既增体积，也让人误以为"日志里的这份"才是权威。
+//
+// 写入失败只记日志、不中断请求：审计能力缺失不应该让对话本身失败，
+// 但这也意味着该事件不保证每条请求都有——所以核对时以「有则必须一致」为准。
+func (p *Pipeline) recordRequestBuilt(msgs []llm.ChatMessage, tools []llm.ToolDefinition) {
+	data, err := session.EncodeData(&session.RequestBuiltData{
+		MsgCount:  len(msgs),
+		ToolCount: len(tools),
+		Hash:      RequestFingerprint(msgs, tools),
+		Sources:   p.sources,
+	})
+	if err != nil {
+		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventRequestBuilt)
+		return
+	}
+	if err := p.td.Session().AppendEvent(session.Event{
+		SessionID: p.sessionID,
+		Type:      session.EventRequestBuilt,
+		Data:      data,
+	}); err != nil {
+		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventRequestBuilt)
+	}
 }
 
 // executeTools 执行所有工具调用，单工具失败不影响其他

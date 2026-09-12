@@ -10,10 +10,11 @@ setupTurn ──► callLLM ──► executeTools ──► finalize
 ```
 
 - **请求组装** — `BuildRequestMessages(events)`：从事件日志重建将要发给 provider 的消息
-  列表。这是「模型可见即已记录」不变量的落点，请求因此是**事件日志的纯函数**。
+  列表，顺序为最新 system prompt、按写入顺序累积的全部 steering、再到历史投影。
+  已落盘的 steering 会进入后续每次请求；它不是只消费一次的临时提示。
 - **请求审计** — `RequestFingerprint`（messages + tools 的稳定哈希）与
-  `CheckRequestInvariant`（校验实际请求 == 日志重建结果）。每次请求尝试写入
-  `request.built`；失败只记日志，不阻止发送。校验器当前未接入运行时。
+  `CheckRequestInvariant`（深比较完整 `ChatMessage`，校验实际请求与日志重建结果）。每次请求尝试写入
+  `request.built`；该事件写入失败只记日志并继续发送。校验器当前未接入运行时。
 - **上下文治理** — `Compactor` / `CompactReporter`（可选扩展）、`TruncateMessages`、
   `ShouldCompact`、`CompactSummary`、`ContextCollector`。
 - **运行期交互** — `SteeringManager`（运行中插话）、`Callback`（流式回调）、
@@ -47,8 +48,15 @@ setupTurn ──► callLLM ──► executeTools ──► finalize
 
 ## Known Limitations
 
-- **「请求 = 日志纯函数」只在没有改写请求的 hook 时成立。** 装了会在 `BeforeLLM` 里重写
-  消息的钩子后，`CheckRequestInvariant` 必然失败——这是设计边界，不是缺陷。
+- **请求重建不覆盖调用方与 Provider 的所有变换。** `BeforeLLM` hook 改写消息后，
+  `CheckRequestInvariant` 会报告差异；Provider 传输层在调用后再做的改写也不在本包可重建范围内。
+  校验器用于测试和诊断，尚未接入运行时阻断策略。
+- **上下文事件的持久化失败会阻断本轮 Provider 调用。** `system.prompt_set` 写入失败时，
+  不提交 prompt 已记录状态，以便后续重试；`steered` 写入失败时，本轮不调用 Provider，
+  并把已 Drain 的消息放回队列以便后续重试。`request.built` 仍是尽力记录：写入失败仅记日志，
+  不阻断请求，因此不能保证每次请求都有对应审计事件。
+- **Steering 会持续累积并重放。** 每次请求都会重放日志里的全部 steering，当前没有过期、清除或
+  只重放最近一轮的策略；反复插话会增加后续请求上下文长度。
 - **每步都会重新读取并投影全量事件日志**（`setupTurn` 一次、压缩判断一次、循环检测一次），
   长会话下存在 O(事件数) 的重复开销。上下文压缩是主要缓解手段。
 - **一个 `AgentLoop` 绑定一个 sessionID**：多会话需要多个实例，实例之间不共享状态。

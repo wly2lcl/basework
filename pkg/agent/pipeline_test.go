@@ -236,6 +236,9 @@ func TestPipeline_SetupTurn_WithSystemPrompt(t *testing.T) {
 	td := setupTestTurnD(t, model, func(d *testTurnD) {
 		d.sysPrompt = "你是一个助手"
 	})
+
+	// system prompt 必须来自事件日志：凭空设置 TurnD.SystemPrompt() 不再影响请求。
+	seedSystemPromptEvent(t, td, "你是一个助手")
 	p := NewPipeline(td)
 
 	msgs, _, err := p.setupTurn(context.Background())
@@ -251,6 +254,62 @@ func TestPipeline_SetupTurn_WithSystemPrompt(t *testing.T) {
 	}
 	if len(msgs[0].Content) == 0 || msgs[0].Content[0].Text != "你是一个助手" {
 		t.Errorf("system prompt 内容不匹配: %+v", msgs[0].Content)
+	}
+}
+
+// TestPipeline_SetupTurn_IgnoresConfigOnlySystemPrompt 记录一条设计约束：
+// 只改配置、不落事件，system prompt 就进不了请求。
+//
+// 这条「不生效」是特性而非缺陷——它保证「模型看到的 = 日志里记的」，
+// 任何绕过事件日志的注入路径都会在这里露出来。
+func TestPipeline_SetupTurn_IgnoresConfigOnlySystemPrompt(t *testing.T) {
+	model := &mockModel{}
+	td := setupTestTurnD(t, model, func(d *testTurnD) {
+		d.sysPrompt = "只写在配置里的 prompt"
+	})
+	p := NewPipeline(td)
+
+	msgs, _, err := p.setupTurn(context.Background())
+	if err != nil {
+		t.Fatalf("setupTurn 返回错误: %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Fatalf("未落事件的 system prompt 不得进入请求，实际得到 %d 条消息", len(msgs))
+	}
+}
+
+// seedSystemPromptEvent 向测试会话写入一条 system.prompt_set 事件。
+func seedSystemPromptEvent(t *testing.T, td *testTurnD, prompt string) {
+	t.Helper()
+	data, err := session.EncodeData(&session.SystemPromptSetData{
+		Content: prompt,
+		Hash:    contentHash(prompt),
+	})
+	if err != nil {
+		t.Fatalf("编码 system prompt 事件失败: %v", err)
+	}
+	if err := td.session.AppendEvent(session.Event{
+		SessionID: td.sessionID,
+		Type:      session.EventSystemPromptSet,
+		Data:      data,
+	}); err != nil {
+		t.Fatalf("写入 system prompt 事件失败: %v", err)
+	}
+}
+
+// seedSteeredEvent 向测试会话写入一条 steered 事件。
+func seedSteeredEvent(t *testing.T, td *testTurnD, msgs ...string) {
+	t.Helper()
+	data, err := session.EncodeData(&session.SteeredData{Messages: msgs})
+	if err != nil {
+		t.Fatalf("编码 steered 事件失败: %v", err)
+	}
+	if err := td.session.AppendEvent(session.Event{
+		SessionID: td.sessionID,
+		Type:      session.EventSteered,
+		Data:      data,
+	}); err != nil {
+		t.Fatalf("写入 steered 事件失败: %v", err)
 	}
 }
 

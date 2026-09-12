@@ -118,7 +118,45 @@ func (s *SQLiteStore) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_tool_results_tool_call_id ON tool_results(tool_call_id);
 	`
 	_, err := s.db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.migrateSchema()
+}
+
+// migrateSchema 处理数据库格式版本。
+//
+// 用 SQLite 原生的 `PRAGMA user_version` 承载版本号（默认 0），不另建 meta 表：
+// 少一张表就少一处可能与真实状态不一致的地方。
+//
+// 库版本高于当前程序支持时返回 ErrSchemaTooNew，由 NewSQLiteStore 向上传播，
+// 使写入路径在打开阶段就失败，而不是先写入再发现格式不对。
+func (s *SQLiteStore) migrateSchema() error {
+	var version int
+	if err := s.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
+		return fmt.Errorf("session: 读取 user_version 失败: %w", err)
+	}
+
+	if version > SchemaVersion {
+		return fmt.Errorf("%w（数据库为 v%d，当前支持 v%d）", ErrSchemaTooNew, version, SchemaVersion)
+	}
+	if version == SchemaVersion {
+		return nil
+	}
+
+	steps, err := adjacentSteps(version, SchemaVersion, dbMigrations)
+	if err != nil {
+		return err
+	}
+	for _, st := range steps {
+		if st.ApplyDB == nil {
+			continue
+		}
+		if err := st.ApplyDB(s.db); err != nil {
+			return fmt.Errorf("session: 迁移 v%d→v%d 失败: %w", st.From, st.To, err)
+		}
+	}
+	return nil
 }
 
 // Close 关闭数据库连接。

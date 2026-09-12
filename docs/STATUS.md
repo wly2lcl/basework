@@ -11,8 +11,8 @@
 | 基础编辑、命令、搜索及增强工具 | [tool 契约](reference/pkg/tool.md)、`internal/tools/` | 后台 job、统一编辑预览/提交/撤销尚无完整产品闭环 |
 | 会话事件、JSONL/SQLite、压缩 | [session 契约](reference/pkg/session.md)、`internal/compaction/` | JSONL 重写成本和异常恢复需要持续检验 |
 | 格式版本与相邻迁移 | `pkg/session/migrate.go` | 当前 schema v2；已有迁移不应重新实现；高版本日志拒绝处理 |
-| Seq 压缩锚点与摘要持久化 | `pkg/session/projection.go`、`pkg/agent/loop.go` | 与长会话恢复相关的真实场景仍需证据 |
-| 请求来源与指纹 | `pkg/agent/request.go`、`pipeline.go` | 写 `request.built` 失败仅记日志后继续；不变量校验未接入运行时；Hook 改写与 Provider 传输改写超出现有重建边界 |
+| 压缩结果快照与历史恢复 | `pkg/session/projection.go`、`pkg/agent/loop.go` | 新 `compacted` 事件保存策略实际产出的完整消息快照，投影精确恢复选择/重排结果；旧无快照事件仍走 `Summary` / `TruncatedSeq` / `KeepFrom` 兼容分支。包级测试和单次 AgentLoop 集成测试已覆盖；快照增加存储体积，CTX-003 两次压缩、重启恢复及真实 job/file 证据仍待验收 |
+| 请求来源与指纹 | `pkg/agent/request.go`、`pipeline.go` | `CheckRequestInvariant` 深比较完整 `ChatMessage`，但尚未接入运行时；Hook 改写与 Provider 传输改写超出现有重建边界。system prompt / steering 落盘失败阻断本轮 Provider 调用并保留重试状态；`request.built` 写入失败仍只记日志继续 |
 | Hook / Plugin / Skill | [hook](reference/pkg/hook.md)、[skill](reference/pkg/skill.md)、`pkg/agent/plugin.go` | Plugin 为 Initialize/Shutdown 生命周期，不具备通用注册回滚和热卸载 |
 | MCP / LSP / Memory | 对应[包契约](reference/README.md) | 外部服务可用性需另验；memory 为可选构建能力 |
 | 权限、超时、审计、子代理 | `internal/permission/`、`internal/subagent/` | Bash 在宿主执行；权限规则不构成操作系统沙箱 |

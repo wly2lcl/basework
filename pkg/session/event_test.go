@@ -103,6 +103,17 @@ func TestEncodeDecodeData(t *testing.T) {
 		{"TurnStarted", EventTurnStarted, &TurnStartedData{Step: 1}},
 		{"TurnEnded", EventTurnEnded, &TurnEndedData{Usage: llm.Usage{PromptTokens: 1}}},
 		{"Compacted", EventCompacted, &CompactedData{Summary: "s", TruncatedSeq: 3}},
+		{"SystemPromptSet", EventSystemPromptSet, &SystemPromptSetData{Content: "你是助手", Hash: "abc"}},
+		{"Steered", EventSteered, &SteeredData{Messages: []string{"用中文", "简短些"}}},
+		{"RequestBuilt", EventRequestBuilt, &RequestBuiltData{
+			MsgCount:  3,
+			ToolCount: 2,
+			Hash:      "deadbeef",
+			Sources: []RequestSource{
+				{Kind: "system_prompt", Count: 1, Seq: 1, Hash: "abc"},
+				{Kind: "history", Count: 2},
+			},
+		}},
 	}
 
 	for _, tc := range tests {

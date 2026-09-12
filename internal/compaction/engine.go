@@ -5,8 +5,11 @@ import (
 	"github.com/wly2lcl/basework/pkg/llm"
 )
 
-// Ensure Engine implements agent.Compactor.
-var _ agent.Compactor = (*Engine)(nil)
+// Ensure Engine implements agent.Compactor 及其可选扩展。
+var (
+	_ agent.Compactor       = (*Engine)(nil)
+	_ agent.CompactReporter = (*Engine)(nil)
+)
 
 // Config 是上下文压缩模块的配置
 type Config struct {
@@ -55,9 +58,24 @@ func (e *Engine) ShouldCompact(messages []llm.ChatMessage, maxTokens int) bool {
 }
 
 // Compact 执行压缩。将当前消息压缩到约 60% 的大小。
+//
+// 实现 agent.Compactor。摘要信息在这里被丢弃——需要摘要的调用方应改用
+// CompactWithReport，否则压缩产生的摘要永远到不了模型面前。
 func (e *Engine) Compact(messages []llm.ChatMessage) ([]llm.ChatMessage, error) {
+	report, err := e.CompactWithReport(messages)
+	if err != nil {
+		return nil, err
+	}
+	return report.Messages, nil
+}
+
+// CompactWithReport 执行压缩并回传完整结果（含摘要）。
+//
+// 实现 agent.CompactReporter。采用可选接口而非给 Compactor 加方法，
+// 因此已有的 Compactor 实现不会被破坏。
+func (e *Engine) CompactWithReport(messages []llm.ChatMessage) (agent.CompactReport, error) {
 	if !e.config.Enabled {
-		return messages, nil
+		return agent.CompactReport{Messages: messages}, nil
 	}
 	current := EstimateConversationTokens(messages)
 	// 目标 token 数：压缩到当前大小的 60%
@@ -65,5 +83,9 @@ func (e *Engine) Compact(messages []llm.ChatMessage) ([]llm.ChatMessage, error) 
 	if target < 1 {
 		target = 1
 	}
-	return e.strategy.Compact(messages, target)
+	res, err := e.strategy.Compact(messages, target)
+	if err != nil {
+		return agent.CompactReport{}, err
+	}
+	return agent.CompactReport{Messages: res.Messages, Summary: res.Summary}, nil
 }

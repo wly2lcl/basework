@@ -22,8 +22,9 @@ func (s *SelectiveStrategy) Name() string {
 	return "selective"
 }
 
-// Compact 执行选择性压缩
-func (s *SelectiveStrategy) Compact(messages []llm.ChatMessage, targetTokens int) ([]llm.ChatMessage, error) {
+// Compact 执行选择性压缩。
+// 该策略按角色裁剪，不产出摘要，因此 Result.Summary 恒为空。
+func (s *SelectiveStrategy) Compact(messages []llm.ChatMessage, targetTokens int) (Result, error) {
 	var result []llm.ChatMessage
 	var assistantMsgs []llm.ChatMessage
 
@@ -48,5 +49,5 @@ func (s *SelectiveStrategy) Compact(messages []llm.ChatMessage, targetTokens int
 	}
 	result = append(result, assistantMsgs...)
 
-	return result, nil
+	return Result{Messages: result}, nil
 }

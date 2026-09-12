@@ -37,6 +37,12 @@ const (
 	EventCompacted EventType = "compacted"
 	// Agent 切换
 	EventAgentSwitched EventType = "agent.switched"
+	// 会话级 system prompt 被设定或更新
+	EventSystemPromptSet EventType = "system.prompt_set"
+	// 运行中注入的 steering 消息
+	EventSteered EventType = "steered"
+	// 一次真实发给 provider 的请求组装完成（只留指纹，不投影为消息）
+	EventRequestBuilt EventType = "request.built"
 )
 
 // Event 表示一个溯源事件。
@@ -47,6 +53,12 @@ type Event struct {
 	Data      json.RawMessage `json:"data"`
 	Seq       int64           `json:"seq"`
 	CreatedAt time.Time       `json:"created_at"`
+	// SchemaVersion 是该事件写入时所用的格式版本。
+	//
+	// 零值表示 v0——历史数据没有这个字段。用 omitempty 而非总是写出，
+	// 是为了让 v0 数据的字节不因引入本字段而改变；读取端把 0 视为 v0，
+	// 并按 migrate.go 的相邻迁移链升级到 SchemaVersion。
+	SchemaVersion int `json:"v,omitempty"`
 }
 
 // PromptedData 表示用户提示数据。
@@ -91,11 +103,58 @@ type CompactedData struct {
 	Summary      string `json:"summary"`
 	TruncatedSeq int64  `json:"truncated_seq"`
 	KeepFrom     int    `json:"keep_from"`
+	// Snapshot 是压缩后要作为完整历史重放的消息序列。
+	// nil 表示旧格式事件，继续按 Summary/TruncatedSeq/KeepFrom 投影；
+	// 非 nil 的空切片表示压缩结果有意清空历史。
+	// 不使用 omitempty，以保留 []（显式清空）与 null/缺失（旧事件）的区别。
+	Snapshot []llm.ChatMessage `json:"snapshot"`
+}
+
+// SystemPromptSetData 记录会话级 system prompt 的设定。
+//
+// system prompt 是请求的一部分，此前只存在于配置里、不入日志，于是「模型看到的
+// 上下文」与「日志记录的历史」之间存在一段无法核对的差。落成事件后，请求可以
+// 由日志完整重建（见 agent.BuildRequestMessages）。
+type SystemPromptSetData struct {
+	Content string `json:"content"`
+	Hash    string `json:"hash"`
+}
+
+// SteeredData 记录一次 steering 注入。
+//
+// steering 消息此前在 Drain() 之后即被丢弃：模型在那一轮看得到，日志里却没有，
+// 事后无法解释「模型为什么那么回答」。落成事件后，它成为历史的一部分。
+type SteeredData struct {
+	Messages []string `json:"messages"`
+}
+
+// RequestSource 描述最终请求里一个片段的来源，用于事后核对请求是怎么拼出来的。
+type RequestSource struct {
+	// Kind 取值：system_prompt / steering / history（见 agent 包的同名常量）。
+	Kind string `json:"kind"`
+	// Count 是该来源贡献的消息条数。
+	Count int `json:"count,omitempty"`
+	// Seq 是来源事件的序号（history 这类聚合片段为 0）。
+	Seq int64 `json:"seq,omitempty"`
+	// Hash 是片段内容的指纹，用于比对内容是否被改写。
+	Hash string `json:"hash,omitempty"`
+}
+
+// RequestBuiltData 是「本次真正发给 provider 的请求」的指纹。
+//
+// 只记指纹不记全文：全文可以从事件日志重建，重复存一份徒增体积。
+// 事后核对时用同样的算法重算 Hash，不一致即说明请求与日志发生了漂移。
+type RequestBuiltData struct {
+	MsgCount  int             `json:"msg_count"`
+	ToolCount int             `json:"tool_count"`
+	Hash      string          `json:"hash"`
+	Sources   []RequestSource `json:"sources,omitempty"`
 }
 
 // EncodeData 将事件数据编码为 json.RawMessage。
 // 支持的 data 类型：*PromptedData, *TextDeltaData, *ToolCalledData, *ToolSuccessData,
-// *ToolFailedData, *TurnStartedData, *TurnEndedData, *CompactedData。
+// *ToolFailedData, *TurnStartedData, *TurnEndedData, *CompactedData,
+// *SystemPromptSetData, *SteeredData, *RequestBuiltData。
 func EncodeData(data interface{}) (json.RawMessage, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -156,6 +215,24 @@ func DecodeData(event Event) (interface{}, error) {
 		var d CompactedData
 		if err := json.Unmarshal(event.Data, &d); err != nil {
 			return nil, fmt.Errorf("session: 解码 CompactedData 失败: %w", err)
+		}
+		return &d, nil
+	case EventSystemPromptSet:
+		var d SystemPromptSetData
+		if err := json.Unmarshal(event.Data, &d); err != nil {
+			return nil, fmt.Errorf("session: 解码 SystemPromptSetData 失败: %w", err)
+		}
+		return &d, nil
+	case EventSteered:
+		var d SteeredData
+		if err := json.Unmarshal(event.Data, &d); err != nil {
+			return nil, fmt.Errorf("session: 解码 SteeredData 失败: %w", err)
+		}
+		return &d, nil
+	case EventRequestBuilt:
+		var d RequestBuiltData
+		if err := json.Unmarshal(event.Data, &d); err != nil {
+			return nil, fmt.Errorf("session: 解码 RequestBuiltData 失败: %w", err)
 		}
 		return &d, nil
 	default:

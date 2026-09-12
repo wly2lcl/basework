@@ -13,6 +13,27 @@ type Compactor interface {
 	Compact(history []llm.ChatMessage) ([]llm.ChatMessage, error)
 }
 
+// CompactReport 是一次压缩的完整结果。
+type CompactReport struct {
+	// Messages 是压缩后的消息列表。
+	Messages []llm.ChatMessage
+	// Summary 是被压缩掉的旧消息的摘要文本；为空表示本次压缩未产出摘要
+	// （例如滑动窗口策略直接丢弃旧消息）。
+	Summary string
+}
+
+// CompactReporter 是 Compactor 的**可选**扩展：除压缩结果外还报告摘要。
+//
+// 之所以用可选接口而不是直接给 Compactor 加方法：Go 的接口是结构化满足的，
+// 实现方多提供一个方法即可升级，未实现者仍按旧行为工作（压缩事件里不带摘要，
+// 与历史行为一致）。这样已经在用自定义 Compactor 的嵌入方不会被破坏。
+//
+// 配套约定：Agent 在压缩后会把 Summary 持久化进 Compacted 事件。这是必须的——
+// 发给模型的请求由事件日志投影而来，只把摘要留在内存里等于没生成。
+type CompactReporter interface {
+	CompactWithReport(history []llm.ChatMessage) (CompactReport, error)
+}
+
 // LoopDetector 循环检测接口
 type LoopDetector interface {
 	Check(messages []llm.ChatMessage, toolCalls []LoopToolCall) (*LoopDetectResult, error)

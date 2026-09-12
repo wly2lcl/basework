@@ -17,6 +17,43 @@ import (
 // safeIDPattern 限制 session ID 只允许 [a-zA-Z0-9_-]。
 var safeIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
+// sessionSchemaName 是 JSONL 文件头的 `_schema` 标识值。
+const sessionSchemaName = "basework.session"
+
+// sessionHeader 是 JSONL 文件的首行，记录该文件的格式版本。
+//
+// 刻意不含时间戳：文件头每次重写都会重新序列化，若带时间戳则首行会无意义地
+// 变动，既不可读也让 diff 失去意义。会话创建时间可由首个事件推得。
+type sessionHeader struct {
+	Schema string `json:"_schema"`
+	V      int    `json:"v"`
+}
+
+// encodeHeader 返回当前格式版本的文件头字节（以换行结尾）。
+func encodeHeader() ([]byte, error) {
+	b, err := json.Marshal(sessionHeader{Schema: sessionSchemaName, V: SchemaVersion})
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
+}
+
+// probeHeaderVersion 判断一行是否为文件头，并返回其格式版本。
+// 非文件头（例如 v0 老文件的首条事件）返回 ok=false。
+func probeHeaderVersion(line []byte) (version int, ok bool) {
+	var probe struct {
+		Schema *string `json:"_schema"`
+		V      int     `json:"v"`
+	}
+	if err := json.Unmarshal(line, &probe); err != nil {
+		return 0, false
+	}
+	if probe.Schema == nil || *probe.Schema != sessionSchemaName {
+		return 0, false
+	}
+	return probe.V, true
+}
+
 // JSONLStore 是基于 JSONL 文件的会话存储实现。
 // 每个会话对应一个 {base_dir}/{session_id}.jsonl 文件。
 type JSONLStore struct {
@@ -69,6 +106,10 @@ func (s *JSONLStore) AppendEvent(event Event) error {
 	if event.CreatedAt.IsZero() {
 		event.CreatedAt = nowUTC()
 	}
+	// 写入的文件头声明的是 SchemaVersion，因此每条事件都要与之对齐：
+	// 历史事件在加载时已由 migrateEventLine 升级，此处统一盖章保证
+	// 「文件头版本 == 内容版本」，避免出现头说 v1、内容还是 v0 的半迁移状态。
+	event.SchemaVersion = SchemaVersion
 	sd.events = append(sd.events, event)
 	sd.info.UpdatedAt = nowUTC()
 
@@ -77,15 +118,27 @@ func (s *JSONLStore) AppendEvent(event Event) error {
 	s.cache[event.SessionID] = sd
 	s.cacheMu.Unlock()
 
-	// 原子写入：写全部事件到 tmp 文件，再 rename
+	// 原子写入：写文件头 + 全部事件到 tmp 文件，再 rename
 	tmpPath := path + ".tmp"
 	f, err := os.Create(tmpPath)
 	if err != nil {
 		return fmt.Errorf("session: 创建临时文件失败: %w", err)
 	}
+	header, err := encodeHeader()
+	if err != nil {
+		f.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("session: 生成文件头失败: %w", err)
+	}
+	if _, err := f.Write(header); err != nil {
+		f.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("session: 写入文件头失败: %w", err)
+	}
 	enc := json.NewEncoder(f)
-	for _, e := range sd.events {
-		if err := enc.Encode(e); err != nil {
+	for i := range sd.events {
+		sd.events[i].SchemaVersion = SchemaVersion
+		if err := enc.Encode(sd.events[i]); err != nil {
 			f.Close()
 			os.Remove(tmpPath)
 			return fmt.Errorf("session: 写入事件失败: %w", err)
@@ -163,13 +216,16 @@ func (s *JSONLStore) Create(opts CreateOpts) (*Info, error) {
 	s.cache[id] = sd
 	s.cacheMu.Unlock()
 
-	// 创建空文件
+	// 创建仅含文件头的文件。文件头声明格式版本，读取端据此判定是否需要迁移，
+	// 也据此拒绝来自更高版本程序的数据。
 	path := filepath.Join(s.baseDir, id+".jsonl")
-	f, err := os.Create(path)
+	header, err := encodeHeader()
 	if err != nil {
+		return nil, fmt.Errorf("session: 生成文件头失败: %w", err)
+	}
+	if err := os.WriteFile(path, header, 0644); err != nil {
 		return nil, fmt.Errorf("session: 创建文件失败: %w", err)
 	}
-	f.Close()
 
 	return info, nil
 }
@@ -322,6 +378,12 @@ func (s *JSONLStore) loadSession(id string) (*sessionData, error) {
 }
 
 // readEvents 从 JSONL 文件读取所有事件。
+//
+// 处理三件事：
+//  1. 首行文件头识别——含 `_schema` 即为头，跳过；否则视为 v0 老文件（首行即事件）。
+//     判定是 O(1) 的（只看首行），读路径是热路径，不做全文件扫描。
+//  2. 版本判定——文件头或单条事件的版本高于 SchemaVersion 时返回 ErrSchemaTooNew。
+//  3. 逐条迁移——低版本事件经 migrate.go 的相邻迁移链升级到当前版本。
 func (s *JSONLStore) readEvents(path string) ([]Event, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -331,14 +393,38 @@ func (s *JSONLStore) readEvents(path string) ([]Event, error) {
 
 	var events []Event
 	scanner := bufio.NewScanner(f)
+	// 单条事件可能携带很长的工具输出，默认 64KB 上限会直接报 token too long。
+	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+
+	firstLine := true
+	lineNo := 0
 	for scanner.Scan() {
+		lineNo++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
+
+		if firstLine {
+			firstLine = false
+			if v, ok := probeHeaderVersion([]byte(line)); ok {
+				if v > SchemaVersion {
+					return nil, fmt.Errorf("%w（文件 %s 为 v%d，当前支持 v%d）",
+						ErrSchemaTooNew, filepath.Base(path), v, SchemaVersion)
+				}
+				continue
+			}
+			// 非文件头：这是 v0 老文件，首行本身就是事件，继续往下走。
+		}
+
+		migrated, err := migrateEventLine([]byte(line))
+		if err != nil {
+			return nil, fmt.Errorf("%w（文件 %s 第 %d 行）", err, filepath.Base(path), lineNo)
+		}
+
 		var e Event
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			return nil, fmt.Errorf("session: 解析事件失败: %w", err)
+		if err := json.Unmarshal(migrated, &e); err != nil {
+			return nil, fmt.Errorf("session: 解析事件失败（第 %d 行）: %w", lineNo, err)
 		}
 		events = append(events, e)
 	}

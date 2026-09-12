@@ -30,6 +30,7 @@ type SteeringManager struct {
 	mu           sync.Mutex
 	steerCh      chan steeringMsg // Steer 模式通道
 	queueCh      chan steeringMsg // Queue 模式通道
+	pending      []steeringMsg    // Drain 后尚未成功写入会话事件的消息
 	seqGen       int64            // 序列号生成器
 	canceledSeqs map[int64]bool   // 已取消的序列号
 }
@@ -76,20 +77,37 @@ func (sm *SteeringManager) InjectMessage(_ context.Context, content string, mode
 // Drain 清空当前 pending 的 steering 消息，返回所有未被 cancel 的消息
 // 在 setupTurn 阶段调用
 func (sm *SteeringManager) Drain() []string {
+	pending := sm.drainPending()
+	msgs := make([]string, len(pending))
+	for i, msg := range pending {
+		msgs[i] = msg.content
+	}
+	return msgs
+}
+
+// drainPending 取出待交付 steering，保留 seq 以便事件写入失败后恢复。
+func (sm *SteeringManager) drainPending() []steeringMsg {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	var msgs []string
+	msgs := make([]steeringMsg, 0, len(sm.pending))
+	appendActive := func(msg steeringMsg) {
+		if !sm.canceledSeqs[msg.seq] {
+			msgs = append(msgs, msg)
+		}
+		delete(sm.canceledSeqs, msg.seq)
+	}
+	for _, msg := range sm.pending {
+		appendActive(msg)
+	}
+	sm.pending = nil
 
 	// 先 drain Steer 通道
 drainSteer:
 	for {
 		select {
 		case msg := <-sm.steerCh:
-			if !sm.canceledSeqs[msg.seq] {
-				msgs = append(msgs, msg.content)
-			}
-			delete(sm.canceledSeqs, msg.seq)
+			appendActive(msg)
 		default:
 			break drainSteer
 		}
@@ -99,14 +117,24 @@ drainSteer:
 	for {
 		select {
 		case msg := <-sm.queueCh:
-			if !sm.canceledSeqs[msg.seq] {
-				msgs = append(msgs, msg.content)
-			}
-			delete(sm.canceledSeqs, msg.seq)
+			appendActive(msg)
 		default:
 			return msgs
 		}
 	}
+}
+
+// restorePending 把未能写入事件日志的消息放回队首，下一次 turn 可重试。
+func (sm *SteeringManager) restorePending(msgs []steeringMsg) {
+	if len(msgs) == 0 {
+		return
+	}
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	restored := make([]steeringMsg, 0, len(msgs)+len(sm.pending))
+	restored = append(restored, msgs...)
+	restored = append(restored, sm.pending...)
+	sm.pending = restored
 }
 
 // Cancel 取消指定序列号的消息

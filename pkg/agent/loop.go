@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"reflect"
 	"sync"
 
 	"github.com/wly2lcl/basework/pkg/hook"
@@ -42,6 +44,11 @@ type AgentLoop struct {
 
 	// steeringManager 转向管理器
 	steeringManager *SteeringManager
+
+	// system prompt 落盘状态：cfg.systemPrompt 变化时才写新事件。
+	// 「是否已落盘」用独立布尔量而非与空串比较，否则空 prompt 会被反复写事件。
+	systemPromptLogged bool
+	lastSystemPrompt   string
 }
 
 // agentInstance 实现 Instance 接口
@@ -322,12 +329,24 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		history, err := a.td().History()
 		if err == nil && a.compactor != nil {
 			if a.compactor.ShouldCompact(history, a.cfg.maxContextTokens) {
-				compacted, cerr := a.compactor.Compact(history)
-				if cerr == nil && len(compacted) < len(history) {
-					log.Printf("[压缩] 上下文已从 %d 条消息压缩至 %d 条", len(history), len(compacted))
-					// 写入 EventCompacted 事件
-					keepFrom := len(history) - len(compacted)
-					compactData, err := session.EncodeData(&session.CompactedData{KeepFrom: keepFrom})
+				compacted, summary, cerr := a.runCompaction(history)
+				if cerr == nil && !reflect.DeepEqual(compacted, history) {
+					log.Printf("[压缩] 上下文已从 %d 条消息压缩至 %d 条，摘要 %d 字符",
+						len(history), len(compacted), len(summary))
+
+					// 写 EventCompacted。
+					//
+					// 摘要必须随事件落盘：请求由事件日志投影重建，摘要只留在内存里
+					// 到不了模型面前，"压缩"会退化成"静默丢消息"。
+					//
+					// 保存压缩器的完整输出，而不是猜测它删除了多少条前缀消息。
+					// 摘要替换、选择性保留和重排都无法用单个截断边界准确表达。
+					snapshot := make([]llm.ChatMessage, len(compacted))
+					copy(snapshot, compacted)
+					compactData, err := session.EncodeData(&session.CompactedData{
+						Summary:  summary,
+						Snapshot: snapshot,
+					})
 					if err != nil {
 						log.Printf("event persistence failed: %v", err)
 					} else if err := a.session.AppendEvent(session.Event{
@@ -336,9 +355,9 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 						Data:      compactData,
 					}); err != nil {
 						log.Printf("event persistence failed: %v", err)
+					} else {
+						a.compressionApplied = true
 					}
-					// 设置标记，跳过后续压缩直到新消息到达
-					a.compressionApplied = true
 				}
 			}
 		}
@@ -349,12 +368,13 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 		inst := &agentInstance{agent: a}
 		p := NewPipeline(inst.TurnD())
 
-		// 注入 steering 消息：在 setupTurn 中 prepend 到历史消息之前
-		if a.steeringManager != nil {
-			msgs := a.steeringManager.Drain()
-			if len(msgs) > 0 {
-				p.steeringMsgs = steeringToChatMessages(msgs)
-			}
+		// 把请求级上下文落成事件：它们会进入发给 provider 的请求，因此必须先入日志，
+		// 否则「模型看得到、日志里没有」，事后无法解释模型为什么那样回答。
+		if err := a.persistSystemPrompt(); err != nil {
+			return nil, err
+		}
+		if err := a.persistSteering(); err != nil {
+			return nil, err
 		}
 
 		// 追加 turn started 事件
@@ -448,6 +468,93 @@ func (a *AgentLoop) runLoop(ctx context.Context) (*Response, error) {
 // td 返回当前会话的 TurnD 实现
 func (a *AgentLoop) td() TurnD {
 	return (&agentInstance{agent: a}).TurnD()
+}
+
+// runCompaction 执行一次压缩，并尽可能取得摘要文本。
+//
+// Compactor 若实现了 CompactReporter（可选扩展），则连摘要一起返回；
+// 否则摘要为空——这与引入摘要之前的行为一致，属于降级而非破坏。
+func (a *AgentLoop) runCompaction(history []llm.ChatMessage) ([]llm.ChatMessage, string, error) {
+	if reporter, ok := a.compactor.(CompactReporter); ok {
+		report, err := reporter.CompactWithReport(history)
+		if err != nil {
+			return nil, "", err
+		}
+		return report.Messages, report.Summary, nil
+	}
+
+	compacted, err := a.compactor.Compact(history)
+	if err != nil {
+		return nil, "", err
+	}
+	return compacted, "", nil
+}
+
+// persistSystemPrompt 在 system prompt 发生变化时写入 system.prompt_set 事件。
+//
+// system prompt 是请求的一部分，但此前只存在于配置（cfg.systemPrompt）中，不进日志。
+// 于是「模型看到的上下文」与「日志记录的历史」之间存在一段无法核对的差：同一份
+// 日志换一个配置打开，就会重建出不同的请求，而且没有任何提示。
+//
+// 只在内容变化时写：prompt 通常一辈子只设一次，每步都写会让日志被重复事件淹没。
+func (a *AgentLoop) persistSystemPrompt() error {
+	prompt := a.cfg.systemPrompt
+	if a.systemPromptLogged && a.lastSystemPrompt == prompt {
+		return nil
+	}
+
+	// 首次使用空 prompt 也写入空值：会话可能已有更早的 system.prompt_set，
+	// 空值才能明确清除它，避免接续日志时重放过期 prompt。
+	data, err := session.EncodeData(&session.SystemPromptSetData{
+		Content: prompt,
+		Hash:    contentHash(prompt),
+	})
+	if err != nil {
+		return fmt.Errorf("agent: encode system prompt event: %w", err)
+	}
+	if err := a.session.AppendEvent(session.Event{
+		SessionID: a.sessionID,
+		Type:      session.EventSystemPromptSet,
+		Data:      data,
+	}); err != nil {
+		return fmt.Errorf("agent: persist system prompt event: %w", err)
+	}
+	a.lastSystemPrompt = prompt
+	a.systemPromptLogged = true
+	return nil
+}
+
+// persistSteering 把本步 Drain 到的 steering 消息写入 steered 事件。
+//
+// 此前 Drain() 之后消息即被丢弃：模型在那一轮看得到，日志里却没有，事后无法解释
+// 模型为什么那样回答。落成事件后它成为历史的一部分，请求可以完整重建。
+func (a *AgentLoop) persistSteering() error {
+	if a.steeringManager == nil {
+		return nil
+	}
+	pending := a.steeringManager.drainPending()
+	if len(pending) == 0 {
+		return nil
+	}
+	msgs := make([]string, len(pending))
+	for i, msg := range pending {
+		msgs[i] = msg.content
+	}
+
+	data, err := session.EncodeData(&session.SteeredData{Messages: msgs})
+	if err != nil {
+		a.steeringManager.restorePending(pending)
+		return fmt.Errorf("agent: encode steering event: %w", err)
+	}
+	if err := a.session.AppendEvent(session.Event{
+		SessionID: a.sessionID,
+		Type:      session.EventSteered,
+		Data:      data,
+	}); err != nil {
+		a.steeringManager.restorePending(pending)
+		return fmt.Errorf("agent: persist steering event: %w", err)
+	}
+	return nil
 }
 
 // publishEvent 发布可观测性事件（仅在启用时）

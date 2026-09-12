@@ -98,6 +98,24 @@ func TestSteering_CancelSequence(t *testing.T) {
 	}
 }
 
+func TestSteering_CancelAfterDrainAndPersistenceFailure(t *testing.T) {
+	sm := NewSteeringManager()
+	if err := sm.InjectMessage(context.Background(), "cancel me", Queue); err != nil {
+		t.Fatal(err)
+	}
+
+	drained := sm.drainPending()
+	if len(drained) != 1 {
+		t.Fatalf("drainPending() returned %d messages, want 1", len(drained))
+	}
+	sm.Cancel(drained[0].seq)
+	sm.restorePending(drained)
+
+	if got := sm.Drain(); len(got) != 0 {
+		t.Fatalf("canceled message reappeared after persistence retry: %#v", got)
+	}
+}
+
 func TestSteering_ConcurrentInjection(t *testing.T) {
 	sm := NewSteeringManager()
 	var wg sync.WaitGroup

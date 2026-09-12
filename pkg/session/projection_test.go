@@ -352,3 +352,35 @@ func TestProjectMessages_DeltaWithoutEnd(t *testing.T) {
 		t.Errorf("累积文本 = %q, 期望 %q", msgs[1].Content[0].Text, "part1part2")
 	}
 }
+
+// TestProjectMessages_RequestContextEventsNotProjected 请求级上下文事件
+// （system.prompt_set / steered / request.built）不得投影为消息。
+//
+// 这是有意的：system prompt 与 steering 必须放在消息列表最前，而压缩只截断尾部；
+// 若把它们放进投影结果，Seq 会变成非单调（破坏压缩锚点），且压缩可能把 system
+// prompt 一并丢掉。它们由 agent.BuildRequestMessages 在组装请求时插入。
+func TestProjectMessages_RequestContextEventsNotProjected(t *testing.T) {
+	events := []Event{
+		{Seq: 1, Type: EventSystemPromptSet, Data: rawJSON(t, SystemPromptSetData{Content: "你是助手", Hash: "h"})},
+		{Seq: 2, Type: EventPrompted, Data: rawJSON(t, PromptedData{Content: "你好"})},
+		{Seq: 3, Type: EventSteered, Data: rawJSON(t, SteeredData{Messages: []string{"用中文"}})},
+		{Seq: 4, Type: EventRequestBuilt, Data: rawJSON(t, RequestBuiltData{MsgCount: 2, ToolCount: 0, Hash: "x"})},
+		{Seq: 5, Type: EventTextDelta, Data: rawJSON(t, TextDeltaData{Delta: "好"})},
+		{Seq: 6, Type: EventTextEnded},
+	}
+
+	msgs, seqs := ProjectMessagesWithSeq(events)
+	if len(msgs) != 2 {
+		t.Fatalf("期望 2 条消息（user + assistant），得到 %d", len(msgs))
+	}
+	if msgs[0].Role != llm.RoleUser || msgs[1].Role != llm.RoleAssistant {
+		t.Errorf("角色序列 = %q, %q，期望 user, assistant", msgs[0].Role, msgs[1].Role)
+	}
+
+	// Seq 必须严格单调不减——压缩锚点依赖这个不变量。
+	for i := 1; i < len(seqs); i++ {
+		if seqs[i] < seqs[i-1] {
+			t.Errorf("seqs 非单调：seqs[%d]=%d < seqs[%d]=%d", i, seqs[i], i-1, seqs[i-1])
+		}
+	}
+}

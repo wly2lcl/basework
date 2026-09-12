@@ -19,7 +19,7 @@
 
 | 层级 | 包数 | 非测试 .go 文件 | 定位 |
 |---|---|---|---|
-| `pkg/` | 12 | 101 | 可嵌入核心（稳定 API，不得依赖上层） |
+| `pkg/` | 12 | 103 | 可嵌入核心（稳定 API，不得依赖上层） |
 | `internal/` | 14 | 81 | 终端产品专用逻辑（无兼容性承诺） |
 | `cmd/` | 1 | 17 | 可执行入口 |
 
@@ -98,6 +98,7 @@ graph LR
   n0 --> n9
   n1 --> n15
   n1 --> n18
+  n1 --> n23
   n15 --> n17
   n15 --> n18
   n15 --> n23
@@ -138,7 +139,7 @@ graph LR
 | 包 | 依赖 |
 |---|---|
 | `cmd/basework` | `internal/compaction`、`internal/loopdetect`、`internal/oauth`、`internal/observability`、`internal/permission`、`internal/subagent`、`internal/tools`、`internal/tui`、`pkg/agent`、`pkg/config`、`pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/provider`、`pkg/session`、`pkg/skill`、`pkg/tool`、`pkg/tool/builtin` |
-| `internal/compaction` | `pkg/agent`、`pkg/llm` |
+| `internal/compaction` | `pkg/agent`、`pkg/llm`、`pkg/session` |
 | `internal/loopdetect` | `pkg/agent`、`pkg/llm` |
 | `internal/observability` | `pkg/agent` |
 | `internal/permission` | `pkg/agent` |
@@ -178,9 +179,9 @@ graph LR
 | `pkg/tool` | 9 |
 | `pkg/agent` | 7 |
 | `pkg/config` | 3 |
+| `pkg/session` | 3 |
 | `internal/permission` | 2 |
 | `pkg/mcp` | 2 |
-| `pkg/session` | 2 |
 | `internal/compaction` | 1 |
 | `internal/loopdetect` | 1 |
 | `internal/oauth` | 1 |
@@ -197,7 +198,7 @@ graph LR
 | `internal/tui` | 8 |
 | `internal/tools` | 4 |
 | `pkg/agent` | 4 |
-| `internal/compaction` | 2 |
+| `internal/compaction` | 3 |
 | `internal/loopdetect` | 2 |
 | `internal/subagent` | 2 |
 | `pkg/hook` | 2 |

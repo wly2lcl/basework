@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/wly2lcl/basework/pkg/llm"
+	"github.com/wly2lcl/basework/pkg/session"
 )
 
 // Summarizer 是摘要生成器接口，用于压缩旧消息
@@ -77,14 +78,17 @@ func (s *SummarizationStrategy) Name() string {
 	return "summarization"
 }
 
-// Compact 执行摘要压缩
-func (s *SummarizationStrategy) Compact(messages []llm.ChatMessage, targetTokens int) ([]llm.ChatMessage, error) {
+// Compact 执行摘要压缩。
+//
+// 与另外两个策略不同，本策略会产出摘要，并通过 Result.Summary 回传。
+// 调用方必须把它持久化——请求由事件日志投影而来，摘要留在内存里到不了模型面前。
+func (s *SummarizationStrategy) Compact(messages []llm.ChatMessage, targetTokens int) (Result, error) {
 	sysMsgs := preserveSystemMessages(messages)
 	nonSys := filterNonSystem(messages)
 
 	// 如果消息太少，不需要压缩
 	if len(nonSys) < s.MinMessages {
-		return messages, nil
+		return Result{Messages: messages}, nil
 	}
 
 	// 确定分割点：保留后半部分，摘要前半部分
@@ -106,13 +110,14 @@ func (s *SummarizationStrategy) Compact(messages []llm.ChatMessage, targetTokens
 
 	summary, err := s.summarizer.Summarize(context.Background(), sb.String())
 	if err != nil {
-		return nil, fmt.Errorf("压缩摘要生成失败: %w", err)
+		return Result{}, fmt.Errorf("压缩摘要生成失败: %w", err)
 	}
 
-	// 用摘要消息替换旧消息
+	// 用摘要消息替换旧消息。前缀取自 pkg/session，保证「内存中的压缩结果」与
+	// 「按事件日志投影出的历史」对摘要采用同一种标记方式。
 	summaryMsg := llm.ChatMessage{
 		Role:    llm.RoleUser,
-		Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "之前的对话摘要: " + summary}},
+		Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: session.SummaryMessagePrefix + summary}},
 	}
 
 	result := make([]llm.ChatMessage, 0, len(sysMsgs)+1+len(toKeep))
@@ -120,5 +125,5 @@ func (s *SummarizationStrategy) Compact(messages []llm.ChatMessage, targetTokens
 	result = append(result, summaryMsg)
 	result = append(result, toKeep...)
 
-	return result, nil
+	return Result{Messages: result, Summary: summary}, nil
 }

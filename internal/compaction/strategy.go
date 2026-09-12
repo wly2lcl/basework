@@ -2,10 +2,23 @@ package compaction
 
 import "github.com/wly2lcl/basework/pkg/llm"
 
+// Result 是一次压缩的产物。
+type Result struct {
+	// Messages 是压缩后的消息列表。
+	Messages []llm.ChatMessage
+	// Summary 是被压缩掉的旧消息的摘要文本。
+	//
+	// 为空表示本次压缩未产出摘要——例如 sliding_window 直接丢弃旧消息。
+	// 非空时调用方**必须**把它持久化（写进 Compacted 事件）：请求是由事件
+	// 日志投影出来的，摘要只留在内存里等于没生成，"压缩"会退化成"静默丢消息"，
+	// 模型不知道被丢掉了什么。
+	Summary string
+}
+
 // Strategy 是压缩策略接口
 type Strategy interface {
 	// Compact 对消息列表执行压缩，目标 token 数为 targetTokens
-	Compact(messages []llm.ChatMessage, targetTokens int) ([]llm.ChatMessage, error)
+	Compact(messages []llm.ChatMessage, targetTokens int) (Result, error)
 
 	// Name 返回策略名称
 	Name() string

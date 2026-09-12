@@ -21,14 +21,16 @@ func (s *SlidingWindowStrategy) Name() string {
 	return "sliding_window"
 }
 
-// Compact 执行滑动窗口压缩
-func (s *SlidingWindowStrategy) Compact(messages []llm.ChatMessage, targetTokens int) ([]llm.ChatMessage, error) {
+// Compact 执行滑动窗口压缩。
+// 该策略直接丢弃旧消息，不产出摘要，因此 Result.Summary 恒为空——
+// 调用方据事件日志重建请求时，被丢弃的内容对模型不可见，这是滑动窗口的固有代价。
+func (s *SlidingWindowStrategy) Compact(messages []llm.ChatMessage, targetTokens int) (Result, error) {
 	sysMsgs := preserveSystemMessages(messages)
 	nonSys := filterNonSystem(messages)
 
 	// 如果消息数量未超过窗口大小，无需压缩
 	if len(nonSys) <= s.WindowSize {
-		return messages, nil
+		return Result{Messages: messages}, nil
 	}
 
 	// 保留最近 N 条非系统消息
@@ -40,5 +42,5 @@ func (s *SlidingWindowStrategy) Compact(messages []llm.ChatMessage, targetTokens
 	result = append(result, sysMsgs...)
 	result = append(result, kept...)
 
-	return result, nil
+	return Result{Messages: result}, nil
 }
