@@ -79,8 +79,18 @@ func TestCLI_Version(t *testing.T) {
 func TestCLI_SessionStatus(t *testing.T) {
 	binary := buildCLIBinary(t)
 
-	// session status 需要访问 ~/.basework/sessions/sessions.db
-	// 如果数据库不存在，命令可能失败，但至少验证命令能被正确解析
+	// 关键：隔离真实 $HOME。
+	// session status 会打开会话数据库；若落到真实 $HOME/.basework/sessions，
+	// 会因写入 sessions.db-wal 触发沙箱拦截，导致测试进程退出码非 0。
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	// 使用规范会话目录（与 agent 写入位置一致）
+	sessionDir := filepath.Join(tmpDir, ".local", "share", "basework", "sessions")
+	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+		t.Fatalf("创建会话目录失败: %v", err)
+	}
+
 	cmd := exec.Command(binary, "session", "status")
 	output, _ := cmd.CombinedOutput()
 

@@ -4,14 +4,31 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/wly2lcl/basework/internal/observability"
 )
+
+// EventPublisher 是工具事件发布接口。
+//
+// 在 builtin 内部定义该接口（而非直接引用 internal/observability），是为保持
+// pkg 层不依赖 internal 层的分层约束：pkg 是可嵌入核心，internal 是终端产品
+// 专用实现。
+//
+// observability.EventBusAdapter 已实现同名方法
+// PublishEvent(eventType string, data map[string]interface{})，
+// 因此调用方传入 observability.NewEventBusAdapter(bus) 即可。
+type EventPublisher interface {
+	PublishEvent(eventType string, data map[string]interface{})
+}
+
+// EventToolTimeout 是工具执行超时的事件类型。
+//
+// 字符串值与 internal/observability.EventToolTimeout 保持一致（"tool.timeout"），
+// 以保证已订阅方与既有事件消费逻辑不受影响。
+const EventToolTimeout = "tool.timeout"
 
 // 包级全局变量
 var (
 	globalTimeoutConfig = DefaultTimeoutConfig()
-	globalEventBus      *observability.EventBus
+	globalEventBus      EventPublisher
 )
 
 // SetTimeoutConfig 设置全局超时配置
@@ -24,8 +41,11 @@ func getTimeoutConfig() TimeoutConfig {
 	return globalTimeoutConfig
 }
 
-// SetEventBus 设置事件总线，用于发布超时事件
-func SetEventBus(bus *observability.EventBus) {
+// SetEventBus 设置事件发布器，用于发布超时事件。
+//
+// 注意：形参类型由 *observability.EventBus 变更为接口，
+// 原调用方需改为传入 observability.NewEventBusAdapter(bus)。
+func SetEventBus(bus EventPublisher) {
 	globalEventBus = bus
 }
 
@@ -84,14 +104,14 @@ func WithTimeout(ctx context.Context, toolName string, timeout time.Duration) (c
 	if globalEventBus != nil {
 		context.AfterFunc(timeoutCtx, func() {
 			if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
-				globalEventBus.Publish(observability.NewEvent(
-					observability.EventToolTimeout,
+				globalEventBus.PublishEvent(
+					EventToolTimeout,
 					map[string]interface{}{
 						"tool_name":     toolName,
 						"timeout_limit": timeout.Seconds(),
 						"elapsed_time":  timeout.Seconds(),
 					},
-				))
+				)
 			}
 		})
 	}

@@ -268,6 +268,25 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	// 以下由 agentCallback 经 tea.Program.Send 投递，
+	// 在事件循环内落状态，避免与 View 并发读写。
+	case StreamDeltaMsg:
+		m.Streaming.AppendText(msg.Delta)
+		return m, nil
+
+	case ThinkingDeltaMsg:
+		m.Streaming.AppendThinking(msg.Delta)
+		return m, nil
+
+	case ToolStartMsg:
+		m.Streaming.SetToolInProgress(msg.Name)
+		return m, nil
+
+	case ToolEndMsg:
+		m.Streaming.SetToolInProgress("")
+		m.AddToolCall(msg.Name, msg.Args, msg.Result, msg.IsError)
+		return m, nil
+
 	case tea.KeyPressMsg:
 		key := msg.String()
 

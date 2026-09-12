@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -27,13 +27,9 @@ func init() {
 
 // runSessionUnlock 强制解锁会话
 func runSessionUnlock(sessionID string) error {
-	// 确定锁文件路径
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("获取用户主目录失败: %w", err)
-	}
-
-	lockPath := fmt.Sprintf("%s/.basework/sessions/%s.lock", home, sessionID)
+	// 锁文件必须与 agent 实际写入位置一致。旧版本硬编码 ~/.basework/sessions，
+	// 导致 unlock 删除的并不是真实锁文件。
+	lockPath := filepath.Join(resolveSessionDir(), sessionID+".lock")
 
 	// 创建锁并强制解锁
 	lock := session.NewFileLock(lockPath)
@@ -41,7 +37,7 @@ func runSessionUnlock(sessionID string) error {
 		return fmt.Errorf("强制解锁失败: %w", err)
 	}
 
-	fmt.Printf("✅ 已强制解锁会话 %s\n", sessionID[:12])
+	fmt.Printf("✅ 已强制解锁会话 %s\n", shortSessionID(sessionID))
 	fmt.Printf("🗑 已删除锁文件: %s\n", lockPath)
 	fmt.Printf("⚠️  警告：如果其他进程正在写入，可能导致数据损坏\n")
 

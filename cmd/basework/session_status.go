@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 	"time"
 
@@ -32,19 +33,16 @@ func init() {
 
 // runSessionStatus 显示会话状态
 func runSessionStatus() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("获取用户主目录失败: %w", err)
-	}
-
-	sessionDir := fmt.Sprintf("%s/.basework/sessions", home)
+	// 与 agent 实际写入位置保持一致（旧版本此处硬编码 ~/.basework/sessions，
+	// 导致 status 读取的目录与真实会话目录不同）。
+	sessionDir := resolveSessionDir()
 
 	if checkIntegrity {
 		return checkAllSessionsIntegrity(sessionDir)
 	}
 
 	// 显示会话列表和基本信息
-	s, err := session.NewSQLiteStore(fmt.Sprintf("%s/sessions.db", sessionDir))
+	s, err := session.NewSQLiteStore(filepath.Join(sessionDir, "sessions.db"))
 	if err != nil {
 		return fmt.Errorf("打开会话存储失败: %w", err)
 	}
@@ -65,10 +63,7 @@ func runSessionStatus() error {
 	fmt.Fprintln(w, "--\t----\t------\t--------\t--------")
 
 	for _, info := range infos {
-		shortID := info.ID
-		if len(shortID) > 12 {
-			shortID = shortID[:12]
-		}
+		shortID := shortSessionID(info.ID)
 		title := info.Title
 		if title == "" {
 			title = "(无标题)"

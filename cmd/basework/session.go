@@ -46,10 +46,24 @@ func init() {
 	sessionListCmd.Flags().BoolVar(&showTrackedFiles, "tracked-files", false, "显示每个会话追踪的文件数量")
 }
 
-// openSessionStore 打开会话存储
+// openSessionStore 打开会话存储。
+//
+// 读取路径使用 resolveSessionDir() 而非 getSessionDir()：规范目录不存在而
+// 历史目录存在时，应回退读到旧数据，而不是让用户看到「没有会话」。
+// （agent/tui 的写入路径仍固定写规范目录，见 getSessionDir。）
 func openSessionStore() (*session.JSONLStore, error) {
-	dir := getSessionDir()
+	dir := resolveSessionDir()
 	return session.NewJSONLStore(dir)
+}
+
+// shortSessionID 将会话 ID 截断为前 12 个字符用于展示。
+// 直接对 ID 做 s[:12] 会在 ID 短于 12 字符时 panic。
+func shortSessionID(id string) string {
+	const maxLen = 12
+	if len(id) > maxLen {
+		return id[:maxLen]
+	}
+	return id
 }
 
 // runSessionList 列出所有会话
@@ -78,10 +92,7 @@ func runSessionList() error {
 		fmt.Fprintln(w, "--\t----\t--------\t--------")
 	}
 	for _, info := range infos {
-		shortID := info.ID
-		if len(shortID) > 12 {
-			shortID = shortID[:12]
-		}
+		shortID := shortSessionID(info.ID)
 		title := info.Title
 		if title == "" {
 			title = "(无标题)"

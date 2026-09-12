@@ -179,8 +179,9 @@ func runtimeBehaviorOptions(cfg *config.Config, model llm.Model, subAgentCoordin
 		opts = append(opts, agent.WithLoopDetector(d))
 	}
 	if bus := newRuntimeEventBus(cfg); bus != nil {
-		builtin.SetEventBus(bus)
-		opts = append(opts, agent.WithEventBus(observability.NewEventBusAdapter(bus)))
+		adapter := observability.NewEventBusAdapter(bus)
+		builtin.SetEventBus(adapter)
+		opts = append(opts, agent.WithEventBus(adapter))
 	}
 	if subAgentCoordinator != nil {
 		opts = append(opts, agent.WithSubAgentRunner(subagent.NewSubAgentRunnerAdapter(subAgentCoordinator)))

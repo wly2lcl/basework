@@ -15,8 +15,6 @@ import (
 	"github.com/wly2lcl/basework/internal/tui"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
-	"github.com/wly2lcl/basework/pkg/llm"
-	"github.com/wly2lcl/basework/pkg/tool"
 )
 
 // tuiCmd 表示 tui 子命令
@@ -53,7 +51,30 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 	}
 	cfg := store.Get()
 
-	rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{})
+	providerName := cfg.Provider
+	if env := os.Getenv("BASEWORK_PROVIDER"); env != "" {
+		providerName = env
+	}
+
+	// --no-tui：回退到简单 REPL，无需流式回调
+	if noTUI {
+		rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{})
+		if err != nil {
+			return err
+		}
+		agt := rt.Agent
+		defer agt.Close()
+		return runSimpleREPL(cmd.Context(), agt)
+	}
+
+	// 2. 先建 App，再建带流式回调的 runtime。
+	//
+	//    这里存在构造顺序依赖：runtimeAgent 需要回调，回调需要 program.Send，
+	//    而 program 又需要 app。因此先用转发闭包占位，待 program 建好后再绑定。
+	app := tui.NewApp(cfg.Model, providerName, "")
+	opts, bindSend := newTUIStreamingOptions()
+
+	rt, err := newRuntimeAgent(cfg, opts)
 	if err != nil {
 		return err
 	}
@@ -64,16 +85,6 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s tools=%d\n", rt.ProviderName, rt.ModelName, len(agt.Tools()))
 	}
 
-	if noTUI {
-		return runSimpleREPL(cmd.Context(), agt)
-	}
-	return runTUI(cmd.Context(), agt, rt.ModelName, rt.ProviderName)
-}
-
-// runTUI 启动 TUI 模式
-func runTUI(ctx context.Context, agt agent.Agent, modelName, providerName string) error {
-	// 获取或创建会话
-	app := tui.NewApp(modelName, providerName, "")
 	app.SetInputHandler(func(ctx context.Context, input string) (string, error) {
 		resp, err := agt.HandleMessage(ctx, input)
 		if err != nil {
@@ -82,8 +93,36 @@ func runTUI(ctx context.Context, agt agent.Agent, modelName, providerName string
 		return responseText(resp), nil
 	})
 
-	// 启动 Bubble Tea 程序
+	return runTUI(cmd.Context(), app, bindSend)
+}
+
+// newTUIStreamingOptions 构造 TUI 模式所需的 runtime 选项（含流式回调），
+// 并返回用于绑定 tea.Program.Send 的函数。
+//
+// 单独抽出是为了可测：TUI 只能拿到整段最终文本（流式增量、工具进度、
+// thinking 全部失效），根因就是"忘记把 Callback 传进 runtimeAgentOptions"。
+// 这里用一个测试锁住该行为，防止回归。
+func newTUIStreamingOptions() (runtimeAgentOptions, func(func(tea.Msg))) {
+	var send func(tea.Msg)
+	cb := tui.NewAgentCallback(func(msg tea.Msg) {
+		if send != nil {
+			send(msg)
+		}
+	})
+	return runtimeAgentOptions{Callback: cb}, func(bind func(tea.Msg)) {
+		send = bind
+	}
+}
+
+// runTUI 启动 TUI 模式。
+//
+// bindSend 在 tea.Program 创建之后被调用，用于把 program.Send 交给调用方，
+// 从而接上 agent 流式回调（见 internal/tui/callback.go）。
+func runTUI(ctx context.Context, app *tui.App, bindSend func(func(tea.Msg))) error {
 	program := tea.NewProgram(app)
+	if bindSend != nil {
+		bindSend(program.Send)
+	}
 
 	// 在 goroutine 中运行程序
 	errCh := make(chan error, 1)
@@ -92,7 +131,7 @@ func runTUI(ctx context.Context, agt agent.Agent, modelName, providerName string
 		errCh <- err
 	}()
 
-	// 监听 agent 消息
+	// 监听退出信号
 	for {
 		select {
 		case <-ctx.Done():
@@ -151,43 +190,4 @@ func runSimpleREPL(ctx context.Context, agt agent.Agent) error {
 			fmt.Println(responseText(resp))
 		}
 	}
-}
-
-// tuiCallback 为 TUI 模式提供 Callback 实现
-type tuiCallback struct {
-	app *tui.App
-}
-
-func (cb *tuiCallback) OnTextDelta(delta string) {
-	cb.app.UpdateStreamingText(cb.app.Streaming.FullText() + delta)
-}
-
-func (cb *tuiCallback) OnToolCallStart(call llm.ToolCall) {
-	cb.app.Streaming.SetToolInProgress(call.Name)
-}
-
-func (cb *tuiCallback) OnToolCallEnd(call llm.ToolCall, result *tool.Result, err error) {
-	if err != nil {
-		cb.app.AddToolCall(call.Name, call.ArgsJSON, err.Error(), true)
-	} else {
-		cb.app.AddToolCall(call.Name, call.ArgsJSON, result.Content, false)
-	}
-}
-
-func (cb *tuiCallback) OnThinkingDelta(delta string) {
-	cb.app.Streaming.AppendThinking(delta)
-}
-
-func (cb *tuiCallback) OnTurnEnd(resp *agent.Response) {
-	if resp != nil {
-		for _, part := range resp.Message.Content {
-			if part.Type == llm.ContentTypeText {
-				cb.app.AddAssistantMessage(part.Text)
-			}
-		}
-	}
-}
-
-func (cb *tuiCallback) OnError(err error) {
-	cb.app.AddErrorMessage(err.Error())
 }

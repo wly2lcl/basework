@@ -3,11 +3,68 @@ package builtin
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
-
-	"github.com/wly2lcl/basework/internal/observability"
 )
+
+// mockEventPublisher 是 EventPublisher 的测试替身。
+// 用它替代原先对 internal/observability 的依赖，使 pkg 层测试不再需要导入 internal。
+type mockEventPublisher struct {
+	mu     sync.Mutex
+	events []publishedEvent
+}
+
+type publishedEvent struct {
+	Type string
+	Data map[string]interface{}
+}
+
+func (m *mockEventPublisher) PublishEvent(eventType string, data map[string]interface{}) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.events = append(m.events, publishedEvent{Type: eventType, Data: data})
+}
+
+// count 返回匹配指定事件类型的已发布事件数。
+func (m *mockEventPublisher) count(eventType string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for _, e := range m.events {
+		if e.Type == eventType {
+			n++
+		}
+	}
+	return n
+}
+
+// first 返回首个匹配指定事件类型的事件。
+func (m *mockEventPublisher) first(eventType string) (publishedEvent, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, e := range m.events {
+		if e.Type == eventType {
+			return e, true
+		}
+	}
+	return publishedEvent{}, false
+}
+
+// waitFor 轮询等待直到匹配事件数达到 want，超时返回 false。
+func (m *mockEventPublisher) waitFor(eventType string, want int, d time.Duration) bool {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if m.count(eventType) >= want {
+			return true
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	return m.count(eventType) >= want
+}
+
+// 编译期断言：测试替身满足 EventPublisher 接口。
+var _ EventPublisher = (*mockEventPublisher)(nil)
 
 // --- TimeoutConfig 测试 ---
 
@@ -101,24 +158,17 @@ func TestWithTimeout_NoTimeout(t *testing.T) {
 }
 
 func TestWithTimeout_CancelPreventsTimeoutPublish(t *testing.T) {
-	bus := observability.NewEventBus()
-	SetEventBus(bus)
+	mock := &mockEventPublisher{}
+	SetEventBus(mock)
 	defer SetEventBus(nil)
-
-	received := make(chan bool, 1)
-	bus.Subscribe(observability.EventToolTimeout, func(e observability.Event) {
-		received <- true
-	})
 
 	ctx := context.Background()
 	_, cancel := WithTimeout(ctx, "test", 100*time.Millisecond)
 	cancel() // 取消后超时不应触发
 
-	select {
-	case <-received:
-		t.Fatal("取消后不应发布超时事件")
-	case <-time.After(200 * time.Millisecond):
-		// 正确：没有事件
+	time.Sleep(200 * time.Millisecond)
+	if n := mock.count(EventToolTimeout); n != 0 {
+		t.Fatalf("取消后不应发布超时事件，实际发布了 %d 次", n)
 	}
 }
 
@@ -152,14 +202,9 @@ func TestIsTimeoutError_WrappedDeadlineExceeded(t *testing.T) {
 // --- 超时事件发布测试 ---
 
 func TestTimeoutEventPublished(t *testing.T) {
-	bus := observability.NewEventBus()
-	SetEventBus(bus)
+	mock := &mockEventPublisher{}
+	SetEventBus(mock)
 	defer SetEventBus(nil)
-
-	received := make(chan observability.Event, 1)
-	bus.Subscribe(observability.EventToolTimeout, func(e observability.Event) {
-		received <- e
-	})
 
 	ctx := context.Background()
 	timeoutCtx, cancel := WithTimeout(ctx, "test_tool", 10*time.Millisecond)
@@ -168,17 +213,29 @@ func TestTimeoutEventPublished(t *testing.T) {
 	// 等待超时触发
 	<-timeoutCtx.Done()
 
-	select {
-	case e := <-received:
-		if e.Type != observability.EventToolTimeout {
-			t.Fatalf("事件类型应为 %q，得到 %q", observability.EventToolTimeout, e.Type)
-		}
-		toolName, _ := e.Data["tool_name"].(string)
-		if toolName != "test_tool" {
-			t.Fatalf("工具名应为 test_tool，得到 %v", toolName)
-		}
-	case <-time.After(time.Second):
+	if !mock.waitFor(EventToolTimeout, 1, time.Second) {
 		t.Fatal("超时事件未发布")
+	}
+	e, ok := mock.first(EventToolTimeout)
+	if !ok {
+		t.Fatal("超时事件未发布")
+	}
+	if e.Type != EventToolTimeout {
+		t.Fatalf("事件类型应为 %q，得到 %q", EventToolTimeout, e.Type)
+	}
+	// 事件类型字符串必须保持历史值，避免破坏已订阅方。
+	if e.Type != "tool.timeout" {
+		t.Fatalf("事件类型字符串应保持为 %q，得到 %q", "tool.timeout", e.Type)
+	}
+	toolName, _ := e.Data["tool_name"].(string)
+	if toolName != "test_tool" {
+		t.Fatalf("工具名应为 test_tool，得到 %v", toolName)
+	}
+	if _, ok := e.Data["timeout_limit"]; !ok {
+		t.Fatal("事件 payload 应包含 timeout_limit")
+	}
+	if _, ok := e.Data["elapsed_time"]; !ok {
+		t.Fatal("事件 payload 应包含 elapsed_time")
 	}
 }
 
@@ -204,7 +261,7 @@ func TestSetTimeoutConfig(t *testing.T) {
 	SetTimeoutConfig(original)
 }
 
-// --- 集成测试：WithTimeout 与真实 EventBus ---
+// --- 集成测试：WithTimeout 与事件发布器 ---
 
 func TestWithTimeoutAndBus_NoBusDoesNotPanic(t *testing.T) {
 	SetEventBus(nil) // 确保 bus 为 nil

@@ -1,4 +1,4 @@
-.PHONY: build test lint clean tidy
+.PHONY: build test lint clean tidy vet check-arch stats
 
 # 默认构建
 build:
@@ -31,3 +31,11 @@ tidy:
 # 类型检查（不生成二进制）
 vet:
 	go vet -tags "sqlite memory" ./...
+
+# 架构边界检查：pkg 层不得依赖 internal 层
+check-arch:
+	go test ./tests/ -run TestPkgDoesNotImportInternal -count=1 -v
+
+# 生成代码统计（写入 docs/STATS.md）
+stats:
+	go run ./scripts/docstats

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -259,12 +260,44 @@ func buildProviderOptions(cfg *config.Config, providerType string) map[string]an
 	return opts
 }
 
-// getSessionDir 返回会话存储目录
+// getSessionDir 返回会话存储的规范目录。
+//
+// 这是 agent 实际写入会话的位置，也是所有 session 子命令应当读取的位置。
 func getSessionDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return os.TempDir() + "/basework-sessions"
+		return filepath.Join(os.TempDir(), "basework-sessions")
 	}
-	dir := home + "/.local/share/basework/sessions"
-	return dir
+	return filepath.Join(home, ".local", "share", "basework", "sessions")
+}
+
+// legacySessionDir 返回历史版本的会话目录。
+//
+// v0.2.0 之前，部分子命令（session status/unlock、migrate 的 SQLite 目标）
+// 硬编码了这个路径，与 agent 实际写入的规范目录不一致，导致这些命令读不到
+// 真实会话。此处保留它仅用于向后兼容的只读回退，不再作为写入位置。
+func legacySessionDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".basework", "sessions")
+}
+
+// resolveSessionDir 返回实际应当使用的会话目录。
+//
+// 优先规范目录；仅当规范目录不存在而旧目录存在时回退到旧目录，
+// 以免升级后已有用户的会话突然"消失"。不在此处搬迁数据：
+// 显式合并请使用 `basework migrate sessions`。
+func resolveSessionDir() string {
+	canonical := getSessionDir()
+	if _, err := os.Stat(canonical); err == nil {
+		return canonical
+	}
+	if legacy := legacySessionDir(); legacy != "" {
+		if _, err := os.Stat(legacy); err == nil {
+			return legacy
+		}
+	}
+	return canonical
 }

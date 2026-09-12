@@ -32,6 +32,9 @@ jobs:
       - name: Run vet
         run: go vet -tags "sqlite memory" ./...
 
+      - name: Check architecture boundaries
+        run: go test ./tests/ -run TestPkgDoesNotImportInternal -count=1 -v
+
       - name: Run race tests
         run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework
 

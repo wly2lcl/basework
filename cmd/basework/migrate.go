@@ -27,9 +27,10 @@ var migrateCmd = &cobra.Command{
 var migrateSessionsCmd = &cobra.Command{
 	Use:   "sessions",
 	Short: "将会话从 JSONL 迁移到 SQLite",
-	Long: `扫描 ~/.basework/sessions/ 目录下的所有 JSONL 会话文件，
-并导入到 SQLite 数据库中。已存在的会话（按 ID 判断）将被跳过。
-输出迁移报告。`,
+	Long: `扫描会话目录下的所有 JSONL 会话文件，并导入到 SQLite 数据库中。
+默认源目录为 ~/.local/share/basework/sessions/（规范目录）；
+若规范目录不存在而历史目录 ~/.basework/sessions/ 存在，则回退到历史目录。
+已存在的会话（按 ID 判断）将被跳过。输出迁移报告。`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runMigrateSessions()
 	},
@@ -66,23 +67,30 @@ func init() {
 	migrateCmd.AddCommand(migrateSessionsCmd)
 	migrateCmd.AddCommand(migrateWalCmd)
 	migrateCmd.AddCommand(migrateRollbackCmd)
-	migrateSessionsCmd.Flags().StringVar(&migrateSQLitePath, "sqlite-path", "", "SQLite 数据库路径（默认 ~/.basework/sessions/sessions.db）")
+	migrateSessionsCmd.Flags().StringVar(&migrateSQLitePath, "sqlite-path", "", "SQLite 数据库路径（默认为会话规范目录下的 sessions.db）")
+}
+
+// resolveMigrateSQLitePath 返回迁移相关的 SQLite 数据库路径。
+//
+// 默认值与会话规范目录保持一致。旧版本硬编码 ~/.basework/sessions，
+// 与 agent 实际写入位置不符，导致迁移读一处、写另一处。
+func resolveMigrateSQLitePath() string {
+	if migrateSQLitePath != "" {
+		return migrateSQLitePath
+	}
+	return filepath.Join(resolveSessionDir(), "sessions.db")
 }
 
 // runMigrateSessions 执行会话从 JSONL 到 SQLite 的迁移。
 func runMigrateSessions() error {
 	// 1. 确定 JSONL 源目录
-	sessionDir := getSessionDir()
+	//
+	// 用 resolveSessionDir() 而非 getSessionDir()：仅有历史目录
+	// (~/.basework/sessions) 的用户也应能迁移，而不是直接报「目录不存在」。
+	sessionDir := resolveSessionDir()
 
 	// 2. 确定 SQLite 目标路径
-	sqlitePath := migrateSQLitePath
-	if sqlitePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("获取用户主目录失败: %w", err)
-		}
-		sqlitePath = filepath.Join(home, ".basework", "sessions", "sessions.db")
-	}
+	sqlitePath := resolveMigrateSQLitePath()
 
 	// 3. 检查 JSONL 目录是否存在
 	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
@@ -203,14 +211,7 @@ func runMigrateSessions() error {
 // runMigrateToWAL 将会话数据库迁移到 WAL 模式。
 func runMigrateToWAL() error {
 	// 确定 SQLite 数据库路径
-	sqlitePath := migrateSQLitePath
-	if sqlitePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("获取用户主目录失败: %w", err)
-		}
-		sqlitePath = filepath.Join(home, ".basework", "sessions", "sessions.db")
-	}
+	sqlitePath := resolveMigrateSQLitePath()
 
 	// 检查数据库是否存在
 	if _, err := os.Stat(sqlitePath); os.IsNotExist(err) {
@@ -284,14 +285,7 @@ func runMigrateToWAL() error {
 // runMigrateRollback 从 WAL 模式回滚到 DELETE 模式。
 func runMigrateRollback() error {
 	// 确定 SQLite 数据库路径
-	sqlitePath := migrateSQLitePath
-	if sqlitePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("获取用户主目录失败: %w", err)
-		}
-		sqlitePath = filepath.Join(home, ".basework", "sessions", "sessions.db")
-	}
+	sqlitePath := resolveMigrateSQLitePath()
 
 	// 1. 查找最新的备份文件
 	backupPattern := sqlitePath + ".backup-*"
