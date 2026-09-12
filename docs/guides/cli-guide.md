@@ -102,14 +102,14 @@ basework init
 # 列出所有可用模型
 basework model list
 
-# 只列出无需 API key 的免费模型
+# 只列出本地目录标为免费的模型
 basework model list --free
 
 # 切换当前模型
 basework model use mimo-v2.5-free
 ```
 
-`model list` 会显示已知模型的 Provider、模型 ID 和是否免费；`model use` 会把选中的模型写入配置文件。默认的 OpenCode Zen 免费模型无需 API key。
+`model list` 会显示已知模型的 Provider、模型 ID 和是否免费；`model use` 会把选中的模型写入配置文件。免费标记不保证免密钥或支持工具；认证要求和可用性应按实际端点验证。当前 CLI 的部分帮助文字尚把两者混用，修复列入 REL-002。
 
 ### basework session
 

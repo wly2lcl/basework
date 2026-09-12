@@ -33,7 +33,21 @@ jobs:
         run: go vet -tags "sqlite memory" ./...
 
       - name: Check architecture boundaries
-        run: go test ./tests/ -run TestPkgDoesNotImportInternal -count=1 -v
+        run: go test ./tests/ -run TestArch -count=1 -v
+
+      - name: Check docs structure
+        run: go run ./scripts/doccheck
+
+      # 新鲜度门禁：生成物必须与提交版本一致。
+      # 改了代码却忘了重跑 `make gen`，这里会失败。
+      # 注意：生成器必须完全可复现，否则本步骤会永久失败。两条已落实的约束：
+      #   1) 不输出生成时间戳（否则每次运行都变）；
+      #   2) 不写入覆盖率数字——`go test -cover` 对含并发的包不可复现，
+      #      故 `make stats` 固定带 `-no-cover`，覆盖率另见 `make coverage`（不写文件）。
+      - name: Check generated docs are fresh
+        run: |
+          make gen
+          git diff --exit-code docs/DEPGRAPH.md docs/STATS.md
 
       - name: Run race tests
         run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework

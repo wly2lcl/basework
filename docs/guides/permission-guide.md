@@ -307,5 +307,5 @@ internal/permission/
 
 ### 相关文档
 
-- [配置参考](./configuration.md)
+- [配置参考](configuration.md)
 - [完整任务列表](../TASKS.md)

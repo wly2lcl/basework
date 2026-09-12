@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 const (
@@ -309,10 +308,21 @@ func render(root string, stats []pkgStats, coverages []pkgCoverage) string {
 	b.WriteString("| 测试代码 | 文件名以 `_test.go` 结尾的 `.go` 文件 |\n")
 	b.WriteString("| 测试用例 | 匹配 `func Test\\|Benchmark\\|Fuzz` 的函数声明数 |\n")
 	b.WriteString("| 排除目录 | `.git`、`vendor`、`bin`、`.opencode`、`node_modules` |\n")
-	b.WriteString("| 覆盖率 | `go test -tags \"" + buildTags + "\" -cover ./...`，仅统计含语句的包 |\n\n")
-
-	fmt.Fprintf(&b, "生成时间：%s\n\n", time.Now().Format("2006-01-02 15:04:05"))
-
+	if len(coverages) > 0 {
+		b.WriteString("| 覆盖率 | `go test -tags \"" + buildTags + "\" -cover ./...`，仅统计含语句的包 |\n\n")
+	} else {
+		b.WriteString("\n")
+	}
+	// 注意：这里刻意不写生成时间戳。CI 的「新鲜度门禁」用 git diff --exit-code 比对
+	// 生成物，任何随时间变化的字段都会让门禁永久失败。生成时间记录在 git 提交里。
+	//
+	// 同理，默认不写入覆盖率表：`go test -cover` 对含并发的包（如 pkg/lsp、pkg/mcp）
+	// 不可复现，同一份代码重复测量会得到 ±0.5% 的抖动。把抖动的数字放进受门禁的
+	// 生成物会让门禁永久红灯。需要覆盖率时显式跑 `make coverage`（不加门禁）。
+	if len(coverages) == 0 {
+		b.WriteString("> 覆盖率不在此文件中：`go test -cover` 对含并发的包不可复现，放入受")
+		b.WriteString(" CI 门禁的生成物会让门禁永久抖动。需要时运行 `make coverage` 查看。\n\n")
+	}
 	b.WriteString("## 总览\n\n")
 	b.WriteString("| 指标 | 数值 |\n|---|---|\n")
 	fmt.Fprintf(&b, "| 代码总行数 | %d |\n", total)

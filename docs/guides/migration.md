@@ -261,4 +261,4 @@ type ExtendedHook interface {
 
 ---
 
-> **参考**：完整配置说明见 [配置参考](./configuration.md)，Provider 配置见 [Provider 配置指南](./provider-guide.md)。
+> **参考**：完整配置说明见 [配置参考](configuration.md)，Provider 配置见 [Provider 配置指南](provider-guide.md)。

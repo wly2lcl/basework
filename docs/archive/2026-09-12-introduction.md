@@ -1,0 +1,362 @@
+> 历史归档（2026-09-12）：保留迁移前正文与历史判断，链接已迁移。状态、代码片段、数量和待办可能过时；不得据此领取任务或判定完成。当前入口见 [文档中心](../README.md)。
+
+# Basework
+
+Go 语言 AI Agent 框架与终端产品。既是可嵌入的 Go 库，也是功能完整的终端 AI 编程助手。
+
+```go
+import "github.com/wly2lcl/basework/pkg/agent"
+```
+
+## 特性
+
+- **双模式** — 嵌入式框架 + 独立终端产品
+- **可嵌入核心** — Agent loop + provider + tool + session 四个包即可独立使用，无需 TUI/CLI（规模见 [docs/STATS.md](../STATS.md)）
+- **可嵌入** — `agent.New(WithModel(...), WithTools(...))` 即可使用
+- **可扩展** — Hook + Plugin + Skill 三层扩展体系
+- **统一类型** — 一套 `ChatMessage`/`ToolCall` 类型贯穿始终
+- **可观测** — 事件溯源 Session + PubSub 事件总线 + 结构化日志 + 成本追踪
+- **可选复杂度** — Build Tag 控制可选模块（sqlite, memory）
+- **上下文压缩** — 自动摘要、滑动窗口、选择性保留
+- **重试机制** — 指数退避、错误分类、可恢复错误自动重试
+- **权限系统** — 规则引擎（allow/deny/ask）、YOLO 模式、命令黑名单
+- **子代理** — 任务委托、隔离子会话、成本传播
+- **循环检测** — SHA-256 签名 + 模式匹配，防止工具调用死循环
+- **OAuth 2.0** — PKCE 流程、令牌刷新、加密文件凭证存储
+- **Prompt 缓存** — 自动注入 `cache_control` 标记，减少 50-90% 重复 token 计费（Anthropic/OpenAI/Gemini）
+- **命令黑名单** — 12+ 内置危险命令模式 + 自定义扩展，支持交互/YOLO 权限模式
+- **15+ LLM 提供商** — OpenAI、Anthropic、Gemini 及所有 OpenAI 兼容 API；含 Amazon Bedrock、Azure、GitHub Copilot、Ollama
+- **免费模型** — 默认使用 OpenCode Zen 的 `big-pickle`（免费）
+- **LSP 集成** — 通过 Language Server Protocol 获取代码智能（Go、TypeScript、Python）
+- **MCP 支持** — Model Context Protocol 外部工具服务器、资源读取、提示模板获取
+- **MCP 增强** — 自动重连（指数退避）、Shell 变量展开（`$HOME`/`${VAR}`）
+- **会话持久化** — 事件溯源，支持回放
+- **会话增强** — SQLite 存储、文件追踪、自动标题、会话队列
+- **终端 UI** — Bubble Tea 构建的完整 TUI
+- **增强工具** — web_fetch、web_search、todowrite、apply_patch、question
+- **会话稳定性** — SQLite WAL 模式、文件锁、自动恢复、长会话压缩
+- **权限持久化** — SQLite 持久化权限规则、审计日志、权限迁移
+- **敏感路径保护** — 白名单/黑名单机制、三种保护级别
+- **工具超时控制** — 默认 30s 超时，支持按工具覆盖配置
+- **性能分析** — pprof HTTP 端点集成、CPU/内存/goroutine 分析
+- **Benchmark 套件** — token 计数、流式响应、工具执行基准测试
+- **Provider 感知模板** — 根据 LLM Provider 自动选择优化系统提示（Anthropic/OpenAI/Gemini）
+- **用户自定义模板** — `.basework/prompts/` 目录加载，热重载支持
+- **环境动态注入** — 自动注入工作目录、Git 状态、平台信息、项目类型
+- **主题系统** — 亮/暗/Dracula/Monokai 主题切换，自定义主题支持
+- **键盘绑定** — 可配置快捷键，三层绑定模型
+- **斜杠命令面板** — `/` 触发，fuzzy 搜索，命令补全
+- **图片输入** — JPEG/PNG/WebP 多模态输入支持
+
+## 安装
+
+### 下载二进制文件
+
+从 [GitHub Releases](https://github.com/wly2lcl/basework/releases) 下载对应平台的预编译二进制文件。
+
+支持平台：Linux (amd64/arm64)、macOS (amd64/arm64)、Windows (amd64)。
+
+### Docker
+
+```bash
+docker pull ghcr.io/wly2lcl/basework:latest
+docker run -it -v ~/.config/basework:/root/.config/basework ghcr.io/wly2lcl/basework
+```
+
+### Go Install
+
+```bash
+go install -tags "sqlite memory" github.com/wly2lcl/basework/cmd/basework@latest
+```
+
+### 从源码构建
+
+```bash
+git clone https://github.com/wly2lcl/basework.git
+cd basework
+go build -tags "sqlite memory" -o basework ./cmd/basework
+```
+
+Homebrew tap 尚未接入当前发布配置。详细安装说明请参阅 [安装指南](../installation.md)，发布流程请参阅 [发布指南](../release.md)。
+
+## 快速开始（CLI）
+
+```bash
+# 交互式 agent 会话
+basework agent
+
+# 单次提问
+basework agent -m "写一个 Go 反转字符串的函数"
+
+# 列出可用模型
+basework model list
+
+# 只列出无需 API key 的免费模型
+basework model list --free
+
+# 切换到 OpenCode 免费模型
+basework model use mimo-v2.5-free
+```
+
+## 快速开始（嵌入使用）
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/wly2lcl/basework/pkg/agent"
+    "github.com/wly2lcl/basework/pkg/provider"
+    "github.com/wly2lcl/basework/pkg/tool/builtin"
+)
+
+func main() {
+    // 创建 LLM 提供商
+    model, err := provider.Create(provider.Config{
+        Type:   "anthropic",
+        APIKey: "sk-...",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 创建 agent 并注册工具
+    a, err := agent.New(
+        agent.WithModel(model),
+        agent.WithTools(
+            builtin.NewBashTool(),
+            builtin.NewReadTool(),
+            builtin.NewWriteTool(),
+            builtin.NewEditTool(),
+            builtin.NewGrepTool(),
+            builtin.NewGlobTool(),
+        ),
+        agent.WithSystemPrompt("你是一个有帮助的编程助手。"),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer a.Close()
+
+    // 发送消息
+    resp, err := a.HandleMessage(context.Background(), "创建一个 hello.go 文件")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println(resp.Message.Content[0].Text)
+}
+```
+
+## 架构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  cmd/basework/ — CLI 入口（cobra + TUI）                 │
+├─────────────────────────────────────────────────────────┤
+│  internal/ — 终端产品专用逻辑                            │
+│  ├── compaction/     上下文压缩                          │
+│  ├── retry/          重试机制                            │
+│  ├── permission/     权限系统                            │
+│  ├── subagent/       子代理系统                          │
+│  ├── loopdetect/     循环检测                            │
+│  ├── observability/  可观测性（日志 + 成本追踪）         │
+│  ├── oauth/          OAuth 2.0 认证                      │
+│  ├── tools/          增强工具（web_fetch/search/todo…）  │
+│  └── tui/            终端 UI（Bubble Tea 已实现）         │
+├─────────────────────────────────────────────────────────┤
+│  pkg/ — 核心框架（可嵌入，稳定 API）                      │
+│  ├── llm/          类型系统 + 错误分类                   │
+│  ├── tool/         工具接口 + 6 个内置工具               │
+│  ├── hook/         Hook 系统 + PubSub                   │
+│  ├── session/      会话管理 + 事件溯源                   │
+│  ├── agent/        Agent 循环 + 流式处理                 │
+│  ├── provider/     Provider 工厂（15+ 个 Provider）      │
+│  ├── lsp/          LSP 集成                              │
+│  ├── mcp/          MCP 集成                              │
+│  ├── memory/       记忆系统（FTS5, build tag）           │
+│  ├── config/       配置管理（CoW 模式）                  │
+│  └── skill/        技能加载                              │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 核心包
+
+| 包 | 说明 |
+|---|------|
+| `pkg/llm` | 统一类型：`ChatMessage`、`ToolCall`、`Model` 接口 |
+| `pkg/tool` | Tool 接口 + Registry（支持 TTL） |
+| `pkg/hook` | Hook 生命周期 + PubSub 事件总线 + 权限 |
+| `pkg/provider` | Provider 工厂：OpenAI、Anthropic、Gemini、OpenCode Zen、Bedrock、Azure、Copilot、Ollama、OpenAI 兼容 |
+| `pkg/agent` | Agent 循环、Pipeline、函数式选项 |
+| `pkg/session` | 事件溯源会话存储 |
+| `pkg/lsp` | LSP 代码智能集成 |
+| `pkg/mcp` | MCP 协议外部工具服务器 |
+| `pkg/memory` | 可选持久化记忆（build tag: `memory`） |
+| `pkg/config` | Copy-on-Write 配置管理 |
+| `pkg/skill` | 基于 Markdown 的 Skill 系统 |
+
+## 扩展点
+
+### Hook（生命周期钩子）
+
+拦截 agent 生命周期事件：
+
+```go
+type MyHook struct{}
+
+func (h *MyHook) BeforeTool(call llm.ToolCall) (*llm.ToolCall, error) {
+    // 修改或拒绝工具调用
+    if call.Name == "bash" && strings.Contains(call.ArgsJSON, "rm -rf") {
+        return nil, fmt.Errorf("危险命令已拒绝")
+    }
+    return &call, nil
+}
+
+func (h *MyHook) AfterTool(call llm.ToolCall, result *tool.Result, err error) {
+    // 观察工具执行结果
+    log.Printf("工具 %s 已执行", call.Name)
+}
+
+// 嵌入 NopHook 获得默认空实现，只需实现你关心的方法
+```
+
+### Plugin（插件）
+
+在初始化时扩展 agent 能力：
+
+```go
+type MyPlugin struct{}
+
+func (p *MyPlugin) Name() string { return "my-plugin" }
+
+func (p *MyPlugin) Init(a agent.Agent) error {
+    // 注册额外的工具、Hook 等
+    return nil
+}
+
+func (p *MyPlugin) Shutdown(ctx context.Context) error {
+    return nil
+}
+```
+
+### Skill（技能）
+
+基于 Markdown 的技能文件，YAML frontmatter 定义元数据：
+
+```markdown
+---
+name: code-reviewer
+description: "代码审查最佳实践"
+---
+
+## Instructions
+
+审查代码时关注：
+1. 正确性和边界情况
+2. 性能影响
+3. 安全性
+4. 代码风格和可读性
+```
+
+## 配置
+
+配置文件搜索顺序：`./config.json`、`.basework/config.json`、父目录中的 `config.json`、`~/.config/basework/config.json`。
+
+默认 Provider 是 OpenCode Zen，默认模型是 `big-pickle`。该模型本身免费，但仍需要配置 API Key：
+
+```bash
+export OPENCODE_API_KEY="..."
+```
+
+```json
+{
+  "provider": "opencode",
+  "model": "big-pickle",
+  "max_iterations": 25,
+  "system_prompt": "你是一个有帮助的助手。",
+  "mcp_configs": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "..." }
+    }
+  }
+}
+```
+
+## Build Tag
+
+| Tag | 默认 | 说明 |
+|-----|------|------|
+| `memory` | 关 | SQLite 持久化记忆 + FTS5 全文搜索 |
+| `sqlite` | 关 | SQLite 会话存储（替换 JSONL） |
+
+```bash
+# 启用记忆模块构建
+go build -tags memory ./...
+
+# 启用 SQLite 会话存储
+go build -tags sqlite ./...
+
+# 启用完整终端产品能力（与 CI/Release 保持一致）
+go build -tags "sqlite memory" ./cmd/basework
+```
+
+## 环境要求
+
+- Go 1.26+
+
+## 文档
+
+### 快速开始
+- [安装指南](../installation.md) — 下载、Docker、Go install、源码构建
+- [嵌入指南](../guides/embedder-guide.md) — 将 basework 嵌入 Go 应用
+- [CLI 使用指南](../guides/cli-guide.md) — CLI 完整命令参考
+- [Provider 配置](../guides/provider-guide.md) — Provider 配置、模型选择、故障排查
+- [配置参考](../guides/configuration.md) — 配置文件、环境变量
+
+### 功能指南
+- [权限系统](../guides/permission-guide.md) — 权限规则、交互提示、YOLO 模式（Phase 15）
+- [子代理](../guides/subagent-guide.md) — 任务委托、隔离子会话、成本追踪（Phase 16）
+- [终端 UI](../guides/tui-guide.md) — TUI 启动、快捷键、主题配置（Phase 18）
+- [主题配置](../guides/theme.md) — 内置主题、自定义主题、终端自适应（Phase 29）
+- [模板系统](../guides/templates.md) — Provider 感知模板、自定义模板、环境注入（Phase 29）
+- [安全指南](../guides/security.md) — 权限边界、敏感路径保护、审计与威胁模型
+- [性能分析](../guides/profiling.md) — pprof 端点、CPU/内存/goroutine 分析、benchmark 套件
+
+### 常见问题
+- [FAQ](../FAQ.md) — 常见问题解答
+
+### 架构与设计
+- [架构概览](../ARCHITECTURE.md) — 系统架构、模块依赖、API 兼容性
+- [模块依赖图](../DEPGRAPH.md) — 层级/包级依赖图、扇入扇出、依赖边界检测（`make deps` 生成）
+- [架构决策记录（ADR）](../adr/TEMPLATE.md) — 已定决策的背景/决定/后果，含被否决的替代方案
+- [设计文档索引](../DESIGN.md) — 分册设计文档入口（概览、分层、集成、运行时、Prompt、安全可观测、终端产品）
+- [项目状态](../STATUS.md) — 当前已建成能力（不含规划）
+- [代码规模统计](../STATS.md) — 行数、文件数、测试与覆盖率（`make stats` 生成）
+
+### 开发指南
+- [扩展指南](../guides/extending.md) — Hook、Plugin、Skill、自定义 Provider/Tool
+- [迁移指南](../guides/migration.md) — 版本升级、JSONL → SQLite 迁移
+- [贡献指南](../CONTRIBUTING.md) — 如何贡献代码
+
+### 部署与发布
+- [Docker 部署](../docker.md) — 镜像标签、挂载与运行方式
+- [发布流程](../release.md) — tag 发布、手动发布、dry-run、本地验证
+
+### 项目管理
+- [路线图](../ROADMAP.md) — 阶段状态、Phase 36 规划、设计原则（唯一路线图）
+- [任务清单](../TASKS.md) — 各 Phase 可执行待办与验收标准
+- [改造方案](README.md) — 待评审/已执行的技术方案（与 ADR 的分工：ADR 记已定决策，plans 记方案过程）
+- [竞品与对标分析](../analysis) — 与同类项目的对比研究
+- [变更日志](../CHANGELOG.md) — 版本变更记录（版本号以 git tag 为权威）
+- [安全策略](../SECURITY.md) — 漏洞报告、安全更新
+- [行为准则](../CODE_OF_CONDUCT.md) — 社区行为准则
+
+## 许可证
+
+MIT

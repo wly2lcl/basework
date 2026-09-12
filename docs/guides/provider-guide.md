@@ -155,7 +155,7 @@ basework model list --free
 basework model use mimo-v2.5-free
 ```
 
-`model list` 列出已知模型；`--free` 只显示无需 API key 的免费模型；`model use` 会把选中的模型写入当前配置。
+`model list` 列出已知模型；`--free` 只显示本地目录标为免费的模型；`model use` 会把选中的模型写入当前配置。
 
 ---
 
@@ -281,4 +281,4 @@ nslookup api.openai.com
 
 ---
 
-> **参考**：嵌入指南见 [嵌入指南](./embedder-guide.md)，迁移信息见 [迁移指南](./migration.md)。
+> **参考**：嵌入指南见 [嵌入指南](embedder-guide.md)，迁移信息见 [迁移指南](migration.md)。
