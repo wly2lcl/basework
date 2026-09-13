@@ -19,7 +19,7 @@ func TestRuntimePermissionCheckerUsesSQLiteStoreAndAudit(t *testing.T) {
 	cfg.Permission.Mode = "interactive"
 	cfg.Security.PermissionStore = "sqlite"
 
-	checker, err := newPermissionChecker(cfg)
+	checker, err := newPermissionChecker(cfg, nil)
 	if err != nil {
 		t.Fatalf("newPermissionChecker: %v", err)
 	}

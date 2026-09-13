@@ -169,7 +169,10 @@ func (s *SQLiteStore) Create(opts CreateOpts) (*Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	id := newID()
+	id, err := resolveCreateID(opts)
+	if err != nil {
+		return nil, err
+	}
 	now := nowUTC()
 	info := &Info{
 		ID:        id,
@@ -178,7 +181,7 @@ func (s *SQLiteStore) Create(opts CreateOpts) (*Info, error) {
 		UpdatedAt: now,
 	}
 
-	_, err := s.db.Exec(
+	_, err = s.db.Exec(
 		`INSERT INTO sessions (id, title, model, provider, created_at, updated_at, tracked_files) VALUES (?, ?, '', '', ?, ?, '[]')`,
 		id, opts.Title, now.Format(time.RFC3339), now.Format(time.RFC3339),
 	)

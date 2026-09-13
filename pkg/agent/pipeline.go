@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -84,7 +85,17 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 	// 2. 记录请求指纹：每个真正发给 provider 的请求都在日志里留下指纹，
 	//    可事后核对「模型看到的就是日志里记录的那份」。放在 hook 之后、Stream
 	//    之前，记录的正是最终形态。
-	p.recordRequestBuilt(msgs, tools)
+	//
+	//    写不进去怎么办由审计策略决定：compatible（默认）只记日志继续发送，
+	//    保持既有嵌入调用可用；strict 在发出任何 Provider 调用之前中断，
+	//    于是「日志里没有 request.built」等价于「没有发出过请求」。
+	if err := p.recordRequestBuilt(msgs, tools); err != nil {
+		if p.auditMode() == AuditModeStrict {
+			p.td.Hooks().RunAfterLLM(nil, err)
+			return nil, err
+		}
+		log.Printf("%v", err)
+	}
 
 	// 3. 调用 stream
 	ch, err := p.td.Model().Stream(ctx, &llm.Request{Messages: msgs, Tools: tools})
@@ -160,8 +171,16 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 		return nil, ctx.Err()
 	}
 
-	// 刷新未完成的 tool call：stream 结束时将 toolCallMap 中残留的 tool call 标记为完成
-	for _, tc := range toolCallMap {
+	// 刷新未完成的 tool call：stream 结束时将 toolCallMap 中残留的 tool call 标记为完成。
+	// 按 index 升序刷新：map 迭代顺序随机，会让同一响应产生不同的工具调用顺序，
+	// 进而改变持久化的 assistant 消息与请求指纹。
+	pending := make([]int, 0, len(toolCallMap))
+	for idx := range toolCallMap {
+		pending = append(pending, idx)
+	}
+	sort.Ints(pending)
+	for _, idx := range pending {
+		tc := toolCallMap[idx]
 		fullCall := llm.ToolCall{
 			ID:       tc.id,
 			Name:     tc.name,
@@ -231,14 +250,26 @@ func (p *Pipeline) callLLM(ctx context.Context, messages []llm.ChatMessage, tool
 	return resp, nil
 }
 
-// recordRequestBuilt 把本次真实请求的指纹写入事件日志。
+// auditMode 返回本次运行的审计策略。
+//
+// TurnD 不实现 AuditPolicyProvider 时回落到 compatible，保证既有嵌入实现的行为
+// 与历史一致——给 TurnD 加必选方法会破坏所有外部实现。
+func (p *Pipeline) auditMode() AuditMode {
+	if ap, ok := p.td.(AuditPolicyProvider); ok {
+		return ap.AuditMode().Normalize()
+	}
+	return AuditModeCompatible
+}
+
+// recordRequestBuilt 把本次真实请求的指纹写入事件日志，失败时返回错误。
 //
 // 只记指纹（条数 + 哈希 + 来源），不记请求全文：全文可由事件日志重建，
 // 重复存一份既增体积，也让人误以为"日志里的这份"才是权威。
 //
-// 写入失败只记日志、不中断请求：审计能力缺失不应该让对话本身失败，
-// 但这也意味着该事件不保证每条请求都有——所以核对时以「有则必须一致」为准。
-func (p *Pipeline) recordRequestBuilt(msgs []llm.ChatMessage, tools []llm.ToolDefinition) {
+// 返回值语义：调用方（callLLM）按审计策略决定是继续发送还是中断。把“记不进去”
+// 变成返回值而不是在这里吞掉，是 REL-004 的关键——之前它只打一行日志，
+// 于是「日志缺条目」和「没有发出请求」在事后无法区分。
+func (p *Pipeline) recordRequestBuilt(msgs []llm.ChatMessage, tools []llm.ToolDefinition) error {
 	data, err := session.EncodeData(&session.RequestBuiltData{
 		MsgCount:  len(msgs),
 		ToolCount: len(tools),
@@ -246,16 +277,26 @@ func (p *Pipeline) recordRequestBuilt(msgs []llm.ChatMessage, tools []llm.ToolDe
 		Sources:   p.sources,
 	})
 	if err != nil {
-		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventRequestBuilt)
-		return
+		return &AuditError{
+			SessionID: p.sessionID,
+			Stage:     AuditStageEncode,
+			Source:    string(session.EventRequestBuilt),
+			Err:       err,
+		}
 	}
 	if err := p.td.Session().AppendEvent(session.Event{
 		SessionID: p.sessionID,
 		Type:      session.EventRequestBuilt,
 		Data:      data,
 	}); err != nil {
-		log.Printf("event persistence failed: %v (session=%s, type=%s)", err, p.sessionID, session.EventRequestBuilt)
+		return &AuditError{
+			SessionID: p.sessionID,
+			Stage:     AuditStagePersist,
+			Source:    string(session.EventRequestBuilt),
+			Err:       err,
+		}
 	}
+	return nil
 }
 
 // executeTools 执行所有工具调用，单工具失败不影响其他

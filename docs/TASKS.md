@@ -18,33 +18,34 @@
 | ID | 阶段 | 任务卡 | 状态 | 依赖 | 负责人 | 证据 |
 |---|---|---|---|---|---|---|
 | DOC-001 | M0 | [文档集中与可执行任务体系](tasks/00-baseline.md#doc-001) | 完成 | — | Codex / 本轮文档整理 | [记录](development/evidence/DOC-001.md) |
-| BASE-001 | M0 | [建立可复跑的当前基线](tasks/00-baseline.md#base-001) | 待办 | DOC-001 | — | — |
-| REL-001 | M1 | [流式工具调用协议回归](tasks/01-reliability.md#rel-001) | 待办 | BASE-001 | — | — |
-| REL-002 | M1 | [模型能力与认证信息说明](tasks/01-reliability.md#rel-002) | 待办 | REL-001 | — | — |
-| REL-003 | M1 | [真实模型编码闭环验证](tasks/01-reliability.md#rel-003) | 待办 | REL-002 | — | — |
-| REL-004 | M1 | [请求审计运行时策略](tasks/01-reliability.md#rel-004) | 待办 | REL-001 | — | — |
-| JOB-001 | M2 | [定义并实现 job 状态与归属](tasks/02-jobs.md#job-001) | 待办 | BASE-001 | — | — |
-| JOB-002 | M2 | [增量输出与文件溢出](tasks/02-jobs.md#job-002) | 待办 | JOB-001 | — | — |
-| JOB-003 | M2 | [超时取消与进程树清理](tasks/02-jobs.md#job-003) | 待办 | JOB-002 | — | — |
-| JOB-004 | M2 | [后台任务恢复与 CLI 接线](tasks/02-jobs.md#job-004) | 待办 | JOB-003 | — | — |
-| EDIT-001 | M3 | [统一编辑预览和冲突契约](tasks/03-editing.md#edit-001) | 待办 | BASE-001 | — | — |
-| EDIT-002 | M3 | [批量提交与安全撤销](tasks/03-editing.md#edit-002) | 待办 | EDIT-001 | — | — |
-| EDIT-003 | M3 | [编辑事实与 CLI 审阅闭环](tasks/03-editing.md#edit-003) | 待办 | EDIT-002 | — | — |
-| CFG-001 | M4 | [脱敏的有效配置解释](tasks/04-composition.md#cfg-001) | 待办 | BASE-001 | — | — |
-| CFG-002 | M4 | [可组合启动预设](tasks/04-composition.md#cfg-002) | 待办 | CFG-001 | — | — |
-| CFG-003 | M4 | [注册资源归属与逆序释放](tasks/04-composition.md#cfg-003) | 待办 | BASE-001 | — | — |
-| CTX-001 | M5 | [统一工作区事实模型](tasks/05-context.md#ctx-001) | 待办 | JOB-004, EDIT-003 | — | — |
-| CTX-002 | M5 | [受预算约束的项目摘要](tasks/05-context.md#ctx-002) | 待办 | CTX-001 | — | — |
-| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 待办 | CTX-002, REL-004 | — | — |
-| RUN-001 | M6 | [抽取运行服务接口与所有权](tasks/06-runtime.md#run-001) | 待办 | CFG-003 | — | — |
-| RUN-002 | M6 | [有序事件与会话取消](tasks/06-runtime.md#run-002) | 待办 | RUN-001, JOB-004 | — | — |
-| RUN-003 | M6 | [CLI/TUI 统一接入服务](tasks/06-runtime.md#run-003) | 待办 | RUN-002 | — | — |
-| UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 待办 | RUN-003 | — | — |
-| UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 待办 | UI-001, EDIT-003 | — | — |
-| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 待办 | UI-002, CTX-003 | — | — |
-| SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 待办 | REL-003, CTX-003 | — | — |
-| SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待办 | SHIP-001, UI-003, CFG-002 | — | — |
-| SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待办 | SHIP-002 | — | — |
+| BASE-001 | M0 | [建立可复跑的当前基线](tasks/00-baseline.md#base-001) | 完成 | DOC-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/BASE-001.md) |
+| REL-001 | M1 | [流式工具调用协议回归](tasks/01-reliability.md#rel-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REL-001.md) |
+| REL-002 | M1 | [模型能力与认证信息说明](tasks/01-reliability.md#rel-002) | 完成 | REL-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REL-002.md) |
+| REL-003 | M1 | [真实模型编码闭环验证](tasks/01-reliability.md#rel-003) | 完成 | REL-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REL-003.md) |
+| REL-004 | M1 | [请求审计运行时策略](tasks/01-reliability.md#rel-004) | 完成 | REL-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REL-004.md) |
+| JOB-001 | M2 | [定义并实现 job 状态与归属](tasks/02-jobs.md#job-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/JOB-001.md) |
+| JOB-002 | M2 | [增量输出与文件溢出](tasks/02-jobs.md#job-002) | 完成 | JOB-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/JOB-002.md) |
+| JOB-003 | M2 | [超时取消与进程树清理](tasks/02-jobs.md#job-003) | 完成 | JOB-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/JOB-003.md) |
+| JOB-004 | M2 | [后台任务恢复与 CLI 接线](tasks/02-jobs.md#job-004) | 完成 | JOB-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/JOB-004.md) |
+| EDIT-001 | M3 | [统一编辑预览和冲突契约](tasks/03-editing.md#edit-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/EDIT-001.md) |
+| EDIT-002 | M3 | [批量提交与安全撤销](tasks/03-editing.md#edit-002) | 完成 | EDIT-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/EDIT-002.md) |
+| EDIT-003 | M3 | [编辑事实与 CLI 审阅闭环](tasks/03-editing.md#edit-003) | 完成 | EDIT-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/EDIT-003.md) |
+| CFG-001 | M4 | [脱敏的有效配置解释](tasks/04-composition.md#cfg-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-001.md) |
+| CFG-002 | M4 | [可组合启动预设](tasks/04-composition.md#cfg-002) | 完成 | CFG-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-002.md) |
+| CFG-003 | M4 | [注册资源归属与逆序释放](tasks/04-composition.md#cfg-003) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-003.md) |
+| CFG-004 | M4 | [自定义模型端点配置](tasks/04-composition.md#cfg-004) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-004.md) |
+| CTX-001 | M5 | [统一工作区事实模型](tasks/05-context.md#ctx-001) | 完成 | JOB-004, EDIT-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CTX-001.md) |
+| CTX-002 | M5 | [受预算约束的项目摘要](tasks/05-context.md#ctx-002) | 完成 | CTX-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CTX-002.md) |
+| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 完成 | CTX-002, REL-004 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CTX-003.md) |
+| RUN-001 | M6 | [抽取运行服务接口与所有权](tasks/06-runtime.md#run-001) | 完成 | CFG-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/RUN-001.md) |
+| RUN-002 | M6 | [有序事件与会话取消](tasks/06-runtime.md#run-002) | 完成 | RUN-001, JOB-004 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/RUN-002.md) |
+| RUN-003 | M6 | [CLI/TUI 统一接入服务](tasks/06-runtime.md#run-003) | 完成 | RUN-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/RUN-003.md) |
+| UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 完成 | RUN-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/UI-001.md) |
+| UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 完成 | UI-001, EDIT-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/UI-002.md) |
+| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 完成 | UI-002, CTX-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/UI-003.md) |
+| SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 完成 | REL-003, CTX-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/SHIP-001.md) |
+| SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 完成 | SHIP-001, UI-003, CFG-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/SHIP-002.md) |
+| SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 完成 | SHIP-002 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/SHIP-003.md) |
 
 ## 进度更新纪律
 

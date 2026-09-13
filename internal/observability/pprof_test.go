@@ -32,7 +32,7 @@ func TestProfiler_NewProfiler(t *testing.T) {
 }
 
 func TestProfiler_StartAndStop(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16060})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	// 启动
 	if err := p.Start(); err != nil {
@@ -47,10 +47,54 @@ func TestProfiler_StartAndStop(t *testing.T) {
 	if !p.IsRunning() {
 		t.Error("Start 后 IsRunning 应为 true")
 	}
+
+	if p.Addr() == "127.0.0.1:0" {
+		t.Error("端口为 0 时 Start 后 Addr 应回填内核分配的实际端口")
+	}
+}
+
+// 端口为 0 时内核随机分配，多个 Profiler 可共存（并行测试/多实例不互踩）
+func TestProfiler_PortZeroConcurrentInstances(t *testing.T) {
+	ps := make([]*Profiler, 4)
+	addrs := make(map[string]bool)
+	for i := range ps {
+		ps[i] = NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
+		if err := ps[i].Start(); err != nil {
+			t.Fatalf("第 %d 个实例 Start 失败: %v", i, err)
+		}
+		if addrs[ps[i].Addr()] {
+			t.Errorf("第 %d 个实例地址 %s 与之前实例重复", i, ps[i].Addr())
+		}
+		addrs[ps[i].Addr()] = true
+	}
+	for i := range ps {
+		if err := ps[i].Stop(); err != nil {
+			t.Errorf("第 %d 个实例 Stop 失败: %v", i, err)
+		}
+	}
+}
+
+// 端口被占用时 Start 必须同步报错，不能静默谎报成功（服务器实际没起来）
+func TestProfiler_StartPortConflict(t *testing.T) {
+	p1 := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
+	if err := p1.Start(); err != nil {
+		t.Fatalf("第一个实例 Start 失败: %v", err)
+	}
+	defer func() {
+		if err := p1.Stop(); err != nil {
+			t.Errorf("Stop 失败: %v", err)
+		}
+	}()
+
+	p2 := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: p1.port})
+	if err := p2.Start(); err == nil {
+		t.Error("端口被占用时 Start 应返回错误")
+		_ = p2.Stop()
+	}
 }
 
 func TestProfiler_StartDuplicate(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16061})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	if err := p.Start(); err != nil {
 		t.Fatalf("Start 失败: %v", err)
@@ -69,7 +113,7 @@ func TestProfiler_StartDuplicate(t *testing.T) {
 }
 
 func TestProfiler_StopWithoutStart(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16062})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	// 未启动时 Stop 应返回错误
 	err := p.Stop()
@@ -79,7 +123,7 @@ func TestProfiler_StopWithoutStart(t *testing.T) {
 }
 
 func TestProfiler_Endpoints(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16063})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	if err := p.Start(); err != nil {
 		t.Fatalf("Start 失败: %v", err)
@@ -90,8 +134,7 @@ func TestProfiler_Endpoints(t *testing.T) {
 		}
 	}()
 
-	// 等待服务器就绪
-	time.Sleep(100 * time.Millisecond)
+	// Listen 在 Start 内同步完成，连接会进入内核 backlog，无需等待
 
 	tests := []struct {
 		path       string
@@ -133,7 +176,7 @@ func TestProfiler_Endpoints(t *testing.T) {
 }
 
 func TestProfiler_ProfileEndpoint(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16064})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	if err := p.Start(); err != nil {
 		t.Fatalf("Start 失败: %v", err)
@@ -143,8 +186,6 @@ func TestProfiler_ProfileEndpoint(t *testing.T) {
 			t.Errorf("Stop 失败: %v", err)
 		}
 	}()
-
-	time.Sleep(100 * time.Millisecond)
 
 	// CPU profile 使用短持续时间（1秒）
 	url := fmt.Sprintf("http://%s/debug/pprof/profile?seconds=1", p.Addr())
@@ -168,7 +209,7 @@ func TestProfiler_ProfileEndpoint(t *testing.T) {
 }
 
 func TestProfiler_TraceEndpoint(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16065})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	if err := p.Start(); err != nil {
 		t.Fatalf("Start 失败: %v", err)
@@ -178,8 +219,6 @@ func TestProfiler_TraceEndpoint(t *testing.T) {
 			t.Errorf("Stop 失败: %v", err)
 		}
 	}()
-
-	time.Sleep(100 * time.Millisecond)
 
 	// Trace 使用短持续时间
 	url := fmt.Sprintf("http://%s/debug/pprof/trace?seconds=1", p.Addr())
@@ -203,7 +242,7 @@ func TestProfiler_TraceEndpoint(t *testing.T) {
 }
 
 func TestProfiler_Concurrency(t *testing.T) {
-	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 16066})
+	p := NewProfiler(ProfilerConfig{Host: "127.0.0.1", Port: 0})
 
 	if err := p.Start(); err != nil {
 		t.Fatalf("Start 失败: %v", err)
@@ -213,8 +252,6 @@ func TestProfiler_Concurrency(t *testing.T) {
 			t.Errorf("Stop 失败: %v", err)
 		}
 	}()
-
-	time.Sleep(100 * time.Millisecond)
 
 	// 并发访问多个端点
 	done := make(chan struct{}, 3)

@@ -36,6 +36,9 @@ type config struct {
 
 	// steeringManager 转向管理器
 	steeringManager *SteeringManager
+
+	// auditMode 请求审计失败的策略；零值经 Normalize 后为 compatible。
+	auditMode AuditMode
 }
 
 // WithModel 设置 LLM 模型
@@ -121,4 +124,12 @@ func WithToolFactory(f ToolFactory) Option {
 // WithSteeringManager 设置转向管理器，用于在对话中注入系统消息
 func WithSteeringManager(mgr *SteeringManager) Option {
 	return func(cfg *config) { cfg.steeringManager = mgr }
+}
+
+// WithAuditMode 设置请求审计失败时的策略。
+//
+// 不调用本选项即保持历史行为（compatible）：审计写入失败只记日志并继续发送。
+// 需要「日志缺条目 ⇒ 一定没发出请求」这条性质时传 AuditModeStrict。
+func WithAuditMode(mode AuditMode) Option {
+	return func(cfg *config) { cfg.auditMode = mode.Normalize() }
 }

@@ -82,3 +82,34 @@
 **交付与回填**：代码/文档 diff、必要测试，以及 `docs/development/evidence/CFG-003.md`。更新看板的状态和证据；有用户可见行为变化时更新对应指南及 STATUS。
 
 **范围外**：不顺手改其他任务；公共 API、存储格式、默认权限的额外变化必须先写明影响并拆分。
+
+<a id="cfg-004"></a>
+
+## CFG-004：自定义模型端点配置
+
+**前置任务**：BASE-001。依赖尚未完成时，只能调查或细化方案，不能宣称本项已验收。
+
+本卡来自 REL-003 的真实模型验证：拿到可用凭证后才发现，**产品没有任何路径把模型请求指向自定义端点**。`cmd/basework` 的 `newRuntimeAgent` 调用 `provider.Create` 时从不设置 `Config.BaseURL`（全仓库非测试代码中 `BaseURL:` 赋值 0 处），配置文件也没有 `base_url` 字段；而 `docs/guides/cli-guide.md` 却教用户写 `providers.<name>.base_url`——该 schema 并不存在，写了会被**静默忽略**（实测把 base_url 指向不可达地址，请求仍打到默认端点并返回 401）。后果是：中转站、企业网关、自建兼容服务这三类用户按文档配置后不会报错，只会得到莫名其妙的鉴权失败。
+
+**先读 / 主要修改范围**：`cmd/basework/agent.go`、`cmd/basework/runtime.go`、`pkg/config/config.go`、`docs/guides/cli-guide.md`。首次阅读应确认实际文件/符号，拟新增路径不存在属正常。
+
+**实施步骤**：
+
+1. 先写清现状与缺口：`provider.Config.BaseURL` 的注入点只有可嵌入 API，CLI 无入口。
+2. 定配置载体并写轻量 ADR：配置文件 provider 级 `base_url` + key（与 `ollama.endpoint` 的既有做法保持一致），或采用标准环境变量；明确它与 `BASEWORK_PROVIDER` 的优先级关系。
+3. 接线：把生效端点的 base_url 与 key 传到 `provider.Create`，覆盖需要自定义端点的类型（`openai-compat` 必填，`openai`/`anthropic` 为覆盖默认）。
+4. 修正文档：让 `cli-guide.md` 的示例与真实 schema 一致，或让代码真正实现它；二者必须一致。
+5. 补边界测试：端点生效、缺 key 明确报错、不可达端点不静默回落、`config explain` 不泄漏 key。
+
+**验收条件**：
+
+- 配置/环境变量给出的 base_url 确实生效——请求打到该端点而不是默认端点（用本地 httptest 或不可达地址即可证明）。
+- 缺 key 或端点不可达时给出明确错误，**不静默回落到默认端点**。
+- 未配置自定义端点时行为与改动前完全一致（旧嵌入路径与旧配置保持兼容）。
+- `pkg` 不依赖 `internal`；默认与 `sqlite memory` 两种构建兼容；凭据不出现在 `config explain`、日志或错误信息里。
+
+**针对性验证**：go test ./cmd/basework ./pkg/config ./pkg/provider -count=1；随后用 REL-003 的隔离场景重跑 CLI 路径并记录结果。命令均从仓库根执行；必须记录结果和覆盖边界。
+
+**交付与回填**：代码/文档 diff、必要测试、ADR，以及 `docs/development/evidence/CFG-004.md`。更新看板的状态和证据；有用户可见行为变化时更新对应指南及 STATUS。
+
+**范围外**：不顺手改其他任务；不改各 Provider 的默认端点常量，不改权限默认值，不引入新的第三方依赖。

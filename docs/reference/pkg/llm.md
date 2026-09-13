@@ -11,6 +11,47 @@
 - **多模态图片** — `LoadImage` / `LoadImageFromReader` / `ImageData`，以及按 provider
   转成各家协议格式的 `ImageContentForProvider`。
 - **带重试的客户端** — `NewClient(model, opts...)`，把重试与事件发布收在一处。
+  流式调用不重试（见下方契约），只有 `Generate` 走重试。
+
+## 流式工具调用参数契约
+
+`ToolCallDelta.ArgsJSON` 的语义由 `Complete` 决定。**归一化由各 Provider 负责**，
+消费方不需要按 Provider 猜测方言：
+
+| `Complete` | `ArgsJSON` 的含义 | 消费方应如何用 |
+|---|---|---|
+| `false` | 自上次同 `Index` 事件以来的**参数增量片段** | 按 `Index` 分组、按到达顺序拼接 |
+| `true` | **完整参数**，唯一权威值 | 用该值覆盖拼接结果 |
+
+- 同一个 `Index` 在一次响应内只出现一次 `Complete=true`。
+- `Complete=true` 的事件按 `Index` 升序发出，与运行次数无关，可复现。
+- 增量事件不得携带累计值；发出累计值会让按序拼接的消费方重复拼接。
+- 空文本增量（`content: ""`）不产生 `StreamEventText`。
+- 流式请求不做重试，断流只补齐当前工具调用，不会重新发起请求导致有副作用的执行重复。
+
+回归测试见 `pkg/provider/stream_toolcall_regression_test.go` 与
+`pkg/agent/pipeline_stream_order_test.go`，实施记录见
+[REL-001 证据](../../development/evidence/REL-001.md)。
+
+## 能力结论契约
+
+`Model.Supports(cap) bool` 保留原样（`false` 只表示"没有声明支持"），
+需要区分**支持 / 不支持 / 未知**时用 `DescribeCapability(model, cap)`：
+
+| `Support` | 含义 | 调用方应如何用 |
+|---|---|---|
+| `SupportSupported` | 已确认支持 | 可以依赖 |
+| `SupportUnsupported` | 已确认不支持 | 应给出明确错误与可选替代 |
+| `SupportUnknown` | 没有依据（未声明也未实测） | **不得当作支持**，按需报错或降级 |
+
+- 实现 `CapabilityReporter` 可报告带来源（`declared` / `configured` / `probed`）的结论；
+  未实现的模型由 `DescribeCapability` 退回 `Supports()`，`false` 一律解释为 `Unknown`
+  而不是 `Unsupported`——`bool` 的 `false` 不构成"不支持"的证据。
+- `CheckRequiredCapabilities` 在能力为 `Unsupported` **或** `Unknown` 时都返回
+  `*MissingCapabilityError`，错误里带结论、来源与可选做法。它不会静默禁用能力或换模型。
+- 结论来源目前只有 `declared`（静态声明）。`probed`（真实请求实测）尚无写入方。
+
+回归测试见 `pkg/llm/capability_test.go` 与 `pkg/provider/capabilities_test.go`。
 
 ## 配置
 

@@ -39,7 +39,7 @@ func NewInput(title, message string, defaultValue string, onSubmit func(string),
 			message: message,
 		},
 		value:    defaultValue,
-		cursor:   len(defaultValue),
+		cursor:   len([]rune(defaultValue)),
 		onSubmit: onSubmit,
 		onCancel: onCancel,
 	}
@@ -68,16 +68,11 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			return d, nil
 
 		case "backspace":
-			if d.cursor > 0 {
-				d.value = d.value[:d.cursor-1] + d.value[d.cursor:]
-				d.cursor--
-			}
+			d.value, d.cursor = deleteRuneBefore(d.value, d.cursor)
 			return d, nil
 
 		case "delete":
-			if d.cursor < len(d.value) {
-				d.value = d.value[:d.cursor] + d.value[d.cursor+1:]
-			}
+			d.value = deleteRuneAt(d.value, d.cursor)
 			return d, nil
 
 		case "left":
@@ -87,7 +82,7 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			return d, nil
 
 		case "right":
-			if d.cursor < len(d.value) {
+			if d.cursor < len([]rune(d.value)) {
 				d.cursor++
 			}
 			return d, nil
@@ -97,21 +92,79 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			return d, nil
 
 		case "end":
-			d.cursor = len(d.value)
+			d.cursor = len([]rune(d.value))
 			return d, nil
 
 		default:
-			if msg.String() != "" && len(msg.String()) == 1 {
-				r := rune(msg.String()[0])
-				if r >= 32 && r <= 126 {
-					d.value = d.value[:d.cursor] + string(r) + d.value[d.cursor:]
-					d.cursor++
-				}
+			// 与主输入框同源缺陷：按字节长度过滤会静默丢弃中文与空格。
+			// 详见 internal/tui/input.go 的 printableKeyText 注释。
+			if text := printableKeyText(msg); text != "" {
+				runes := []rune(d.value)
+				pos := clampRunePos(d.cursor, len(runes))
+				ins := []rune(text)
+				out := make([]rune, 0, len(runes)+len(ins))
+				out = append(out, runes[:pos]...)
+				out = append(out, ins...)
+				out = append(out, runes[pos:]...)
+				d.value = string(out)
+				d.cursor = pos + len(ins)
 			}
 			return d, nil
 		}
 	}
 	return d, nil
+}
+
+// printableKeyText 取出一次按键所代表的文本；不是文本输入时返回 ""。
+func printableKeyText(msg tea.KeyPressMsg) string {
+	k := msg.Key()
+	if k.Text != "" {
+		return k.Text
+	}
+	if k.Code >= 32 && k.Code != 127 && msg.Keystroke() == string(k.Code) {
+		return string(k.Code)
+	}
+	return ""
+}
+
+// clampRunePos 把 rune 索引夹到 [0, n]。
+func clampRunePos(pos, n int) int {
+	if pos < 0 {
+		return 0
+	}
+	if pos > n {
+		return n
+	}
+	return pos
+}
+
+// deleteRuneBefore 删除 rune 索引 pos 之前的字符，返回新串与新索引。
+func deleteRuneBefore(s string, pos int) (string, int) {
+	runes := []rune(s)
+	if pos <= 0 || len(runes) == 0 {
+		return s, clampRunePos(pos, len(runes))
+	}
+	p := clampRunePos(pos, len(runes))
+	if p == 0 {
+		return s, 0
+	}
+	out := make([]rune, 0, len(runes)-1)
+	out = append(out, runes[:p-1]...)
+	out = append(out, runes[p:]...)
+	return string(out), p - 1
+}
+
+// deleteRuneAt 删除 rune 索引 pos 处的字符。
+func deleteRuneAt(s string, pos int) string {
+	runes := []rune(s)
+	p := clampRunePos(pos, len(runes))
+	if p >= len(runes) {
+		return s
+	}
+	out := make([]rune, 0, len(runes)-1)
+	out = append(out, runes[:p]...)
+	out = append(out, runes[p+1:]...)
+	return string(out)
 }
 
 // View 渲染输入对话框

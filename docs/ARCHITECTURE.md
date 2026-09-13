@@ -245,10 +245,18 @@ request == BuildRequestMessages(events)     // 在没有改写请求的 hook 时
 ```
 
 - system prompt 与 steering 落成 `system.prompt_set` / `steered` 事件；
-- 每次请求尝试写 `request.built`（条数、哈希、来源）；写入失败只记录日志并继续；
-- `agent.CheckRequestInvariant` 可随时校验上面这个等式。
+- 每次请求写 `request.built`（条数、哈希、来源）。写入失败怎么办由审计策略决定：
+  默认 `compatible` 只记录日志并继续发送；`strict` 在发出任何 Provider 调用之前中断本轮。
+- `agent.CheckRequestInvariant`、`agent.RebuildRequestAt`、`agent.VerifyRequestBuilt` 可校验上面这个等式。
 
-`CheckRequestInvariant` 当前供诊断和测试使用，运行时未调用；Hook 改写以及 Provider 传输层变换不受该重建等式保证。严格审计是 REL-004 的未来任务，见 [任务看板](TASKS.md)。
+**审计边界**（详见 [ADR 0005](adr/0005-request-audit-strict-mode.md)）：指纹覆盖发给
+`llm.Request` 那一刻的 messages 与 tools。其中 hook 改写后的内容与工具定义快照**被覆盖
+但不可由日志重建**；Provider 传输层变换**不在覆盖范围内**。核对必须按请求自己的 Seq
+把日志截回去，并传入当时实际使用的工具定义。
+
+Hook 改写以及 Provider 传输层变换不受该重建等式保证。严格模式见
+[ADR 0005](adr/0005-request-audit-strict-mode.md)，实施记录见
+[REL-004 证据](development/evidence/REL-004.md)。
 
 ### 为什么会话数据要带格式版本？
 

@@ -20,6 +20,7 @@ type compatModel struct {
 	modelID      string
 	client       *http.Client
 	capabilities map[llm.Capability]bool
+	caps         *capabilitySet    // 带来源的能力结论，Support 与 capabilities 保持一致
 	extraHeaders map[string]string // custom headers from Config.Options["headers"]
 }
 
@@ -41,14 +42,33 @@ func newOpenAICompat(cfg Config, baseURL string) (llm.Model, error) {
 		}
 	}
 
+	caps := newCapabilitySet(cfg.Type, cfg.ModelID)
+
+	// 只声明有依据的能力。历史实现无条件声明 CapVision=true，这会把纯文本模型
+	// （deepseek-chat、groq 的 llama-3.3 等）说成支持图片输入。现在改为按模型家族
+	// 判定，判定不出就保持未声明，由 DescribeCapability 报告 Unknown。
+	capabilities := map[llm.Capability]bool{
+		llm.CapTools:     true,
+		llm.CapStreaming: true,
+	}
+	if caps.Capability(llm.CapVision).Support == llm.SupportSupported {
+		capabilities[llm.CapVision] = true
+	}
+
 	return &compatModel{
 		baseURL:      strings.TrimRight(baseURL, "/"),
 		apiKey:       cfg.APIKey,
 		modelID:      cfg.ModelID,
 		client:       newHTTPClient(10 * time.Minute),
-		capabilities: map[llm.Capability]bool{llm.CapTools: true, llm.CapVision: true, llm.CapStreaming: true},
+		capabilities: capabilities,
+		caps:         caps,
 		extraHeaders: extraHeaders,
 	}, nil
+}
+
+// Capability 实现 llm.CapabilityReporter，报告带来源的三态能力。
+func (m *compatModel) Capability(cap llm.Capability) llm.CapabilityDetail {
+	return m.caps.Capability(cap)
 }
 
 // ID returns the model identifier

@@ -1,10 +1,26 @@
 package session
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/wly2lcl/basework/pkg/llm"
 )
+
+// resolveCreateID 返回本次创建应使用的会话 ID。
+//
+// opts.ID 为空时生成新 ID（原有行为）；非空时校验字符集后原样使用。
+// 放在公共位置而不是各实现里各写一遍：三个 Store 实现必须给出同一套 ID 规则，
+// 否则「同样的调用在不同后端下是否保留 ID」会随实现漂移。
+func resolveCreateID(opts CreateOpts) (string, error) {
+	if opts.ID == "" {
+		return newID(), nil
+	}
+	if !safeIDPattern.MatchString(opts.ID) {
+		return "", fmt.Errorf("session: 非法的会话 ID: %q（只允许 [a-zA-Z0-9_-]）", opts.ID)
+	}
+	return opts.ID, nil
+}
 
 // Info 表示一个会话的信息摘要。
 type Info struct {
@@ -22,6 +38,15 @@ type Info struct {
 type CreateOpts struct {
 	Title    string
 	Metadata map[string]string
+	// ID 指定会话 ID；为空时由实现生成一个新 ID。
+	//
+	// 存在的理由：迁移必须保留原会话身份。此前没有这个入口，JSONL→SQLite 迁移
+	// 只能让实现另发一个新 ID，于是事件里带的原 session_id 找不到对应会话、
+	// 逐条外键失败，迁移报「成功」却一条事件都没落库（见 SHIP-002 记录）。
+	//
+	// 这是**可选**字段：留空即维持「由实现生成 ID」的原有行为，既有调用方不受影响。
+	// 非空时必须满足 [a-zA-Z0-9_-]，与 JSONL 的文件名约束一致（避免路径穿越）。
+	ID string
 }
 
 // ListFilter 是列举会话时的过滤条件。

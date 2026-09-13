@@ -92,31 +92,12 @@ type TimeoutEvent struct {
 // WithTimeout 包装 context，添加超时控制
 // 返回包装后的 context 和 cancel 函数
 // 如果 timeout <= 0，返回原始 context
-// 超时触发时通过全局 event bus 发布 tool.timeout 事件
+// 超时触发时通过全局 event bus 发布 tool.timeout 事件。
+//
+// 实例级注入见 WithTimeoutBus 与 Runtime：需要实例隔离的调用方
+// 应携带自己的 bus，而不是依赖这里读到的全局值。
 func WithTimeout(ctx context.Context, toolName string, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if timeout <= 0 {
-		return ctx, func() {}
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-
-	// 超时后通过 bus 发布事件
-	if globalEventBus != nil {
-		context.AfterFunc(timeoutCtx, func() {
-			if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
-				globalEventBus.PublishEvent(
-					EventToolTimeout,
-					map[string]interface{}{
-						"tool_name":     toolName,
-						"timeout_limit": timeout.Seconds(),
-						"elapsed_time":  timeout.Seconds(),
-					},
-				)
-			}
-		})
-	}
-
-	return timeoutCtx, cancel
+	return WithTimeoutBus(ctx, toolName, timeout, globalEventBus)
 }
 
 // IsTimeoutError 检查错误是否为超时错误

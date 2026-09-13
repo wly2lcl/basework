@@ -5,7 +5,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -125,6 +124,17 @@ func runMigrateSessions() error {
 
 	fmt.Printf("找到 %d 个 JSONL 会话文件\n", len(jsonlFiles))
 
+	// 通过 JSONLStore 读取源事件，而不是自己按行 json.Unmarshal。
+	//
+	// 自建解析会绕过 readEvents 的两件事：文件头识别与**格式版本判定 + 相邻迁移链**。
+	// 实测后果：一个 v99 的会话文件会被"成功"导入当前库——未来版本的数据越过
+	// 「读到更高版本即拒绝」的契约进入了本地存储（见 SHIP-002 记录）。
+	// 走存储读取还顺带保证：低版本事件先升级到当前版本再落库。
+	srcStore, err := session.NewJSONLStore(sessionDir)
+	if err != nil {
+		return fmt.Errorf("打开源会话存储失败: %w", err)
+	}
+
 	// 6. 逐个导入
 	var imported, skipped, failed int
 	for _, filename := range jsonlFiles {
@@ -138,62 +148,59 @@ func runMigrateSessions() error {
 			continue
 		}
 
-		// 读取 JSONL 文件
-		jsonlPath := filepath.Join(sessionDir, filename)
-		data, err := os.ReadFile(jsonlPath)
+		events, err := srcStore.Events(session.EventFilter{SessionID: sessionID})
 		if err != nil {
 			fmt.Printf("  ❌ 读取 %s 失败: %v\n", filename, err)
 			failed++
 			continue
 		}
-
-		// 解析 JSONL 事件
-		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-		if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
-			fmt.Printf("  ⏭ 跳过 %s（空文件）\n", filename)
+		if len(events) == 0 {
+			fmt.Printf("  ⏭ 跳过 %s（无事件）\n", filename)
 			skipped++
 			continue
 		}
 
-		// 先创建会话
-		info, err := sqliteStore.Create(session.CreateOpts{
-			Title: fmt.Sprintf("迁移会话 %s", sessionID[:8]),
-		})
-		if err != nil {
+		// 先按**原 ID** 创建会话。
+		//
+		// 必须保留原 ID：事件里带的 session_id 就是原 ID。若这里另发新 ID，
+		// 每条事件的外键都对不上，逐条失败后被跳过，最终"报告成功、零条落库"。
+		if _, err := sqliteStore.Create(session.CreateOpts{
+			ID:    sessionID,
+			Title: fmt.Sprintf("迁移会话 %s", shortSessionID(sessionID)),
+		}); err != nil {
 			fmt.Printf("  ❌ 创建会话 %s 失败: %v\n", sessionID, err)
 			failed++
 			continue
 		}
 
-		// 如果 JSONL 中的 ID 与我们创建的不同，需要额外处理
-		_ = info
-
 		// 导入事件
-		var eventCount int
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			// 尝试解析为 Event
-			var event session.Event
-			if err := json.Unmarshal([]byte(line), &event); err != nil {
-				continue
-			}
-
+		var eventCount, eventFailed int
+		for _, event := range events {
 			if event.SessionID == "" {
 				event.SessionID = sessionID
 			}
-
 			if err := sqliteStore.AppendEvent(event); err != nil {
 				fmt.Printf("  ⚠ 导入事件失败（已跳过）: %v\n", err)
+				eventFailed++
 				continue
 			}
 			eventCount++
 		}
 
-		fmt.Printf("  ✅ 导入 %s（%d 个事件）\n", sessionID[:12], eventCount)
+		// 「零条导入」不能算成功：这正是本次验证踩到的坑——事件全部失败被跳过，
+		// 输出却是 ✅，用户以为迁移完成而数据一条没进来。
+		if eventCount == 0 {
+			fmt.Printf("  ❌ 导入 %s 失败：没有事件成功落库（失败 %d 行）\n",
+				shortSessionID(sessionID), eventFailed)
+			failed++
+			continue
+		}
+
+		fmt.Printf("  ✅ 导入 %s（%d 个事件", shortSessionID(sessionID), eventCount)
+		if eventFailed > 0 {
+			fmt.Printf("，跳过 %d 行", eventFailed)
+		}
+		fmt.Println("）")
 		imported++
 	}
 
@@ -204,6 +211,15 @@ func runMigrateSessions() error {
 	fmt.Printf("  ❌ 失败: %d\n", failed)
 	fmt.Printf("  📁 目标数据库: %s\n", sqlitePath)
 	fmt.Printf("  📂 源目录: %s\n", sessionDir)
+
+	// 有失败就必须以非零退出码结束。
+	//
+	// 报告里写「❌ 失败: 1」却返回 0，脚本与 CI 只会看到「成功」——
+	// 这正是「隐藏错误」的形态：人看到了，自动化没看到。版本过高的会话文件
+	// 就落在这一类（必须在写任何数据之前就拒绝）。
+	if failed > 0 {
+		return fmt.Errorf("会话迁移未全部成功：%d 个失败", failed)
+	}
 
 	return nil
 }

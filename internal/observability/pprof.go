@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"sync"
@@ -62,15 +63,27 @@ func (p *Profiler) Start() error {
 	mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
 
 	addr := p.Addr()
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		// 绑定失败必须同步返回，不能让调用方误以为服务器已启动
+		return fmt.Errorf("pprof 服务器监听 %s 失败: %w", addr, err)
+	}
+
+	// 端口为 0 时回填内核分配的实际端口，Addr() 之后返回真实地址
+	if p.port == 0 {
+		if tcpLn, ok := ln.(*net.TCPListener); ok {
+			p.port = tcpLn.Addr().(*net.TCPAddr).Port
+		}
+	}
+
 	p.server = &http.Server{
-		Addr:    addr,
 		Handler: mux,
 	}
 
 	// 启动 HTTP 服务器，捕获 server 引用避免闭包中的竞态
 	srv := p.server
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("pprof 服务器错误: %v\n", err)
 		}
 	}()
@@ -110,7 +123,8 @@ func (p *Profiler) IsRunning() bool {
 	return p.running
 }
 
-// Addr 返回服务器监听地址
+// Addr 返回服务器监听地址。配置端口为 0 时，Start 之后返回内核分配的实际端口；
+// Start 之前返回配置原样（host:0）。
 func (p *Profiler) Addr() string {
 	return fmt.Sprintf("%s:%d", p.host, p.port)
 }

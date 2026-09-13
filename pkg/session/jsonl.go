@@ -3,6 +3,7 @@ package session
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,7 +199,14 @@ func (s *JSONLStore) Create(opts CreateOpts) (*Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	id := newID()
+	id, err := resolveCreateID(opts)
+	if err != nil {
+		return nil, err
+	}
+	// 已存在则不覆盖：指定 ID 的创建（迁移路径）一旦覆盖，就是静默的数据丢失。
+	if _, statErr := os.Stat(filepath.Join(s.baseDir, id+".jsonl")); statErr == nil {
+		return nil, fmt.Errorf("session: 会话 %s 已存在", id)
+	}
 	now := nowUTC()
 	info := &Info{
 		ID:        id,
@@ -265,6 +273,15 @@ func (s *JSONLStore) List(filter ListFilter) ([]*Info, error) {
 
 		sd, err := s.loadSession(id)
 		if err != nil {
+			// 版本过高必须向上报错，不能像损坏文件那样跳过。
+			//
+			// 跳过会让 `session list` 输出「没有找到会话」——用户看到的是「数据没了」，
+			// 而不是「数据来自更新的版本」。pkg/session 的契约写的是「读到更高版本
+			// 返回 ErrSchemaTooNew，没有尽力解析的降级模式」，此处在列举路径上兑现它。
+			// 其余加载失败（内容损坏等）保持跳过，不因单个坏文件让整次列举失败。
+			if errors.Is(err, ErrSchemaTooNew) {
+				return nil, err
+			}
 			continue
 		}
 

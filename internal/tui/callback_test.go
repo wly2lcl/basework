@@ -3,10 +3,12 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/wly2lcl/basework/internal/tui/dialog"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/tool"
@@ -272,5 +274,164 @@ func TestAppUpdate_StreamDeltaWhileNotStreaming(t *testing.T) {
 	}
 	if len(app.Messages) != 0 {
 		t.Fatalf("增量不应写入消息列表，得到 %d 条", len(app.Messages))
+	}
+}
+
+// ---- RUN-003：运行事件按会话路由 ----
+
+// TestApp_Update_RunEventRouting 事件只被其所属会话的 App 接受；
+// 旧会话运行的收尾事件不能影响新会话的界面状态。
+func TestApp_Update_RunEventRouting(t *testing.T) {
+	app := NewApp("model", "opencode", "sess-1")
+
+	// 本会话事件：接受。
+	_, _ = app.Update(RunEventMsg{RunID: "run-1", SessionID: "sess-1", Kind: "run.started"})
+	if app.lastRunEvent == nil || app.lastRunEvent.RunID != "run-1" {
+		t.Fatalf("本会话事件应被接受: %+v", app.lastRunEvent)
+	}
+
+	// 他会话事件：忽略，不覆盖观察点。
+	_, _ = app.Update(RunEventMsg{RunID: "run-2", SessionID: "sess-other", Kind: "run.started"})
+	if app.lastRunEvent.RunID != "run-1" {
+		t.Fatalf("他会话事件应被忽略: %+v", app.lastRunEvent)
+	}
+
+	// 本会话 finished：接受。
+	_, _ = app.Update(RunEventMsg{RunID: "run-1", SessionID: "sess-1", Kind: "run.finished"})
+	if app.lastRunEvent.Kind != "run.finished" {
+		t.Fatalf("本会话 finished 应被接受: %+v", app.lastRunEvent)
+	}
+
+	// 无会话绑定（SessionID 为空）的 App：全部接受（兜底行为）。
+	app2 := NewApp("model", "opencode", "")
+	_, _ = app2.Update(RunEventMsg{RunID: "run-3", SessionID: "sess-9", Kind: "run.started"})
+	if app2.lastRunEvent == nil || app2.lastRunEvent.RunID != "run-3" {
+		t.Fatalf("未绑定会话时应接受全部事件: %+v", app2.lastRunEvent)
+	}
+}
+
+// ---- UI-002：审批对话框流 ----
+
+// TestApp_Update_ApprovalFlowIsolated 验收条件的 App 级验证：
+// 批准只作用于其请求 ID；新请求需要新的确认，旧批准不泄漏。
+func TestApp_Update_ApprovalFlowIsolated(t *testing.T) {
+	app := NewApp("model", "opencode", "sess-1")
+
+	var responded []bool
+	respond := func(approved bool) bool {
+		responded = append(responded, approved)
+		return true
+	}
+
+	// 请求 1：打开审批对话框。
+	_, _ = app.Update(ApprovalRequestMsg{
+		ID: "apr-1", ToolName: "bash", Purpose: "执行 shell 命令",
+		RiskReason: "命令包含: 删除文件", Respond: respond,
+	})
+	if app.DialogMgr.Depth() == 0 {
+		t.Fatal("审批请求应打开对话框")
+	}
+	top, ok := app.DialogMgr.Top().(*dialog.ApprovalDialog)
+	if !ok || top.Request().ID != "apr-1" {
+		t.Fatalf("对话框应绑定请求 apr-1: %+v", app.DialogMgr.Top())
+	}
+
+	// 按 y：允许提交、对话框关闭（bubbletea 会执行返回的 Cmd 并把
+	// 消息喂回 Update；单测里手动模拟这一步）。
+	_, cmd := app.Update(tea.KeyPressMsg{Code: 'y'})
+	if len(responded) != 1 || !responded[0] {
+		t.Fatalf("y 应提交允许: %v", responded)
+	}
+	if cmd != nil {
+		if msg := cmd(); msg != nil {
+			_, _ = app.Update(msg)
+		}
+	}
+	if app.DialogMgr.HasDialog() {
+		t.Fatal("决定后对话框应关闭")
+	}
+
+	// 请求 2（相同工具相同参数的假设场景）：必须重新弹窗，不受旧批准影响。
+	_, _ = app.Update(ApprovalRequestMsg{
+		ID: "apr-2", ToolName: "bash", Purpose: "执行 shell 命令", Respond: respond,
+	})
+	if app.DialogMgr.Depth() == 0 {
+		t.Fatal("新请求应重新弹窗")
+	}
+	top2, ok := app.DialogMgr.Top().(*dialog.ApprovalDialog)
+	if !ok || top2.Request().ID != "apr-2" || top2.Decided() {
+		t.Fatalf("新对话框应是未决定的新请求: %+v", top2)
+	}
+
+	// 按 esc：关闭 = 拒绝。
+	_, cmd2 := app.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if len(responded) != 2 || responded[1] {
+		t.Fatalf("esc 应提交拒绝: %v", responded)
+	}
+	if cmd2 != nil {
+		if msg := cmd2(); msg != nil {
+			_, _ = app.Update(msg)
+		}
+	}
+	if app.DialogMgr.HasDialog() {
+		t.Fatal("拒绝后对话框应关闭")
+	}
+}
+
+// ---- UI-003：会话切换与可恢复进度 ----
+
+// TestApp_SwitchSession_Isolation 切换后不串消息/任务状态：
+// 旧会话迟到的 RunEventMsg 与 JobStatusMsg 一律忽略。
+func TestApp_SwitchSession_Isolation(t *testing.T) {
+	app := NewApp("model", "opencode", "sess-old")
+	app.SetJobsRuntime(nil, nil)
+
+	app.SwitchSession("sess-new")
+	if app.SessionID != "sess-new" {
+		t.Fatalf("应绑定新会话: %s", app.SessionID)
+	}
+
+	// 旧会话运行事件：忽略。
+	_, _ = app.Update(RunEventMsg{RunID: "run-old", SessionID: "sess-old", Kind: "run.finished", Err: "boom"})
+	if app.lastRunEvent != nil {
+		t.Fatal("旧会话事件不应进入新会话")
+	}
+	// 旧会话任务快照：忽略。
+	_, _ = app.Update(JobStatusMsg{SessionID: "sess-old", Jobs: []JobStatus{{ID: "j1", State: "running"}}})
+	if len(app.Jobs.jobs) != 0 {
+		t.Fatalf("旧会话快照不应进入新卡片: %+v", app.Jobs.jobs)
+	}
+
+	// 新会话事件：接受。
+	_, _ = app.Update(RunEventMsg{RunID: "run-new", SessionID: "sess-new", Kind: "run.started"})
+	if app.lastRunEvent == nil || app.lastRunEvent.RunID != "run-new" {
+		t.Fatalf("新会话事件应被接受: %+v", app.lastRunEvent)
+	}
+}
+
+// TestResumePanel_RetryMarking 状态区分：interrupted/failed 标需重试，
+// succeeded 不标；任意键收起。
+func TestResumePanel_RetryMarking(t *testing.T) {
+	p := NewResumePanel()
+	p.SetItems([]ResumeItem{
+		{Kind: "job", Label: "go test ./...", State: "interrupted", NeedsRetry: true},
+		{Kind: "job", Label: "make build", State: "succeeded", NeedsRetry: false},
+		{Kind: "file", Label: "a.go", State: "已修改"},
+		{Kind: "verify", Label: "go test ./... -count=1", State: "待确认"},
+	})
+
+	if p.RetryCount() != 1 {
+		t.Fatalf("应恰 1 项需重试: %d", p.RetryCount())
+	}
+	rendered := p.Render(100)
+	for _, want := range []string{"[需重试]", "interrupted", "succeeded", "a.go", "go test ./... -count=1"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("渲染缺 %q:\n%s", want, rendered)
+		}
+	}
+
+	p.Hide()
+	if p.Render(100) != "" {
+		t.Fatal("隐藏后不应渲染")
 	}
 }

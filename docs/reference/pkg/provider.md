@@ -42,6 +42,10 @@ provider.Config{
   时用得到。见 [docs/adr/0002](../../adr/0002-decouple-pkg-from-internal.md)。
 - `Config.Options` 是 `map[string]any`，**弱类型且无 schema 校验**：键名写错不会报错，
   只会静默失效。
-- 各家 tool call 的流式语义不一致（增量参数 vs 一次性完整参数、空 assistant content 等）。
-  本包只做协议适配，统一行为需要调用方兜底；相关回归测试见 `cmd/basework/`。
+- 各家 tool call 的流式语义已在本包**归一化**：`Complete=false` 一律是参数增量片段、
+  `Complete=true` 是完整参数，完成事件按 `Index` 升序发出。契约见
+  [pkg/llm 契约](llm.md#流式工具调用参数契约)，回归测试见
+  `pkg/provider/stream_toolcall_regression_test.go`。Gemini 不提供增量阶段，只发一次性完整参数。
+- 上述归一化基于本地 mock 与各家协议文档，**未用真实 Provider 端到端验证**；
+  真实模型兼容性矩阵属 REL-003 的范围。
 - 模型清单与能力探测不在本包，分布在 `cmd/basework/model.go`、`cmd/basework/runtime.go`。

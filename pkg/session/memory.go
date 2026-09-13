@@ -96,7 +96,13 @@ func (s *MemoryStore) Create(opts CreateOpts) (*Info, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	id := newID()
+	id, err := resolveCreateID(opts)
+	if err != nil {
+		return nil, err
+	}
+	if _, exists := s.sessions[id]; exists {
+		return nil, fmt.Errorf("session: 会话 %s 已存在", id)
+	}
 	now := time.Now().UTC()
 	info := &Info{
 		ID:        id,

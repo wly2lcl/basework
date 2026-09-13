@@ -256,21 +256,27 @@ basework --version
 
 | 变量 | 说明 |
 |------|------|
+下表是**代码实际读取**的全部运行期环境变量（核实日期 2026-09-13）：
+
+| 变量 | 说明 |
+|------|------|
+| `OPENAI_API_KEY` | OpenAI；也是各 OpenAI 兼容 provider（`openai-compat`、`deepseek`、`groq`、`together`、`openrouter`、`xai`、`mistral`）的回落来源 |
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
-| `OPENAI_API_KEY` | OpenAI API Key |
 | `GOOGLE_API_KEY` | Google Gemini API Key |
-| `COHERE_API_KEY` | Cohere API Key |
-| `MISTRAL_API_KEY` | Mistral AI API Key |
-| `GROQ_API_KEY` | Groq API Key |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key |
-| `TOGETHER_API_KEY` | Together AI API Key |
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API Key |
 | `OPENCODE_API_KEY` | OpenCode Zen API Key（推荐） |
 | `OG_API_KEY` | OpenCode Zen API Key（兼容旧名称） |
-| `BASEWORK_CONFIG` | 配置文件路径（覆盖默认位置） |
-| `BASEWORK_LOG_LEVEL` | 日志级别：`debug`、`info`、`warn`、`error` |
+| `AZURE_API_KEY` | Azure OpenAI API Key |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | Amazon Bedrock |
+| `BASEWORK_PROVIDER` | 覆盖配置文件里的 `provider` |
+| `BASEWORK_BASE_URL` | 覆盖生效 provider 的自定义端点 |
+| `BASEWORK_AUDIT_MODE` | 请求审计模式：`compatible`（默认）/ `strict` |
 
 环境变量优先级高于配置文件中的对应设置。
+
+> 历史文档里出现过的 `COHERE_API_KEY`、`MISTRAL_API_KEY`、`GROQ_API_KEY`、
+> `DEEPSEEK_API_KEY`、`TOGETHER_API_KEY`、`AZURE_OPENAI_API_KEY`、`BASEWORK_CONFIG`
+> 与 `BASEWORK_LOG_LEVEL` **代码从未读取**，已从本表移除。对应的 provider 目前
+> 走 `OPENAI_API_KEY` 回落，或只能在配置文件里写凭据。
 
 ---
 
@@ -279,35 +285,42 @@ basework --version
 basework 按以下优先级查找配置文件：
 
 1. `--config` 标志指定的路径（最高优先级）
-2. `.basework/config.json`（当前工作目录下的项目级配置）
+2. 当前工作目录及其各级父目录下的 `config.json`
 3. `~/.config/basework/config.json`（全局配置，默认路径）
 
 **示例配置文件：**
 
 ```json
 {
-  "default_provider": "anthropic",
-  "default_model": "anthropic/claude-sonnet-4-20250514",
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "temperature": 0.7,
   "max_tokens": 4096,
   "providers": {
-    "anthropic": {
-      "api_key": "${ANTHROPIC_API_KEY}",
-      "base_url": "https://api.anthropic.com"
-    },
     "openai": {
-      "api_key": "${OPENAI_API_KEY}",
-      "base_url": "https://api.openai.com/v1"
+      "base_url": "https://gateway.example.com/v1",
+      "api_key": "sk-..."
     }
   },
-  "mcp_servers": {
+  "mcp_configs": {
     "filesystem": {
-      "type": "stdio",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
     }
   }
 }
 ```
+
+字段完整清单以 [配置参考](configuration.md) 与
+[`pkg/config` 包契约](../reference/pkg/config.md) 为准。几点容易踩的：
+
+- **没有 `default_provider` / `default_model` / `mcp_servers` 这些字段**——模型与
+  provider 分别用 `provider` / `model`，MCP 用 `mcp_configs`。
+- **凭据不写 `${ANTHROPIC_API_KEY}` 这种展开语法**（未实现）。省略 `api_key`
+  就会去读该 provider 的环境变量。
+- **自定义端点**用 `providers.<provider 名>.base_url`，键按**生效 provider**取值；
+  写完可以用 `basework config explain` 确认它真的生效、以及生效端点来自哪里。
+  该命令只显示 URL 与「key 是否设置」，不会输出 key 本身。
 
 ---
 

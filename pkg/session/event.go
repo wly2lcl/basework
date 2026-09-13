@@ -43,6 +43,8 @@ const (
 	EventSteered EventType = "steered"
 	// 一次真实发给 provider 的请求组装完成（只留指纹，不投影为消息）
 	EventRequestBuilt EventType = "request.built"
+	// 一次文件编辑流程步骤的可追溯事实（预览/提交/撤销/失败）
+	EventFileEdited EventType = "file.edited"
 )
 
 // Event 表示一个溯源事件。
@@ -151,10 +153,49 @@ type RequestBuiltData struct {
 	Sources   []RequestSource `json:"sources,omitempty"`
 }
 
+// FileEditRecord 是 file.edited 事件中单个文件的结局。
+type FileEditRecord struct {
+	// Path 是工作区相对路径。
+	Path string `json:"path"`
+	// Op 是操作种类（如 replace）。预留扩展，不参与判定。
+	Op string `json:"op,omitempty"`
+	// State 是该文件的结局。预览阶段为 preview；提交阶段为
+	// written / conflict / failed / not_attempted；撤销阶段为
+	// reverted / skipped_modified / failed / not_written。
+	State string `json:"state"`
+	// Err 是失败或冲突的原因，成功时为空。
+	Err string `json:"error,omitempty"`
+}
+
+// FileEditedData 记录一次编辑流程步骤的可追溯事实（EDIT-003）。
+//
+// 编辑是"批准后写盘"的多步流程，工具调用的成功/失败事件只回答"调用成没成"，
+// 不回答"哪个文件变成了什么"。本事件把 plan/commit/undo 对应到可追溯记录：
+// 每个阶段一条、逐文件结局一条不落，会话恢复后仍可用于定位修改。
+type FileEditedData struct {
+	// Phase 是流程阶段：preview（只读预览）、committed（提交全部成功）、
+	// failed（提交未全部成功或整体失败）、rolled_back（已撤销）。
+	Phase string `json:"phase"`
+	// PlanID 是计划标识，稳定派生自操作内容（路径 + 基线哈希 + 新内容），
+	// 同一份计划重新预览得到同一个 ID，可用于跨事件串联与防重复提交。
+	PlanID string `json:"plan_id"`
+	// Files 是逐文件结局清单，与内部提交结果的口径一致。
+	Files []FileEditRecord `json:"files"`
+	// Verify 是提交方声明的验证命令（如 "go test ./..."），原样记录、
+	// 本包不执行。用于把"改了什么"和"怎么验证"关联起来。
+	Verify string `json:"verify,omitempty"`
+	// Summary 是人类可读的结果摘要。
+	Summary string `json:"summary,omitempty"`
+	// WorkspaceID 是产生本次编辑的工作区标识（CTX-001）。旧事件没有该
+	// 字段：读取方按「未归属」处理，不默认归给当前工作区。可选字段，
+	// 属兼容变更，不递增 SchemaVersion。
+	WorkspaceID string `json:"workspace_id,omitempty"`
+}
+
 // EncodeData 将事件数据编码为 json.RawMessage。
 // 支持的 data 类型：*PromptedData, *TextDeltaData, *ToolCalledData, *ToolSuccessData,
 // *ToolFailedData, *TurnStartedData, *TurnEndedData, *CompactedData,
-// *SystemPromptSetData, *SteeredData, *RequestBuiltData。
+// *SystemPromptSetData, *SteeredData, *RequestBuiltData, *FileEditedData。
 func EncodeData(data interface{}) (json.RawMessage, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -233,6 +274,12 @@ func DecodeData(event Event) (interface{}, error) {
 		var d RequestBuiltData
 		if err := json.Unmarshal(event.Data, &d); err != nil {
 			return nil, fmt.Errorf("session: 解码 RequestBuiltData 失败: %w", err)
+		}
+		return &d, nil
+	case EventFileEdited:
+		var d FileEditedData
+		if err := json.Unmarshal(event.Data, &d); err != nil {
+			return nil, fmt.Errorf("session: 解码 FileEditedData 失败: %w", err)
 		}
 		return &d, nil
 	default:

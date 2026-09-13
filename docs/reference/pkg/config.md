@@ -20,6 +20,11 @@
   `SensitivePathsConfig`、`LoopDetectConfig`、`KeybindingsConfig`、`AutoTitleConfig`、
   `PromptCacheConfig`、`ProfilingConfig`、`DatabaseConfig`，以及 `OAuthConfig` /
   `AzureConfig` / `BedrockConfig` / `CopilotConfig` / `OllamaConfig` / `OpenCodeConfig`。
+- 自定义模型端点（CFG-004）：`Config.Providers` 是 `map[string]ProviderEndpoint`，
+  值为 `{ base_url, api_key }`。解析只走 `ResolveEndpoint(providerType, envBaseURL)`
+  这一个纯函数（环境值由调用方注入），产品层的 `provider.Create` 与 `basework config
+  explain` 共用它。优先级与冲突规则见 [ADR 0007](../../adr/0007-custom-provider-endpoint.md)。
+  `ValidateBaseURL` 只做形态检查（绝对 http/https + 有主机名），不发网络请求。
 
 ## 扩展点
 
@@ -33,6 +38,9 @@
 ## Known Limitations
 
 - **配置里会存放 API Key，本包不做加密或脱敏**。文件权限与存放位置由使用者负责。
+  （读路径上有 `RedactedView` 供 `config explain` 脱敏输出，但它不改变存储形态。）
+- `providers.<name>` 的键必须与**生效 provider** 一致：`BASEWORK_PROVIDER` 覆盖了
+  配置文件的 `provider` 时，取值按覆盖后的名字查表。
 - `Store` 绑定单个文件路径；同时打开同一路径的两个 `Store` 不会互相感知，
   并发写会以后写者为准。
 - `Discover()` 只认 `config.json` 这一种文件名，且从**当前工作目录**开始向上查找——

@@ -33,6 +33,7 @@ const (
 	ActionDeleteBefore   Action = "delete_before"
 	ActionDeleteAfter    Action = "delete_after"
 	ActionCommandPalette Action = "command_palette"
+	ActionToggleJobs     Action = "toggle_jobs"
 	ActionEscape         Action = "escape"
 	ActionFocusInput     Action = "focus_input"
 )
@@ -50,6 +51,7 @@ var DefaultBindings = []KeyBinding{
 	{Key: "ctrl+c", Action: ActionQuit, Layer: LayerGlobal},
 	{Key: "ctrl+d", Action: ActionQuit, Layer: LayerGlobal},
 	{Key: "ctrl+p", Action: ActionCommandPalette, Layer: LayerGlobal},
+	{Key: "ctrl+j", Action: ActionToggleJobs, Layer: LayerGlobal},
 	{Key: "esc", Action: ActionEscape, Layer: LayerGlobal},
 
 	// 应用层绑定（输入区）
@@ -89,6 +91,7 @@ func DescribeAction(a Action) string {
 		ActionDeleteBefore:   "删除前一个字符",
 		ActionDeleteAfter:    "删除后一个字符",
 		ActionCommandPalette: "打开命令面板",
+		ActionToggleJobs:     "后台任务卡片",
 		ActionEscape:         "取消/关闭",
 		ActionFocusInput:     "聚焦输入区",
 	}

@@ -13,6 +13,30 @@
 
 ## [Unreleased]
 
+### M8 发布准备：固定场景回归集、安装升级验证与迁移缺陷修复（2026-09-13）
+
+**修复（TUI 与并发，候选版本验收中发现）**
+- TUI 输入框按**字节**过滤按键，导致所有非 ASCII 字符（中文）与空格被静默丢弃、退格可能产出非法 UTF-8。插入、删除、光标移动全部改为 rune 语义，可打印字符改用按键携带的原始文本；`internal/tui/input.go` 与 `internal/tui/dialog/input.go` 两处副本同修。回归测试：`internal/tui/input_unicode_test.go`、`internal/tui/dialog/input_unicode_test.go`。
+- 后台任务归属从未绑定：`agent.New` 返回的 `*AgentLoop` 未实现 `SessionIDProvider`（只有包装类型实现），产品层类型断言静默失败，`bash_background` 在所有模式下必然报「当前会话为空」。补 `(*AgentLoop).SessionID()`（加法式）。回归测试：`pkg/agent/sessionid_provider_test.go`、`cmd/basework/bind_owner_realagent_test.go`。
+- `pkg/lsp` 的 `Conn.Start()` 为 check-then-act，并发调用会启动两个 `readLoop` 共享同一 `bufio.Reader`（数据竞争 + 协议解析撕裂）；改为原子 CAS。
+- `internal/observability` 的 pprof `Start()` 在后台 goroutine 中 `ListenAndServe`，**端口被占用时静默打印日志却返回 nil**（调用方以为已启动）；且测试绑定固定端口 16060–16066，多个 `go test` 进程并行时会互踩 FAIL。现改为同步 `net.Listen`（绑定失败立即报错）、支持端口 0（内核随机分配、`Addr()` 回填实际端口），测试全部改用随机端口；回归测试覆盖端口冲突报错与多实例共存。
+
+**修复（会话迁移相关，均会让用户丢数据或误判数据不存在）**
+- `migrate sessions`：会话 ID 短于 12 字符时 `slice bounds out of range` 直接 panic；迁移后新会话用的是随机 ID 而事件仍带原 `session_id`，导致外键失配、事件被静默跳过（迁移"成功"但数据没进来）。现在按原会话 ID 建会话。
+- `migrate sessions`：原先自行逐行解析 JSONL，**绕过**了存储层的版本检查与迁移链，使格式版本高于当前支持版本（如 v99）的数据也能"成功"导入。现改为经 `session.Store.Events` 走真实读路径，并在存在失败项时返回非零退出码。
+- `session list`：把 `ErrSchemaTooNew` 与其他读取错误一并吞掉，对未来版本的会话文件谎报"没有找到会话"。现明确报错并非零退出；真正的损坏文件仍按原语义跳过。
+
+**新增**
+- `pkg/session`：`CreateOpts` 增加可选字段 `ID`（加法式，不传时行为与之前一致），统一校验 `[a-zA-Z0-9_-]` 并拒绝重复。
+- `tests/coding_scenarios_test.go`：五个固定编码场景的**离线确定性**回归集（小函数修复、多文件修改、大输出、权限拒绝、断流恢复），外加半截参数变体；断言落在磁盘产物与工具轨迹上，不依赖模型文案与网络。
+- `examples/embed`：把 basework 作为库嵌入 Go 服务的最小示例（`provider.Create` + `agent.New` + `runtime.NewLocal`，含工具执行、事件订阅与会话落盘断言）。
+- `tests/tui_pty/`：终端级 TUI 验收夹具（PTY 驱动 + 脚本化 OpenAI SSE 服务 + VT 抓屏），覆盖路线图 5 条代表性场景；验收工具而非 `go test`，运行方法见 [tui-pty-acceptance](development/tui-pty-acceptance.md)。
+- 回归测试：`pkg/session/create_id_test.go`、`pkg/session/create_id_sqlite_test.go`、`cmd/basework/migrate_sessions_test.go`。
+
+**文档与仓库**
+- `.gitignore` 忽略 GoReleaser 打包产物 `dist/`，避免本地 dry-run 后被误提交。
+- 证据记录：[SHIP-001](development/evidence/SHIP-001.md)、[SHIP-002](development/evidence/SHIP-002.md)、[SHIP-003](development/evidence/SHIP-003.md)。
+
 ### 文档集中与任务进度（2026-09-12）
 
 - 文档正文统一到 `docs/`，根 README 仅导航；架构、贡献、安全、行为准则和变更日志已迁移。

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ type openAIModel struct {
 	modelID            string
 	client             *http.Client
 	capabilities       map[llm.Capability]bool
+	caps               *capabilitySet // 带来源的能力结论
 	promptCacheEnabled bool
 }
 
@@ -32,18 +34,32 @@ func newOpenAI(baseURL, apiKey, modelID string, opts map[string]any) (llm.Model,
 			promptCacheEnabled, _ = v.(bool)
 		}
 	}
+	caps := newCapabilitySet("openai", modelID)
+
+	// 与 compat 路径同样的原则：只声明有依据的能力。gpt-3.5-turbo 这类纯文本模型
+	// 不再被声明为支持视觉输入。
+	capabilities := map[llm.Capability]bool{
+		llm.CapTools:     true,
+		llm.CapStreaming: true,
+	}
+	if caps.Capability(llm.CapVision).Support == llm.SupportSupported {
+		capabilities[llm.CapVision] = true
+	}
+
 	return &openAIModel{
-		baseURL: baseURL,
-		apiKey:  apiKey,
-		modelID: modelID,
-		client:  newHTTPClient(10 * time.Minute),
-		capabilities: map[llm.Capability]bool{
-			llm.CapTools:     true,
-			llm.CapVision:    true,
-			llm.CapStreaming: true,
-		},
+		baseURL:            baseURL,
+		apiKey:             apiKey,
+		modelID:            modelID,
+		client:             newHTTPClient(10 * time.Minute),
+		capabilities:       capabilities,
+		caps:               caps,
 		promptCacheEnabled: promptCacheEnabled,
 	}, nil
+}
+
+// Capability 实现 llm.CapabilityReporter，报告带来源的三态能力。
+func (m *openAIModel) Capability(cap llm.Capability) llm.CapabilityDetail {
+	return m.caps.Capability(cap)
 }
 
 // ID returns the model identifier
@@ -367,6 +383,20 @@ type accumulatedToolCall struct {
 	ArgsJSON string
 }
 
+// sortedToolCallIndexes 返回升序的 tool call index。
+//
+// Go 的 map 迭代顺序是随机的，直接 `for idx := range acc` 会让同一响应在不同运行中
+// 产生不同的工具调用顺序，进而影响持久化的 assistant 消息与请求指纹。协议里 index
+// 就是模型给出的调用次序，因此 flush 必须按 index 升序，保证结果可复现。
+func sortedToolCallIndexes(acc map[int]*accumulatedToolCall) []int {
+	indexes := make([]int, 0, len(acc))
+	for idx := range acc {
+		indexes = append(indexes, idx)
+	}
+	sort.Ints(indexes)
+	return indexes
+}
+
 // parseOpenAIStream reads an SSE stream from the OpenAI API and emits events
 func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.StreamEvent {
 	ch := make(chan llm.StreamEvent)
@@ -476,14 +506,16 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 					}
 					entry.ArgsJSON += tc.Function.Arguments
 
-					// Emit incremental delta; completion is determined by finish_reason or stream end
+					// 只发本片段，不发累计值：ArgsJSON 在 Complete=false 时的语义是
+					// "自上次同 index 事件以来的参数增量"，与 Anthropic 的 input_json_delta
+					// 对齐。发出累计值会让按序拼接的消费方重复拼接（见 REL-001）。
 					ch <- llm.StreamEvent{
 						Type: llm.StreamEventToolCall,
 						ToolCall: &llm.ToolCallDelta{
 							Index:    tc.Index,
 							ID:       entry.ID,
 							Name:     entry.Name,
-							ArgsJSON: entry.ArgsJSON,
+							ArgsJSON: tc.Function.Arguments,
 							Complete: false,
 						},
 					}
@@ -493,7 +525,8 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 
 			// When finish_reason="tool_calls", flush all accumulated tool calls as complete
 			if sseEvent.Choices[0].FinishReason != nil && *sseEvent.Choices[0].FinishReason == "tool_calls" {
-				for idx, entry := range acc {
+				for _, idx := range sortedToolCallIndexes(acc) {
+					entry := acc[idx]
 					ch <- llm.StreamEvent{
 						Type: llm.StreamEventToolCall,
 						ToolCall: &llm.ToolCallDelta{
@@ -527,7 +560,8 @@ func parseOpenAIStream(ctx context.Context, resp *http.Response) <-chan llm.Stre
 		}
 
 		// 刷新未完成的 tool call：stream 结束时将 acc 中残留的 tool call 标记为完成
-		for idx, entry := range acc {
+		for _, idx := range sortedToolCallIndexes(acc) {
+			entry := acc[idx]
 			ch <- llm.StreamEvent{
 				Type: llm.StreamEventToolCall,
 				ToolCall: &llm.ToolCallDelta{

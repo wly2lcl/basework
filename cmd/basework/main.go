@@ -45,6 +45,10 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(tuiCmd)
+	rootCmd.AddCommand(jobsCmd)
+	rootCmd.AddCommand(editsCmd)
+	rootCmd.AddCommand(factsCmd)
+	rootCmd.AddCommand(configCmd)
 }
 
 func main() {

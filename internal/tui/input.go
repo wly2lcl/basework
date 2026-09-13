@@ -105,7 +105,7 @@ func (iv *InputView) Update(msg tea.Msg) (*InputView, tea.Cmd) {
 
 		case "right":
 			line := iv.currentLineText()
-			if iv.cursorPos < len(line) {
+			if iv.cursorPos < len([]rune(line)) {
 				iv.cursorPos++
 			}
 			return iv, nil
@@ -115,22 +115,38 @@ func (iv *InputView) Update(msg tea.Msg) (*InputView, tea.Cmd) {
 			return iv, nil
 
 		case "end":
-			iv.cursorPos = len(iv.currentLineText())
+			iv.cursorPos = len([]rune(iv.currentLineText()))
 			return iv, nil
 
 		default:
-			// 处理可打印字符
-			if msg.String() != "" && len(msg.String()) == 1 {
-				r := rune(msg.String()[0])
-				// 只处理可打印字符
-				if r >= 32 && r <= 126 {
-					iv.insertRune(r)
-				}
+			// 键盘输入的可打印字符一律取 Key().Text。
+			//
+			// 不能用 msg.String()：uv.Key.String() 对可打印键返回 Text，但对空格
+			// 特意返回 "space"、对中文返回多字节字符。旧实现按
+			// len(String())==1 && 首字节∈[32,126] 过滤，结果是**中文与空格被静默
+			// 丢弃**——用户敲「修复 calc.go」只会得到「calc.go」。
+			if text := printableKeyText(msg); text != "" {
+				iv.insertText(text)
 			}
 			return iv, nil
 		}
 	}
 	return iv, nil
+}
+
+// printableKeyText 取出一次按键所代表的文本；不是文本输入时返回 ""。
+//
+// Text 由终端解码层填充（粘贴、输入法上屏时可能一次多个字符）。少数构造路径
+// 只填 Code，此时用 Keystroke() 排除带修饰键的组合键（ctrl+a 不该插入 "a"）。
+func printableKeyText(msg tea.KeyPressMsg) string {
+	k := msg.Key()
+	if k.Text != "" {
+		return k.Text
+	}
+	if k.Code >= 32 && k.Code != 127 && msg.Keystroke() == string(k.Code) {
+		return string(k.Code)
+	}
+	return ""
 }
 
 // Render 渲染输入区
@@ -188,7 +204,7 @@ func (iv *InputView) SetText(text string) {
 		iv.lines = []string{""}
 	}
 	iv.currentLine = len(iv.lines) - 1
-	iv.cursorPos = len(iv.lines[iv.currentLine])
+	iv.cursorPos = len([]rune(iv.lines[iv.currentLine]))
 	iv.showCompletion = false
 }
 
@@ -216,21 +232,48 @@ func (iv *InputView) currentLineText() string {
 
 // insertRune 在当前光标位置插入字符
 func (iv *InputView) insertRune(r rune) {
-	line := iv.currentLineText()
-	if iv.cursorPos >= len(line) {
-		iv.lines[iv.currentLine] = line + string(r)
-	} else {
-		iv.lines[iv.currentLine] = line[:iv.cursorPos] + string(r) + line[iv.cursorPos:]
+	iv.insertText(string(r))
+}
+
+// insertText 在当前光标位置插入一段文本（可含多个字符，如粘贴或输入法上屏）。
+//
+// cursorPos 是**rune 索引**，不是字节偏移：按字节切片会把中文切成半个字符，
+// 产生非法 UTF-8。所有对行的裁剪都必须先转 []rune。
+func (iv *InputView) insertText(text string) {
+	if text == "" {
+		return
 	}
-	iv.cursorPos++
+	line := iv.currentLineText()
+	runes := []rune(line)
+	pos := clampRunePos(iv.cursorPos, len(runes))
+	ins := []rune(text)
+	out := make([]rune, 0, len(runes)+len(ins))
+	out = append(out, runes[:pos]...)
+	out = append(out, ins...)
+	out = append(out, runes[pos:]...)
+	iv.lines[iv.currentLine] = string(out)
+	iv.cursorPos = pos + len(ins)
 	iv.showCompletion = false
+}
+
+// clampRunePos 把 rune 索引夹到 [0, n]。
+func clampRunePos(pos, n int) int {
+	if pos < 0 {
+		return 0
+	}
+	if pos > n {
+		return n
+	}
+	return pos
 }
 
 // insertNewline 插入换行
 func (iv *InputView) insertNewline() {
 	line := iv.currentLineText()
-	before := line[:iv.cursorPos]
-	after := line[iv.cursorPos:]
+	runes := []rune(line)
+	pos := clampRunePos(iv.cursorPos, len(runes))
+	before := string(runes[:pos])
+	after := string(runes[pos:])
 
 	iv.lines[iv.currentLine] = before
 	// 插入新行
@@ -249,14 +292,23 @@ func (iv *InputView) insertNewline() {
 func (iv *InputView) deleteCharBefore() {
 	if iv.cursorPos > 0 {
 		line := iv.currentLineText()
-		iv.lines[iv.currentLine] = line[:iv.cursorPos-1] + line[iv.cursorPos:]
-		iv.cursorPos--
+		runes := []rune(line)
+		pos := clampRunePos(iv.cursorPos, len(runes))
+		if pos > 0 {
+			out := make([]rune, 0, len(runes)-1)
+			out = append(out, runes[:pos-1]...)
+			out = append(out, runes[pos:]...)
+			iv.lines[iv.currentLine] = string(out)
+			iv.cursorPos = pos - 1
+		} else {
+			iv.cursorPos = 0
+		}
 	} else if iv.currentLine > 0 {
 		// 合并到上一行
 		prevLine := iv.lines[iv.currentLine-1]
 		currentLine := iv.lines[iv.currentLine]
-		iv.cursorPos = len(prevLine)
 		iv.lines[iv.currentLine-1] = prevLine + currentLine
+		iv.cursorPos = len([]rune(prevLine))
 		iv.lines = append(iv.lines[:iv.currentLine], iv.lines[iv.currentLine+1:]...)
 		iv.currentLine--
 	}
@@ -266,8 +318,13 @@ func (iv *InputView) deleteCharBefore() {
 // deleteCharAfter 删除光标后的字符
 func (iv *InputView) deleteCharAfter() {
 	line := iv.currentLineText()
-	if iv.cursorPos < len(line) {
-		iv.lines[iv.currentLine] = line[:iv.cursorPos] + line[iv.cursorPos+1:]
+	runes := []rune(line)
+	pos := clampRunePos(iv.cursorPos, len(runes))
+	if pos < len(runes) {
+		out := make([]rune, 0, len(runes)-1)
+		out = append(out, runes[:pos]...)
+		out = append(out, runes[pos+1:]...)
+		iv.lines[iv.currentLine] = string(out)
 	}
 	iv.showCompletion = false
 }
@@ -304,10 +361,12 @@ func (iv *InputView) navigateHistory(direction int) {
 // handleTabCompletion 处理 Tab 补全
 func (iv *InputView) handleTabCompletion() {
 	line := iv.currentLineText()
+	runes := []rune(line)
+	pos := clampRunePos(iv.cursorPos, len(runes))
 
 	if !iv.showCompletion {
 		// 查找光标前的最后一个词（文件路径）
-		beforeCursor := line[:iv.cursorPos]
+		beforeCursor := string(runes[:pos])
 		words := strings.Fields(beforeCursor)
 		if len(words) == 0 {
 			return
@@ -328,15 +387,21 @@ func (iv *InputView) handleTabCompletion() {
 		if iv.completionIdx >= 0 && iv.completionIdx < len(iv.completions) {
 			selected := iv.completions[iv.completionIdx]
 
-			// 替换行中最后一个词
-			beforeCursor := line[:iv.cursorPos]
-			spaceIdx := strings.LastIndex(beforeCursor, " ")
+			// 替换行中最后一个词。索引一律用 rune：混用字节下标会在
+			// 光标前有中文时切错位置。
+			spaceIdx := -1
+			for i := pos - 1; i >= 0; i-- {
+				if runes[i] == ' ' {
+					spaceIdx = i
+					break
+				}
+			}
 			if spaceIdx >= 0 {
-				iv.lines[iv.currentLine] = line[:spaceIdx+1] + selected + line[iv.cursorPos:]
-				iv.cursorPos = spaceIdx + 1 + len(selected)
+				iv.lines[iv.currentLine] = string(runes[:spaceIdx+1]) + selected + string(runes[pos:])
+				iv.cursorPos = spaceIdx + 1 + len([]rune(selected))
 			} else {
-				iv.lines[iv.currentLine] = selected + line[iv.cursorPos:]
-				iv.cursorPos = len(selected)
+				iv.lines[iv.currentLine] = selected + string(runes[pos:])
+				iv.cursorPos = len([]rune(selected))
 			}
 		}
 		iv.showCompletion = false

@@ -58,6 +58,12 @@ func (m *Manager) Depth() int {
 
 // Update 将消息发送给栈顶对话框
 func (m *Manager) Update(msg tea.Msg) tea.Cmd {
+	// 对话框自我关闭的消息优先于转发（此时栈顶就是要关的那个）。
+	if _, ok := msg.(CloseDialogMsg); ok {
+		m.Close()
+		return nil
+	}
+
 	d := m.Top()
 	if d == nil {
 		return nil

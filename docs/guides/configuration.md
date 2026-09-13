@@ -27,6 +27,7 @@
 | `mcp_configs` | object | `null` | MCP 服务器配置 |
 | `max_tool_calls` | int | `20` | 每轮最大工具调用数 |
 | `max_context_tokens` | int | `128000` | 最大上下文 token 数 |
+| `providers` | object | `null` | provider 级自定义端点与凭据（`base_url` / `api_key`），见下文「自定义端点」 |
 | `oauth` | object | disabled | OAuth 认证配置 |
 
 ---
@@ -35,12 +36,14 @@
 
 配置文件搜索顺序（按优先级从高到低）：
 
-1. **当前目录** — `./config.json`
-2. **项目级配置** — `.basework/config.json`（当前工作目录下）
-3. **父目录** — 逐级向上搜索
+1. **显式路径** — `--config` 标志指定的文件
+2. **当前目录** — `./config.json`
+3. **父目录** — 逐级向上搜索 `config.json`
 4. **用户目录** — `~/.config/basework/config.json`
 
 均不存在时，使用默认配置，保存路径为 `~/.config/basework/config.json`。
+
+注意 `Discover()` 只认 **`config.json`** 这一种文件名，不从 `.basework/` 目录读取。
 
 ### 搜索逻辑（代码实现）
 
@@ -75,6 +78,39 @@ Provider 直接通过 Go 代码中的 `provider.Create()` 配置，也可以通�
 | `copilot` | GitHub Copilot | `https://api.githubcopilot.com` |
 | `ollama` | Ollama | `http://localhost:11434/v1` |
 
+### 自定义端点
+
+中转站、企业网关、自建 OpenAI/Anthropic 兼容服务需要把请求指到自己的地址。用
+`providers.<provider 名>.base_url` 配置；同一块里的 `api_key` 是该 provider 的凭据，
+不写则回落到对应的环境变量。
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "providers": {
+    "openai": {
+      "base_url": "https://gateway.example.com/v1",
+      "api_key": "sk-..."
+    }
+  }
+}
+```
+
+规则（完整决策见 [ADR 0007](../adr/0007-custom-provider-endpoint.md)）：
+
+- **键按「生效 provider」取值**。`BASEWORK_PROVIDER` 优先于配置文件的 `provider`
+  字段；`BASEWORK_PROVIDER=anthropic` 时读的是 `providers.anthropic`。
+- **优先级**：`BASEWORK_BASE_URL`（环境变量）覆盖配置文件里的 `base_url`。
+  `api_key` 的优先级是 `providers.<name>.api_key` → provider 专属块
+  （`opencode` / `azure` / `bedrock`）→ 环境变量链。
+- **`base_url` 必须是绝对 `http`/`https` URL**，写错（例如漏掉 `https://`）会在加载
+  时直接报错，不会退回默认端点——静默回落会以「鉴权失败」的形式误导排查。
+- **`openai-compat` 类型没有默认端点**，必须显式提供 `base_url`。
+- **未配置时行为不变**：使用各 provider 的内置默认端点。
+- 用 `basework config explain` 可以查看生效端点及其来源；该命令只显示 URL 与
+  「key 是否设置」，不会输出 key 本身。
+
 ### 代码配置参数
 
 ```go
@@ -100,8 +136,16 @@ basework 自动识别以下环境变量：
 | `GOOGLE_API_KEY` | Google Gemini |
 | `OPENCODE_API_KEY` | OpenCode Zen |
 | `OG_API_KEY` | OpenCode Zen（兼容旧环境变量名） |
+| `AZURE_API_KEY` | Azure OpenAI |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | Amazon Bedrock |
+| `BASEWORK_PROVIDER` | 覆盖配置文件里的 `provider` |
+| `BASEWORK_BASE_URL` | 覆盖生效 provider 的自定义端点（`providers.<name>.base_url`） |
+| `BASEWORK_AUDIT_MODE` | 请求审计模式（`compatible` / `strict`） |
 
-CLI 的 `basework init` 命令会自动检测这些环境变量。
+各 OpenAI 兼容 provider（`openai-compat`、`deepseek`、`groq`、`together`、
+`openrouter`、`xai`、`mistral`）在没有专属环境变量时回落到 `OPENAI_API_KEY`。
+
+CLI 的 `basework init` 命令会自动检测 API key 类环境变量。
 
 ---
 

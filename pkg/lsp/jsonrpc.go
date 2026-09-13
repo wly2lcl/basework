@@ -117,11 +117,17 @@ func NewConn(stdin io.WriteCloser, stdout io.ReadCloser) *Conn {
 }
 
 // Start 启动后台读取协程来处理收到的消息。
+//
+// 必须用 CompareAndSwap 而不是「先 Load 再 Store」：后者是 check-then-act，
+// 两个并发调用方可以同时看到 started==false、双双置位、于是启动**两个** readLoop。
+// 两个 readLoop 共享同一个 bufio.Reader，会在 ReadString 上产生数据竞争并撕裂协议解析
+// （race 检测器能稳定复现：TestClientConcurrentStart 的 10 个并发 goroutine 会经
+// startWithConn 打到同一个 Conn 上）。started 字段的语义本来就是「只启动一次」，
+// CAS 才真正落实这个语义。
 func (c *Conn) Start() {
-	if c.started.Load() {
+	if !c.started.CompareAndSwap(false, true) {
 		return
 	}
-	c.started.Store(true)
 	go c.readLoop()
 }
 

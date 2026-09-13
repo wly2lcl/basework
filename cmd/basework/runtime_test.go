@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/wly2lcl/basework/internal/permission"
 	"github.com/wly2lcl/basework/internal/subagent"
+	runtimetools "github.com/wly2lcl/basework/internal/tools"
 	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/lsp"
@@ -18,7 +20,7 @@ import (
 func TestRuntimeToolsIncludesEnhancedAndLSPTools(t *testing.T) {
 	cfg := config.NewStore("").Get()
 	subAgentCoordinator := subagent.NewCoordinator(nil, subagent.DefaultConfig())
-	tools := runtimeTools(cfg, t.TempDir(), nil, lsp.Tools(lsp.NewManager(lsp.Config{})), subAgentCoordinator)
+	tools := runtimeTools(cfg, t.TempDir(), nil, lsp.Tools(lsp.NewManager(lsp.Config{})), subAgentCoordinator, runtimeJobWiring{})
 	names := toolNameSet(tools)
 
 	for _, name := range []string{
@@ -50,7 +52,7 @@ func TestRuntimeToolsIncludesEnhancedAndLSPTools(t *testing.T) {
 func TestRuntimeToolsOmitsSubAgentWhenDisabled(t *testing.T) {
 	cfg := config.NewStore("").Get()
 	cfg.SubAgent.Enabled = false
-	tools := runtimeTools(cfg, t.TempDir(), nil, nil, newRuntimeSubAgentCoordinator(cfg, nil, t.TempDir(), nil, nil, nil))
+	tools := runtimeTools(cfg, t.TempDir(), nil, nil, newRuntimeSubAgentCoordinator(cfg, nil, t.TempDir(), nil, nil, nil, nil), runtimeJobWiring{})
 	names := toolNameSet(tools)
 	if names["sub_agent"] {
 		t.Fatal("runtime tools should omit sub_agent when disabled")
@@ -67,9 +69,123 @@ func TestRuntimeToolsEnabledForOpenCodeFreeModelWithoutAPIKey(t *testing.T) {
 	cfg.Model = "big-pickle"
 	cfg.OpenCode.APIKey = ""
 
-	tools := runtimeTools(cfg, t.TempDir(), nil, lsp.Tools(lsp.NewManager(lsp.Config{})), nil)
+	tools := runtimeTools(cfg, t.TempDir(), nil, lsp.Tools(lsp.NewManager(lsp.Config{})), nil, runtimeJobWiring{})
 	if len(tools) == 0 {
 		t.Fatal("opencode free model without API key should keep runtime tools enabled")
+	}
+}
+
+// TestRuntimeJobToolsFollowWiring 确认后台任务工具只在给了 Manager 时注册。
+//
+// 这是"不注册假能力"的回归防线：Manager 为 nil（例如子代理路径）时若仍出现
+// bash_background / job_*，模型会看到一组调用即报错的工具。
+func TestRuntimeJobToolsFollowWiring(t *testing.T) {
+	cfg := config.NewStore("").Get()
+
+	withoutJobs := toolNameSet(runtimeTools(cfg, t.TempDir(), nil, nil, nil, runtimeJobWiring{}))
+	for _, name := range []string{"bash_background", "job_list", "job_output", "job_cancel"} {
+		if withoutJobs[name] {
+			t.Fatalf("未接 Manager 时不应注册 %q", name)
+		}
+	}
+
+	owner := &jobOwnerHolder{}
+	owner.Set("session-abc")
+	mgr := newRuntimeJobManagerAt(owner, filepath.Join(t.TempDir(), "jobs.jsonl"), t.TempDir())
+	t.Cleanup(mgr.Close)
+
+	withJobs := toolNameSet(runtimeTools(cfg, t.TempDir(), nil, nil, nil, runtimeJobWiring{
+		manager: mgr,
+		owner:   owner.Get,
+	}))
+	for _, name := range []string{"bash_background", "job_list", "job_output", "job_cancel"} {
+		if !withJobs[name] {
+			t.Fatalf("接了 Manager 后应注册 %q", name)
+		}
+	}
+}
+
+// TestRuntimeEditToolFollowsWiring 确认 edit_files 只在主 Agent 接线时注册。
+//
+// editTool 为 nil（子代理路径）时不注册，避免子代理拿到一套"事件无处落"的
+// 编辑能力；接入时权限口径用同一个 pathChecker。
+func TestRuntimeEditToolFollowsWiring(t *testing.T) {
+	cfg := config.NewStore("").Get()
+
+	withoutEdit := toolNameSet(runtimeTools(cfg, t.TempDir(), nil, nil, nil, runtimeJobWiring{}))
+	if withoutEdit["edit_files"] {
+		t.Fatalf("未接 editTool 时不应注册 edit_files")
+	}
+
+	pathChecker := permission.NewPathChecker(nil, nil, permission.ProtectionStrict)
+	withEdit := toolNameSet(runtimeTools(cfg, t.TempDir(), nil, nil, nil, runtimeJobWiring{
+		editTool:    runtimetools.NewEditFilesTool(t.TempDir()),
+		pathChecker: pathChecker,
+	}))
+	if !withEdit["edit_files"] {
+		t.Fatalf("接了 editTool 后应注册 edit_files")
+	}
+}
+
+// TestEditToolUsesRuntimePathChecker 确认接线后 edit_files 的路径检查走的是
+// 运行时 pathChecker（同一份敏感路径配置），而不是 planner 的默认放行。
+func TestEditToolUsesRuntimePathChecker(t *testing.T) {
+	root := t.TempDir()
+	// 编辑工具内部会把工作区解析成真实路径（macOS 的 TempDir 带 /var → /private/var
+	// 软链），黑名单条目必须用同一口径，否则匹配不上。
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	blocked := filepath.Join(root, "secret.txt")
+	if err := os.WriteFile(blocked, []byte("x\n"), 0o644); err != nil {
+		t.Fatalf("准备文件: %v", err)
+	}
+	// 严格保护级别 + 显式 Block 列表，确保拦截可判定。
+	pathChecker := permission.NewPathChecker([]string{blocked}, nil, permission.ProtectionStrict)
+
+	editTool := runtimetools.NewEditFilesTool(root)
+	editTool.CheckPath = pathChecker.CheckPath
+
+	raw, err := json.Marshal(map[string]interface{}{
+		"action": "preview",
+		"edits": []interface{}{
+			map[string]interface{}{"path": "secret.txt", "old": "x", "new": "y"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("序列化参数: %v", err)
+	}
+	res, err := editTool.Execute(context.Background(), raw)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if !res.IsError {
+		t.Fatalf("被拦截路径的预览应报错: %s", res.Content)
+	}
+	if !strings.Contains(res.Content, "路径检查拒绝") {
+		t.Fatalf("报错应来自路径检查: %s", res.Content)
+	}
+}
+
+// TestRuntimeBackgroundTimeoutMirrorsBuiltin 确认后台 bash 与同步 bash 读同一份超时口径。
+func TestRuntimeBackgroundTimeoutMirrorsBuiltin(t *testing.T) {
+	cfg := config.NewStore("").Get()
+	// 默认配置里 overrides.bash = 60，后台 bash 不该自己发明一个 30。
+	if seconds, disabled := runtimeBackgroundTimeout(cfg); disabled || seconds != 60 {
+		t.Fatalf("默认配置下后台 bash 超时 = (%d, disabled=%v)，期望 (60, false)", seconds, disabled)
+	}
+
+	// 配置显式关闭超时（0 = 不超时）时必须表达为 disabled，而不是回落成 30 秒。
+	cfg.Tools.Timeout.Overrides = map[string]int{"bash": 0}
+	if seconds, disabled := runtimeBackgroundTimeout(cfg); !disabled || seconds != 0 {
+		t.Fatalf("overrides.bash=0 时应为 (0, true)，得到 (%d, %v)", seconds, disabled)
+	}
+
+	// 无 overrides 时用全局默认。
+	cfg.Tools.Timeout.Overrides = nil
+	cfg.Tools.Timeout.Default = 45
+	if seconds, disabled := runtimeBackgroundTimeout(cfg); disabled || seconds != 45 {
+		t.Fatalf("无 overrides 时应为 (45, false)，得到 (%d, %v)", seconds, disabled)
 	}
 }
 
@@ -122,7 +238,7 @@ func TestRuntimeSubAgentCoordinatorExecutesChildAgent(t *testing.T) {
 			Usage: llm.Usage{PromptTokens: 3, CompletionTokens: 2, TotalTokens: 5},
 		}},
 	}
-	coord := newRuntimeSubAgentCoordinator(cfg, model, t.TempDir(), nil, nil, nil)
+	coord := newRuntimeSubAgentCoordinator(cfg, model, t.TempDir(), nil, nil, nil, nil)
 	if coord == nil {
 		t.Fatal("expected sub-agent coordinator")
 	}
@@ -142,7 +258,7 @@ func TestRuntimeSubAgentCoordinatorExecutesChildAgent(t *testing.T) {
 
 func TestReadonlyRuntimeToolsExcludeWritableTools(t *testing.T) {
 	cfg := config.NewStore("").Get()
-	tools := readonlyRuntimeTools(cfg, lsp.Tools(lsp.NewManager(lsp.Config{})))
+	tools := readonlyRuntimeTools(cfg, lsp.Tools(lsp.NewManager(lsp.Config{})), nil)
 	names := toolNameSet(tools)
 	for _, name := range []string{"read", "grep", "glob", "lsp_definition", "lsp_diagnostics"} {
 		if !names[name] {
@@ -197,7 +313,7 @@ Write concise documentation.
 
 	cfg := config.NewStore("").Get()
 	cfg.SystemPrompt = "Base prompt."
-	prompt := runtimeSystemPrompt(cfg, workDir)
+	prompt := runtimeSystemPrompt(cfg, workDir, nil)
 	if !containsAll(prompt, "Base prompt.", "<skills>", "writer") {
 		t.Fatalf("unexpected system prompt: %s", prompt)
 	}

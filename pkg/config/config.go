@@ -89,6 +89,12 @@ type Config struct {
 	// 性能分析配置
 	Profiling ProfilingConfig `json:"profiling,omitempty"`
 
+	// 启动预设（CFG-002）：readonly / coding。展开规则见 docs/adr/0006。
+	// 空表示未指定，行为与没有预设机制时完全一致。
+	Preset string `json:"preset,omitempty"`
+	// 工作区事实摘要（CTX-002）。nil（默认）= 关闭，保持旧行为；
+	// 开启后把事实摘要注入 system prompt（受预算与审计策略约束）。
+	FactsSummary *FactsSummaryConfig `json:"facts_summary,omitempty"`
 	// 主题配置
 	Theme ThemeConfig `json:"theme,omitempty"`
 	// 键盘绑定配置
@@ -102,6 +108,14 @@ type Config struct {
 	Azure    AzureConfig    `json:"azure,omitempty"`
 	Copilot  CopilotConfig  `json:"copilot,omitempty"`
 	Ollama   OllamaConfig   `json:"ollama,omitempty"`
+
+	// Providers 是 provider 级的自定义端点与凭据（CFG-004），键为 provider 名称：
+	//
+	//	{"openai": {"base_url": "https://gateway.example.com/v1", "api_key": "..."}}
+	//
+	// 空 map（默认）= 所有 provider 使用内置默认端点，行为与本项引入前完全一致。
+	// 与上面的 provider 专属块并存，不替换它们；优先级见 docs/adr/0007。
+	Providers map[string]ProviderEndpoint `json:"providers,omitempty"`
 }
 
 // CompactionConfig 是上下文压缩模块的配置
@@ -181,11 +195,23 @@ type PromptCacheConfig struct {
 	Enabled bool `json:"enabled"` // 是否启用 Prompt 缓存，默认 true
 }
 
+// FactsSummaryConfig 控制工作区事实摘要的注入（CTX-002）。
+type FactsSummaryConfig struct {
+	// Enabled 开启摘要注入。默认关闭：关闭即完全恢复旧行为，
+	// 不读任何文件（包括事实文件），不触碰受保护路径。
+	Enabled bool `json:"enabled"`
+	// BudgetKB 是摘要字节预算（KB）；<=0 用默认 8KB。
+	BudgetKB int `json:"budget_kb,omitempty"`
+}
+
 // ToolsConfig 是内置工具的配置
 type ToolsConfig struct {
 	WebSearch WebSearchConfig    `json:"web_search,omitempty"`
 	WebFetch  WebFetchConfig     `json:"web_fetch,omitempty"`
 	Timeout   ToolsTimeoutConfig `json:"timeout,omitempty"`
+	// Allowed 是工具白名单（CFG-002）。空表示不限制；条目以 * 结尾做前缀匹配。
+	// 由预设展开或用户显式配置；两者同时指定属于冲突（ADR 0006）。
+	Allowed []string `json:"allowed,omitempty"`
 }
 
 // WebFetchConfig 是 web_fetch 工具的配置
@@ -442,6 +468,13 @@ func (c *Config) clone() *Config {
 			cp.OAuth.Providers[name] = provider
 		}
 	}
+	// 深拷贝 Providers（CFG-004）：值类型只有字符串，重建 map 即可。
+	if cp.Providers != nil {
+		cp.Providers = make(map[string]ProviderEndpoint, len(c.Providers))
+		for name, endpoint := range c.Providers {
+			cp.Providers[name] = endpoint
+		}
+	}
 	return &cp
 }
 
@@ -487,6 +520,10 @@ func (c *Config) Validate() error {
 	}
 	if c.PresencePenalty < 0.0 || c.PresencePenalty > 2.0 {
 		return fmt.Errorf("presence_penalty must be between 0.0 and 2.0, got %f", c.PresencePenalty)
+	}
+	// 自定义端点（CFG-004）：写错必须在加载时报错，不能静默退回默认端点。
+	if err := c.validateProviderEndpoints(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -604,6 +641,12 @@ func Load(path string) (*Store, error) {
 	cfg := defaultConfig()
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
+	}
+
+	// 文件内声明的 preset 在加载时立即展开（ADR 0006：配置文件层）。
+	// 命令行 --preset 由运行入口在此之后叠加。
+	if err := ApplyPreset(cfg, cfg.Preset); err != nil {
+		return nil, err
 	}
 
 	if err := cfg.Validate(); err != nil {

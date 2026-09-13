@@ -6,7 +6,7 @@
 每次读取时投影出来的结果（`History()` 即 `ProjectMessages(Events())`）。这样回放、审计、
 多视图查询都成立。
 
-- **事件与投影** — `Event`（15 种类型）+ `ProjectMessages`（投影为消息）+
+- **事件与投影** — `Event`（16 种类型）+ `ProjectMessages`（投影为消息）+
   `ProjectMessagesWithSeq`（额外返回每条消息**来源事件的 Seq**，压缩靠它做稳定锚点）。
 - **存储后端** — `MemoryStore`（内存）、`JSONLStore`（按会话一文件）、`SQLiteStore`
   （需 `sqlite` 标签）。
@@ -24,10 +24,13 @@
 | 轮次 | `turn.started`、`turn.ended`、`turn.failed`、`agent.switched` |
 | 上下文治理 | `compacted`、`system.prompt_set`、`steered` |
 | 审计 | `request.built` |
+| 编辑事实 | `file.edited` |
 
 `system.prompt_set` / `steered` / `request.built` **不投影为消息**：前两者是「请求级上下文」，
 由 [pkg/agent](agent.md) 的 `BuildRequestMessages` 在组装请求时放到历史投影之前；所有已记录的
-steering 都按事件顺序放入后续请求。`request.built` 只留请求指纹与来源信息。
+steering 都按事件顺序放入后续请求。`request.built` 只留请求指纹与来源信息。`file.edited`
+记录编辑流程步骤（preview/committed/failed/rolled_back）的逐文件结局与验证命令引用，
+供 CLI 审阅与会话恢复后定位修改，同样不投影为消息。
 
 ### 压缩事件与恢复
 

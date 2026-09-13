@@ -60,6 +60,20 @@ func (a *agentInstance) ID() string {
 	return a.agent.sessionID
 }
 
+// SessionID 实现 SessionIDProvider。
+func (a *agentInstance) SessionID() string {
+	return a.agent.sessionID
+}
+
+// SessionID 让 *AgentLoop 自身也满足 SessionIDProvider。
+//
+// New 返回的具体类型是 *AgentLoop（agentInstance 只是它的包装）。产品层的
+// bindRuntimeJobOwner 用类型断言取 SessionIDProvider，若只有包装类型实现了
+// 该接口，断言就会静默失败、后台任务永远拿不到归属（SHIP-003 发现的缺陷）。
+func (a *AgentLoop) SessionID() string {
+	return a.sessionID
+}
+
 func (a *agentInstance) Model() llm.Model {
 	return a.agent.model
 }
@@ -111,6 +125,11 @@ func (d *agentTurnD) ToolRegistry() *tool.Registry {
 
 func (d *agentTurnD) Callback() Callback {
 	return d.agent.callback
+}
+
+// AuditMode 实现 AuditPolicyProvider，把配置里的审计策略传给 Pipeline。
+func (d *agentTurnD) AuditMode() AuditMode {
+	return d.agent.cfg.auditMode.Normalize()
 }
 
 // newAgentLoop 创建 AgentLoop，初始化 session 和 pipeline

@@ -11,7 +11,10 @@ import (
 )
 
 // EditTool 精确字符串替换
-type EditTool struct{}
+type EditTool struct {
+	// Runtime 是实例级运行时注入。nil 时回落包级全局，行为与旧版本一致。
+	Runtime *Runtime
+}
 
 func (e *EditTool) Name() string { return "edit" }
 
@@ -39,14 +42,14 @@ func (e *EditTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 		return &tool.Result{Content: fmt.Sprintf("参数解析失败: %v", err), IsError: true}, nil
 	}
 
-	// 工具级超时控制
-	timeout := getTimeoutConfig().GetTimeout("edit")
-	ctx, cancel := WithTimeout(ctx, "edit", timeout)
+	// 工具级超时控制（实例注入优先，回落全局）
+	timeout := e.Runtime.resolveTimeout().GetTimeout("edit")
+	ctx, cancel := WithTimeoutBus(ctx, "edit", timeout, e.Runtime.resolveEventBus())
 	defer cancel()
 	_ = ctx // 为未来 context-aware 操作预留
 
-	// 敏感路径检查
-	if pc := getPathChecker(); pc != nil {
+	// 敏感路径检查（实例注入优先，回落全局）
+	if pc := e.Runtime.resolvePathChecker(); pc != nil {
 		if allowed, reason := pc.CheckPath(params.Path); !allowed {
 			return &tool.Result{Content: fmt.Sprintf("访问被拒绝: %s (%s)", params.Path, reason), IsError: true}, nil
 		}

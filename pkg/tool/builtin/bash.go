@@ -21,6 +21,9 @@ type BashTool struct {
 	PermissionMode string
 	// BlockedCommands 是用户自定义的额外黑名单正则模式
 	BlockedCommands []string
+	// Runtime 是实例级运行时注入（路径检查/超时/事件）。nil 时回落包级全局，
+	// 行为与旧版本一致。
+	Runtime *Runtime
 }
 
 func (b *BashTool) Name() string { return "bash" }
@@ -77,8 +80,8 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 		}
 	}
 
-	// 敏感路径检查
-	if pc := getPathChecker(); pc != nil {
+	// 敏感路径检查（实例注入优先，回落全局）
+	if pc := b.Runtime.resolvePathChecker(); pc != nil {
 		paths := extractPathsFromCommand(params.Command)
 		for _, p := range paths {
 			if allowed, reason := pc.CheckPath(p); !allowed {
@@ -87,9 +90,9 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 		}
 	}
 
-	// 工具级超时控制（来自 TimeoutConfig）
-	toolTimeout := getTimeoutConfig().GetTimeout("bash")
-	ctx, toolCancel := WithTimeout(ctx, "bash", toolTimeout)
+	// 工具级超时控制（实例注入优先，回落全局）
+	toolTimeout := b.Runtime.resolveTimeout().GetTimeout("bash")
+	ctx, toolCancel := WithTimeoutBus(ctx, "bash", toolTimeout, b.Runtime.resolveEventBus())
 	defer toolCancel()
 
 	// 默认超时 30s

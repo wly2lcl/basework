@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -21,6 +22,37 @@ import (
 // UserInputMsg 表示用户输入消息
 type UserInputMsg struct {
 	Text string
+}
+
+// ApprovalRequestMsg 是权限审批请求（UI-002）。由运行 goroutine 经 broker
+// 通知转发而来；Respond 闭包把决定按请求 ID 送回 broker（过期请求返回
+// false，由调用方忽略——「批准不会错误应用到下一请求」的机制保证）。
+type ApprovalRequestMsg struct {
+	ID         string
+	ToolName   string
+	Purpose    string
+	Paths      []string
+	Diff       string
+	RiskReason string
+	// Respond 提交决定；approved=false 覆盖拒绝与关闭窗口两种情况。
+	Respond func(approved bool) bool
+	// Timeout 是审批等待上限；对话框超时自动拒绝（与 broker 侧一致）。
+	Timeout time.Duration
+}
+
+// approvalExpiredMsg 内部消息：审批等待超时，自动拒绝并关窗。
+type approvalExpiredMsg struct{ requestID string }
+
+// RunEventMsg 是运行服务的生命周期事件（RUN-003，瞬时消息：不落盘、不重放）。
+// 携带 RunID/SessionID，App.Update 按 SessionID 路由——不属于当前会话的
+// 事件被忽略，旧会话的运行收尾不会漏进新会话的界面。
+type RunEventMsg struct {
+	RunID     string
+	SessionID string
+	// Kind 是事件类别（run.started / run.finished）。
+	Kind string
+	// Err 是运行结束时的错误文本（成功为空）。
+	Err string
 }
 
 // AgentResponseMsg 表示 Agent 响应消息
@@ -130,6 +162,20 @@ type App struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
 	inputHandler InputHandler
+
+	// SessionID 是当前会话（RUN-003 的路由键）。空表示未绑定（全部接受）。
+	SessionID string
+	// Jobs 是后台任务状态卡片（UI-001）。
+	Jobs *JobsView
+	// Resume 是重启后的恢复进度面板（UI-003）。
+	Resume *ResumePanel
+	// jobsReader/jobsCancel 是任务卡片运行时钩子，SwitchSession 重建
+	// Jobs 时需要复用（UI-003）。
+	jobsReader func(jobID string, offset int64) JobOutputMsg
+	jobsCancel func(jobID string) error
+	// lastRunEvent 是最近一条通过路由的 RunEventMsg（测试观察点；
+	// UI 呈现属 UI-001 的状态卡片，这里只做路由与记录）。
+	lastRunEvent *RunEventMsg
 }
 
 // NewApp 创建新的 TUI 应用
@@ -153,6 +199,9 @@ func NewApp(modelName, provider, sessionID string) *App {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	app := &App{
+		SessionID:       sessionID,
+		Jobs:            NewJobsView(nil, nil),
+		Resume:          NewResumePanel(),
 		Messages:        make([]Message, 0),
 		Input:           NewInputView(),
 		StatusBar:       NewStatusBarView(modelName, provider, sessionID),
@@ -287,8 +336,91 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.AddToolCall(msg.Name, msg.Args, msg.Result, msg.IsError)
 		return m, nil
 
+	case RunEventMsg:
+		// 路由（RUN-003）：事件只属于其 SessionID。当前会话不匹配则
+		// 整条忽略——旧会话运行的收尾事件不能影响本会话的界面状态。
+		if msg.SessionID != "" && m.SessionID != "" && msg.SessionID != m.SessionID {
+			return m, nil
+		}
+		ev := msg
+		m.lastRunEvent = &ev
+		// 运行终态可见性（UI-001）：文字标记区分完成/失败/取消，不靠颜色。
+		if ev.Kind == "run.finished" {
+			switch {
+			case ev.Err == "":
+				m.AddSystemNotice(fmt.Sprintf("[运行完成 %s]", ev.RunID))
+			case strings.Contains(ev.Err, "context canceled"):
+				m.AddSystemNotice(fmt.Sprintf("[运行已取消 %s]", ev.RunID))
+			default:
+				m.AddErrorMessage(fmt.Sprintf("[运行失败 %s] %s", ev.RunID, ev.Err))
+			}
+		}
+		return m, nil
+
+	case JobStatusMsg:
+		// 后台任务快照：全量替换卡片数据（UI-001）。会话隔离（UI-003）：
+		// 旧会话的快照不进入新会话的任务卡片。
+		if msg.SessionID != "" && m.SessionID != "" && msg.SessionID != m.SessionID {
+			return m, nil
+		}
+		m.Jobs.Update(msg)
+		return m, nil
+
+	case dialog.CloseDialogMsg:
+		// 对话框自我关闭（审批决定完成等）：移除栈顶。
+		m.DialogMgr.Close()
+		return m, nil
+
+	case ApprovalRequestMsg:
+		// 同一时刻只允许一个审批窗口：后来的请求排队等当前窗口结束
+		//（运行层已串行化，这里只是防御）。
+		if m.DialogMgr.HasDialog() {
+			if _, isApproval := m.DialogMgr.Top().(*dialog.ApprovalDialog); isApproval {
+				// 已有审批窗口：直接拒绝新请求（宁可保守）。
+				if msg.Respond != nil {
+					msg.Respond(false)
+				}
+				return m, nil
+			}
+		}
+		req := msg
+		m.DialogMgr.Open(dialog.NewApproval(dialog.ApprovalRequest{
+			ID:         req.ID,
+			ToolName:   req.ToolName,
+			Purpose:    req.Purpose,
+			Paths:      req.Paths,
+			Diff:       req.Diff,
+			RiskReason: req.RiskReason,
+		}, req.Respond))
+		timeout := req.Timeout
+		if timeout <= 0 {
+			timeout = 120 * time.Second
+		}
+		return m, tea.Tick(timeout, func(time.Time) tea.Msg {
+			return approvalExpiredMsg{requestID: req.ID}
+		})
+
+	case approvalExpiredMsg:
+		// 超时：若对应审批窗口还开着，关闭并按拒绝应答（幂等：
+		// broker 侧多半已先超时，Respond 返回 false 被忽略）。
+		if top, isApproval := m.DialogMgr.Top().(*dialog.ApprovalDialog); isApproval && top.Request().ID == msg.requestID && !top.Decided() {
+			top.Respond(false)
+			m.DialogMgr.Close()
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		key := msg.String()
+
+		// 恢复面板：任意按键收起（UI-003，用户已「继续工作」）。
+		if m.Resume.Visible() {
+			m.Resume.Hide()
+		}
+
+		// 0. 后台任务卡片可见时优先消费按键（UI-001）。
+		if m.Jobs.Visible() && m.Jobs.HandleKey(key) {
+			return m, nil
+		}
 
 		// 1. 先检查对话框（模态对话框拦截所有按键）
 		if m.DialogMgr.HasDialog() {
@@ -308,6 +440,10 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case keymap.ActionQuit:
 				m.cleanup()
 				return m, tea.Quit
+
+			case keymap.ActionToggleJobs:
+				m.Jobs.Toggle()
+				return m, nil
 
 			case keymap.ActionSubmit:
 				if m.IsStreaming {
@@ -447,6 +583,11 @@ func (m *App) View() tea.View {
 	}
 	content += "\n" + inputContent
 
+	// 后台任务状态卡片叠加（UI-001）。
+	if jobsView := m.Jobs.Render(m.Width, m.Theme); jobsView != "" {
+		content += "\n" + jobsView
+	}
+
 	// 命令面板叠加
 	if m.CommandPanel.IsVisible() {
 		panelView := m.CommandPanel.View(m.Width)
@@ -539,6 +680,54 @@ func (m *App) AddToolCall(toolName, args, result string, isError bool) {
 			Result:   result,
 			IsError:  isError,
 		},
+	})
+}
+
+// SetJobsRuntime 注入后台任务的输出读取与取消能力（UI-001，cmd 侧绑定
+// 归属后调用）。nil 参数表示对应能力不可用。
+func (m *App) SetJobsRuntime(reader func(jobID string, offset int64) JobOutputMsg, cancel func(jobID string) error) {
+	m.jobsReader = reader
+	m.jobsCancel = cancel
+	m.Jobs.SetRuntime(reader, cancel)
+}
+
+// SwitchSession 重新绑定会话（UI-003）：清空旧会话的运行观察点与流式
+// 状态，重建任务卡片（复用运行时钩子）。事件路由按 SessionID 隔离——
+// 旧会话迟到的 RunEventMsg 不会进入新会话的界面（RUN-003 语义）。
+func (m *App) SwitchSession(sessionID string) {
+	if m.SessionID == sessionID {
+		return
+	}
+	m.SessionID = sessionID
+	m.lastRunEvent = nil
+	m.Streaming = NewStreamingView()
+	m.Jobs = NewJobsView(m.jobsReader, m.jobsCancel)
+	m.Resume.Hide()
+	m.AddSystemNotice(fmt.Sprintf("[已切换到会话 %s]", shortIDText(sessionID)))
+}
+
+// shortIDText 是会话 ID 的短展示（UI-003；避免直接暴露完整 UUID）。
+func shortIDText(id string) string {
+	if len(id) <= 12 {
+		return id
+	}
+	return id[:12]
+}
+
+// SetResumeItems 装入恢复进度事实（UI-003）。空列表不显示面板。
+func (m *App) SetResumeItems(items []ResumeItem) {
+	m.Resume.SetItems(items)
+	if m.Resume.Visible() {
+		m.AddSystemNotice(fmt.Sprintf("[恢复检查] %d 项遗留，其中 %d 项需要重试/复核",
+			len(items), m.Resume.RetryCount()))
+	}
+}
+
+// AddSystemNotice 添加中性系统通知（状态卡片类信息）。
+func (m *App) AddSystemNotice(text string) {
+	m.Messages = append(m.Messages, Message{
+		Role:    "system",
+		Content: text,
 	})
 }
 

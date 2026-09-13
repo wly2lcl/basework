@@ -24,6 +24,9 @@ vendor/
 coverage.out
 *.prof
 
+# GoReleaser 打包产物（本地 dry-run 会生成，不进仓库）
+dist/
+
 # 外部工具 / Agent 本地数据（含 memory 日志、备份包，不进仓库）
 .opencode/
 .workbuddy/

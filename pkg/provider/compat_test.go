@@ -325,7 +325,11 @@ func TestCompat_ID(t *testing.T) {
 	}
 }
 
-// TestCompat_Supports 验证 Supports() 方法
+// TestCompat_Supports 验证 Supports() 方法。
+//
+// 注意视觉能力的语义在 REL-002 之后收紧了：openai-compat 端点上的任意模型 ID
+// 不再被无条件声明为支持图片输入（历史上这里断言 vision=true，等于把未验证的
+// 猜测当结论）。现在对未知模型 ID 的结论是 unknown，只能表示“没有依据”。
 func TestCompat_Supports(t *testing.T) {
 	model, err := newOpenAICompat(Config{Type: "openai-compat", APIKey: "key", ModelID: "m"}, "https://example.com")
 	if err != nil {
@@ -334,8 +338,8 @@ func TestCompat_Supports(t *testing.T) {
 	if !model.Supports(llm.CapTools) {
 		t.Error("expected tools support")
 	}
-	if !model.Supports(llm.CapVision) {
-		t.Error("expected vision support")
+	if model.Supports(llm.CapVision) {
+		t.Error("unknown model must not be declared vision-capable")
 	}
 	if !model.Supports(llm.CapStreaming) {
 		t.Error("expected streaming support")

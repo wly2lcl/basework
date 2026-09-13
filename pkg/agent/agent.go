@@ -12,6 +12,15 @@ import (
 // ErrMaxStepsExceeded 表示 agent 执行步数超过最大限制
 var ErrMaxStepsExceeded = errors.New("agent: 超过最大执行步数")
 
+// SessionIDProvider 由"能报出自己会话 ID"的 Agent 实现。
+//
+// 它是可选接口，而不是加进 `Agent`：`Agent` 是嵌入方可自行实现的公共接口，往里加方法
+// 会让所有既有实现者编译不过。产品层需要按会话给后台任务定归属时，用类型断言取用即可。
+type SessionIDProvider interface {
+	// SessionID 返回当前会话 ID。它必须稳定——同一个 Agent 实例多次调用结果一致。
+	SessionID() string
+}
+
 // Agent 是核心 agent 接口，封装了 LLM 对话处理生命周期
 type Agent interface {
 	// HandleMessage 处理单条文本输入

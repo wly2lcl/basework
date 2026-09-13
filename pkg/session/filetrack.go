@@ -64,6 +64,19 @@ func (ft *FileTracker) TrackEdit(path string) {
 	ft.allFiles[path] = true
 }
 
+// TrackOp 按操作类型记录一次文件操作，op 取值见 FileOpType 常量。
+// 未知类型按 edit 记录：宁可多记不可漏记，编辑事实是审计线索，漏记比多记危害大。
+func (ft *FileTracker) TrackOp(path string, op FileOpType) {
+	switch op {
+	case FileRead:
+		ft.TrackRead(path)
+	case FileWrite:
+		ft.TrackWrite(path)
+	default:
+		ft.TrackEdit(path)
+	}
+}
+
 // GetTrackedFiles 返回所有被追踪的文件路径（已去重）。
 func (ft *FileTracker) GetTrackedFiles() []string {
 	ft.mu.Lock()
