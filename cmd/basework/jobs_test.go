@@ -290,7 +290,9 @@ func TestBindRuntimeJobOwner_OnlyTouchesOwnSession(t *testing.T) {
 // 因此顺带验证了 jobJournalPath / jobOutputDir 的拼法，以及 CLI 渲染的是归并后的结果。
 func TestRestartReconcileEndToEnd(t *testing.T) {
 	// HOME 一改，getSessionDir() 就指向临时目录，不会碰到本机真实会话数据。
-	t.Setenv("HOME", t.TempDir())
+	// 必须走 setTestHome：Windows 的 os.UserHomeDir 读 USERPROFILE，
+	// 只设 HOME 的话上一句在那边是假的。
+	setTestHome(t, t.TempDir())
 
 	const owner = "e2e-session-0001"
 	journalPath := jobJournalPath()

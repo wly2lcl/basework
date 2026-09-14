@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// processGroupSupported：unix 上通过 Setpgid + 负 pid 发信号，可以覆盖整棵进程树。
-const processGroupSupported = true
+// processTreeTerminationSupported：unix 上通过 Setpgid + 负 pid 发信号，可以覆盖整棵进程树。
+const processTreeTerminationSupported = true
 
 // prepareCommand 把命令放进以自身 pid 为组长的独立进程组。
 //

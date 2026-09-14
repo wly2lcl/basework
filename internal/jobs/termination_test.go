@@ -256,10 +256,13 @@ func TestCloseOwner_CancelsAndCleansOnlyThatOwner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("启动 A 失败: %v", err)
 	}
-	// B：同类任务，不应被波及。
+	// B：同类任务，不应被波及。写完输出后发信号，避免测试在写落地前就读输出
+	// （Linux 调度下 goroutine 可能尚未执行，曾导致 TotalSize=0 的偶发失败）。
 	blockB := make(chan struct{})
+	bWritten := make(chan struct{})
 	jobB, err := mgr.StartWithOutput("sess-B", "B 的长任务", func(ctx context.Context, out, _ io.Writer) (int, error) {
 		out.Write([]byte("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
+		close(bWritten)
 		select {
 		case <-ctx.Done():
 			return -1, ctx.Err()
@@ -269,6 +272,11 @@ func TestCloseOwner_CancelsAndCleansOnlyThatOwner(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("启动 B 失败: %v", err)
+	}
+	select {
+	case <-bWritten:
+	case <-time.After(5 * time.Second):
+		t.Fatal("B 的输出写入未在合理时间内发生")
 	}
 
 	// 直接关掉 A 的命令（不通过 cancel、不经 Await），确保 CloseOwner 面对的是仍在运行的 job。

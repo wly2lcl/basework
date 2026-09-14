@@ -25,11 +25,11 @@ import (
 
 // isolatedConfig 返回一份隔离了宿主环境的配置快照。
 //
-// HOME 指向临时目录，避免测试写到真实会话目录；BASEWORK_* 与 key 环境变量清空，
-// 让「来源」判定只取决于本测试给出的内容。
+// HOME/USERPROFILE 指向临时目录（setTestHome），避免测试写到真实会话目录；
+// BASEWORK_* 与 key 环境变量清空，让「来源」判定只取决于本测试给出的内容。
 func isolatedConfig(t *testing.T) *config.Config {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 	t.Setenv("BASEWORK_PROVIDER", "")
 	t.Setenv("BASEWORK_BASE_URL", "")
 	t.Setenv("OPENAI_API_KEY", "")

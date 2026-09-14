@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -410,13 +411,31 @@ func TestBackgroundBash_RespectsWorkingDirectory(t *testing.T) {
 	mgr := newTestManager(t)
 	tl := NewBackgroundBashTool("session-a", mgr)
 	// 用绝对路径写文件，确认工具确实把命令交给了 shell 执行。
+	//
+	// 参数必须走 jsonCommandArgs 而不是字符串拼接：t.TempDir() 在 Windows 上
+	// 给出 `C:\Users\...`，`\U` 是非法 JSON 转义，拼接会让参数解析直接失败。
+	// 路径还要 ToSlash——shell 里反斜杠是转义符，Windows 原生分隔符会被吃掉。
 	handle := decodeHandle(t, executeTool(t, tl,
-		`{"command":"printf ok > `+target+`"}`))
+		jsonCommandArgs(t, "printf ok > "+filepath.ToSlash(target))))
 	awaitTerminal(t, mgr, "session-a", handle.JobID)
 
 	if !fileExists(target) {
 		t.Fatalf("后台命令未产生预期文件: %s", target)
 	}
+}
+
+// jsonCommandArgs 把 shell 命令编成工具参数 JSON。
+//
+// 直接拼 `{"command":"..."}` 在 Windows 上必坏：临时目录路径里的反斜杠
+// 会变成非法 JSON 转义（`\U`、`\A` …），json.Unmarshal 报
+// "invalid character 'U' in string escape code"。让编码器负责转义。
+func jsonCommandArgs(t *testing.T, command string) string {
+	t.Helper()
+	b, err := json.Marshal(map[string]string{"command": command})
+	if err != nil {
+		t.Fatalf("编码工具参数失败: %v", err)
+	}
+	return string(b)
 }
 
 // builtinCheck 直接调用同步 bash 用的那份黑名单实现，让测试不依赖对模式的猜测。
@@ -492,8 +511,12 @@ func TestBackgroundBash_LargeOutputSpillsToPrivateFile(t *testing.T) {
 	if got := info.Size(); got != total-memLimit {
 		t.Fatalf("溢出文件大小应为总量减内存配额 %d，实际 %d", total-memLimit, got)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Fatalf("溢出文件必须是 0600 私有文件，实际 %o", perm)
+	// Windows 没有 Unix 权限位：os.Stat 一律返回 0666，溢出文件的私有性
+	// 在那边的载体是目录 ACL。这条断言覆盖不到 Windows，不假装它通过。
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Fatalf("溢出文件必须是 0600 私有文件，实际 %o", perm)
+		}
 	}
 	// 引用必须落在 manager 声明的输出目录内。
 	rel, err := filepath.Rel(mgr.OutputDir(), final.OutputRefs[0])

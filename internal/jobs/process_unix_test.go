@@ -88,7 +88,7 @@ func TestPrepareCommand_ChildBecomesProcessGroupLeader(t *testing.T) {
 // TestTerminateCommand_KillsGrandchildren 是本任务的核心验收：
 // 直接子进程的**孙进程**也必须被清理，不能只杀 sh。
 func TestTerminateCommand_KillsGrandchildren(t *testing.T) {
-	if !ProcessGroupSupported() {
+	if !ProcessTreeTerminationSupported() {
 		t.Skip("当前平台不支持进程组终止")
 	}
 	pidFile := filepath.Join(t.TempDir(), "grandchild.pid")
@@ -113,7 +113,7 @@ func TestTerminateCommand_KillsGrandchildren(t *testing.T) {
 
 // TestTerminateCommand_ForceKillsAfterGrace 验证忽略温和信号的进程会在宽限期后被强制结束。
 func TestTerminateCommand_ForceKillsAfterGrace(t *testing.T) {
-	if !ProcessGroupSupported() {
+	if !ProcessTreeTerminationSupported() {
 		t.Skip("当前平台不支持进程组终止")
 	}
 	const grace = 300 * time.Millisecond
@@ -173,7 +173,7 @@ func TestTerminateCommand_NilInputsAreNoop(t *testing.T) {
 // TestTerminateCommand_ZeroGraceUsesDefault 验证 grace<=0 时按默认宽限期处理
 // （配置漏填不能退化成"直接强杀"）。
 func TestTerminateCommand_ZeroGraceUsesDefault(t *testing.T) {
-	if !ProcessGroupSupported() {
+	if !ProcessTreeTerminationSupported() {
 		t.Skip("当前平台不支持进程组终止")
 	}
 	cmd := exec.Command("sh", "-c", `trap "" TERM; while :; do sleep 0.05; done`)
@@ -195,9 +195,9 @@ func TestTerminateCommand_ZeroGraceUsesDefault(t *testing.T) {
 	waitForNoPID(t, cmd.Process.Pid, 3*time.Second)
 }
 
-// TestProcessGroupSupportedIsTrueOnUnix 固定 unix 平台的能力声明。
-func TestProcessGroupSupportedIsTrueOnUnix(t *testing.T) {
-	if !ProcessGroupSupported() {
-		t.Fatal("unix 平台应支持进程组终止")
+// TestProcessTreeTerminationSupportedOnUnix 固定 unix 平台的能力声明。
+func TestProcessTreeTerminationSupportedOnUnix(t *testing.T) {
+	if !ProcessTreeTerminationSupported() {
+		t.Fatal("unix 平台应支持进程树终止")
 	}
 }

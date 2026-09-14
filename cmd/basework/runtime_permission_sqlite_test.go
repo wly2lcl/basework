@@ -12,7 +12,7 @@ import (
 )
 
 func TestRuntimePermissionCheckerUsesSQLiteStoreAndAudit(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	cfg := config.NewStore("").Get()
 	cfg.Permission.Enabled = true

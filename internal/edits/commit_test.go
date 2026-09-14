@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -209,13 +210,19 @@ func TestCommit_WritesAllFilesAndCleansUpTemp(t *testing.T) {
 		t.Fatalf("内容不符: %q", got)
 	}
 	// 权限沿用原文件，不被 umask 或临时文件默认值改写。
-	for name, want := range map[string]os.FileMode{"a.txt": 0o600, "b.txt": 0o755} {
-		info, err := os.Stat(filepath.Join(root, name))
-		if err != nil {
-			t.Fatalf("stat 失败: %v", err)
-		}
-		if got := info.Mode().Perm(); got != want {
-			t.Fatalf("%s 权限应为 %o，实际 %o", name, want, got)
+	//
+	// Windows 不实现 Unix 权限位：os.Stat 一律返回 0666，私有性由目录 ACL 表达，
+	// 断言只读位之外的东西在那边没有意义。这里不对 Windows 假装通过——
+	// 而是明确说明这条断言覆盖不到它。
+	if runtime.GOOS != "windows" {
+		for name, want := range map[string]os.FileMode{"a.txt": 0o600, "b.txt": 0o755} {
+			info, err := os.Stat(filepath.Join(root, name))
+			if err != nil {
+				t.Fatalf("stat 失败: %v", err)
+			}
+			if got := info.Mode().Perm(); got != want {
+				t.Fatalf("%s 权限应为 %o，实际 %o", name, want, got)
+			}
 		}
 	}
 	// 目录里不应残留临时文件。

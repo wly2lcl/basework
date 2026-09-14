@@ -3,13 +3,25 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// setTestHome 统一设置测试 HOME。
+// Windows 上 os.UserHomeDir 读 USERPROFILE 而忽略 HOME，必须两个都设，
+// 否则生产代码拿到的是真实用户目录而不是 t.TempDir()。
+func setTestHome(t *testing.T, home string) {
+	t.Helper()
+	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
+}
 
 // TestGetSessionDir 验证规范会话目录位于 $HOME/.local/share/basework/sessions。
 func TestGetSessionDir(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	got := getSessionDir()
 	want := filepath.Join(home, ".local", "share", "basework", "sessions")
@@ -21,7 +33,7 @@ func TestGetSessionDir(t *testing.T) {
 // TestLegacySessionDir 验证历史目录为 $HOME/.basework/sessions。
 func TestLegacySessionDir(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	got := legacySessionDir()
 	want := filepath.Join(home, ".basework", "sessions")
@@ -33,7 +45,7 @@ func TestLegacySessionDir(t *testing.T) {
 // TestResolveSessionDir_PrefersCanonical 验证两个目录都存在时优先规范目录。
 func TestResolveSessionDir_PrefersCanonical(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	canonical := getSessionDir()
 	if err := os.MkdirAll(canonical, 0o755); err != nil {
@@ -52,7 +64,7 @@ func TestResolveSessionDir_PrefersCanonical(t *testing.T) {
 // 以免升级后已有用户的会话读取不到。
 func TestResolveSessionDir_FallsBackToLegacy(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	legacy := legacySessionDir()
 	if err := os.MkdirAll(legacy, 0o755); err != nil {
@@ -67,7 +79,7 @@ func TestResolveSessionDir_FallsBackToLegacy(t *testing.T) {
 // TestResolveSessionDir_DefaultsToCanonical 验证两个目录都不存在时返回规范目录。
 func TestResolveSessionDir_DefaultsToCanonical(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	if got := resolveSessionDir(); got != getSessionDir() {
 		t.Fatalf("目录都不存在时应返回规范目录 %q，得到 %q", getSessionDir(), got)

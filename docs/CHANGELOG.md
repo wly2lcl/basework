@@ -13,6 +13,47 @@
 
 ## [Unreleased]
 
+### 跨平台 CI 首轮失败修复（2026-09-14）
+
+M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ubuntu 失败 1 个、Windows 失败 13 个测试。
+按根因分两类修完：**2 个真实产品缺陷**（表现为 4 个 Windows 失败），另 10 个（9 个 Windows + 1 个 Ubuntu）
+是测试自身的假设错误。
+
+**修复（产品缺陷）**
+- **Windows 上超时/取消对后台命令不生效**：`internal/jobs` 在 Windows 退化为「只终止直接子进程」，而
+  `sh -c "sleep 30"` 的孙进程仍持有继承来的管道写端，`cmd.Wait()` 会一直阻塞到它自然退出——1 秒超时
+  实测拖满 30 秒才进终态，即超时在 Windows 上等于没有。新增 `internal/jobs/process_windows.go`：
+  `prepareCommand` 设 `CREATE_NEW_PROCESS_GROUP`（脱离调用方控制台，不被 Ctrl+C 连带），
+  `terminateCommand` 用 `taskkill /T /F` 按父进程链终止整棵树；`taskkill` 退出码 128（进程已不存在）
+  按 unix 的 `ESRCH` 语义处理。Windows 侧**没有温和阶段**——控制台进程没有可捕获的终止信号，
+  等一个发不出去的宽限期没有意义（签名用空标识符接收 `grace` 以显式表达这一点）。
+  平台能力随之从 `ProcessGroupSupported()` 改名为 `ProcessTreeTerminationSupported()`：旧名字在
+  Windows 上会变成谎话；`ErrProcessGroupUnsupported` 改名 `ErrProcessTreeUnsupported`，只保留给
+  既无进程组也无等价手段的平台（`process_other.go` 的构建约束收窄为 `!unix && !windows`）。
+- **`FactsSummaryProvider.wrapHash` 漏判 Windows 根路径**：判绝对路径只用 `filepath.IsAbs`，而它在
+  Windows 上对 `/abs/path` 返回 false（只认盘符与 UNC），越界路径会被放行到哈希函数。改为
+  `path.IsAbs || filepath.IsAbs` 取并集——前者认所有平台的前导 `/`，后者认 `C:\`。
+
+**修复（测试自身的平台假设，不影响产品行为，但此前会让 CI 红灯）**
+- 只设 `HOME` 做隔离，在 Windows 上不生效（`os.UserHomeDir` 读 `USERPROFILE`）：`cmd/basework` 的
+  会话目录 / 会话迁移 / jobs 重启归并 / provider 端点 / sqlite 权限存储 五处统一走新增的
+  `setTestHome`；`tests/cli_integration_test.go` 补设 `USERPROFILE`。
+- 断言 0600 文件权限：Windows 不实现 Unix 权限位（`os.Stat` 一律返回 0666，私有性由目录 ACL 表达），
+  `internal/edits`、`internal/jobs`、`internal/tools` 三处改为仅在类 Unix 平台断言，并在注释里写明
+  该平台覆盖不到——不假装通过。
+- `internal/jobs` 溢出文件句柄直到 `Close`/`CloseOwner` 才释放，未关会让 Windows 的 `t.TempDir`
+  清理因「文件被占用」失败（Unix 允许删除打开中的文件）：补 `t.Cleanup(mgr.Close)`。
+- `TestBackgroundBash_RespectsWorkingDirectory` 用字符串拼接构造工具参数 JSON，Windows 临时目录里的
+  `C:\Users\...` 使 `\U` 成为非法 JSON 转义，参数解析直接失败；改用 `json.Marshal`，并把路径
+  `ToSlash`（shell 里反斜杠是转义符，原生分隔符会被吃掉）。
+- `TestCloseOwner_CancelsAndCleansOnlyThatOwner`（Ubuntu）在输出写入落地前就断言，Linux 调度下偶发
+  `TotalSize=0`；改为先等写入完成信号。
+
+**新增**
+- `internal/jobs/process_windows_test.go`：Windows 专属平台测试。其中
+  `TestTerminateCommand_KillsGrandchildren` 让 stdout 走 `io.Writer` 而非 `*os.File`，使 `os/exec`
+  自建管道并被孙进程继承，从而**精确复现**上述「孙进程持管道 → `Wait` 阻塞」的缺陷形态。
+
 ### M8 发布准备：固定场景回归集、安装升级验证与迁移缺陷修复（2026-09-13）
 
 **修复（TUI 与并发，候选版本验收中发现）**

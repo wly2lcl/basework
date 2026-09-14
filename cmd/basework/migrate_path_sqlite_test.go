@@ -10,7 +10,7 @@ import (
 // TestResolveMigrateSQLitePath_Default 验证迁移的 SQLite 默认路径与规范目录一致。
 func TestResolveMigrateSQLitePath_Default(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	original := migrateSQLitePath
 	migrateSQLitePath = ""
@@ -25,7 +25,7 @@ func TestResolveMigrateSQLitePath_Default(t *testing.T) {
 
 // TestResolveMigrateSQLitePath_Explicit 验证显式指定路径时不被覆盖。
 func TestResolveMigrateSQLitePath_Explicit(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	custom := filepath.Join(t.TempDir(), "custom.db")
 	original := migrateSQLitePath

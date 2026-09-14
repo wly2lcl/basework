@@ -12,7 +12,7 @@ func TestGetOAuthConfigLoadsProviders(t *testing.T) {
 	t.Cleanup(func() { cfgFile = oldCfgFile })
 
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setTestHome(t, dir)
 	cfgFile = filepath.Join(dir, "config.json")
 	data := []byte(`{
 		"oauth": {
@@ -65,7 +65,7 @@ func TestGetOAuthConfigRejectsKeychainBackend(t *testing.T) {
 	t.Cleanup(func() { cfgFile = oldCfgFile })
 
 	dir := t.TempDir()
-	t.Setenv("HOME", dir)
+	setTestHome(t, dir)
 	cfgFile = filepath.Join(dir, "config.json")
 	data := []byte(`{
 		"oauth": {

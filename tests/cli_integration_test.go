@@ -84,6 +84,9 @@ func TestCLI_SessionStatus(t *testing.T) {
 	// 会因写入 sessions.db-wal 触发沙箱拦截，导致测试进程退出码非 0。
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	// Windows 的 os.UserHomeDir 读 USERPROFILE 而忽略 HOME；不设它的话
+	// 上面那句在 Windows 上不成立，子进程仍会落到真实用户目录。
+	t.Setenv("USERPROFILE", tmpDir)
 
 	// 使用规范会话目录（与 agent 写入位置一致）
 	sessionDir := filepath.Join(tmpDir, ".local", "share", "basework", "sessions")

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -114,12 +115,16 @@ func TestJSONLJournal_AppendThenRecords(t *testing.T) {
 	}
 
 	// 文件权限：日志可能含命令原文，不该是全局可读。
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Stat: %v", err)
-	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Fatalf("日志权限应为 0600，得到 %o", perm)
+	// Windows 没有 Unix 权限位（os.Stat 一律 0666），该平台上的私有性由目录
+	// ACL 决定，这条断言覆盖不到——不假装它通过了。
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("Stat: %v", err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Fatalf("日志权限应为 0600，得到 %o", perm)
+		}
 	}
 }
 

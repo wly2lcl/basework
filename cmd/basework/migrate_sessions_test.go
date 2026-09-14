@@ -25,9 +25,11 @@ func writeSessionFixture(t *testing.T, dir, id string, version int, eventLine st
 }
 
 // isolateMigrationHome 把 HOME 与 SQLite 目标路径都指到临时目录，隔离真实数据。
+// Windows 上必须同时设置 USERPROFILE（见 setTestHome），否则 os.UserHomeDir
+// 拿到真实主目录，多个测试会共用同一个 sessions.db 相互污染。
 func isolateMigrationHome(t *testing.T) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 	orig := migrateSQLitePath
 	migrateSQLitePath = ""
 	t.Cleanup(func() { migrateSQLitePath = orig })

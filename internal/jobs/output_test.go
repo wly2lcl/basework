@@ -594,6 +594,9 @@ func TestOutput_OwnerDirIsNotTraversable(t *testing.T) {
 	root := t.TempDir()
 	clock := newMemClock()
 	mgr := New(Options{Now: clock.Now, Output: OutputOptions{Dir: root, MemoryLimit: 4}})
+	// 溢出文件句柄要等 Close/CloseOwner 才释放；不关的话 Windows 上
+	// t.TempDir 的清理会因「文件被占用」失败（Unix 允许删除打开中的文件）。
+	t.Cleanup(mgr.Close)
 	job := runEchoJob(t, mgr, "../../etc/passwd", bytes.Repeat([]byte("t"), 64), nil)
 
 	if len(job.OutputRefs) != 1 {

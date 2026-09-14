@@ -175,10 +175,10 @@ func TestBackgroundBash_KillGraceIsConfigurable(t *testing.T) {
 	}
 }
 
-// TestBackgroundBash_ProcessGroupSupportedOnUnix 固定本平台的能力声明，
+// TestBackgroundBash_ProcessTreeSupportedOnUnix 固定本平台的能力声明，
 // 让"支持/不支持"这件事在测试里有明确期望值而不是隐含假设。
-func TestBackgroundBash_ProcessGroupSupportedOnUnix(t *testing.T) {
-	if !jobs.ProcessGroupSupported() {
-		t.Fatal("unix 平台应支持进程组终止")
+func TestBackgroundBash_ProcessTreeSupportedOnUnix(t *testing.T) {
+	if !jobs.ProcessTreeTerminationSupported() {
+		t.Fatal("unix 平台应支持进程树终止")
 	}
 }

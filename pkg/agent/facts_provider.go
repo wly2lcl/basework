@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/wly2lcl/basework/pkg/session"
@@ -70,11 +71,19 @@ func (p *FactsSummaryProvider) Collect() (string, error) {
 }
 
 // wrapHash 把相对路径转成工作区内绝对路径再求哈希；越界路径直接拒绝。
+//
+// 绝对路径判定必须同时用 path.IsAbs 与 filepath.IsAbs：
+//   - Windows 的 filepath.IsAbs(`\foo`) / (`/foo`) 为 false（只认盘符或 UNC），
+//     但 path.IsAbs 对所有平台的前导 '/' 都返回 true；
+//   - 反向地，path.IsAbs 不认识 `C:\foo`，只有 filepath.IsAbs 认识。
+//
+// 两者取并集才能在所有平台上都拒绝「以根开头的路径」，不把判定
+// 交给平台相关的单一实现。
 func (p *FactsSummaryProvider) wrapHash(relPath string) (string, error) {
 	if p.Hash == nil {
 		return "", nil
 	}
-	if filepath.IsAbs(relPath) || containsDotDot(relPath) {
+	if path.IsAbs(relPath) || filepath.IsAbs(relPath) || containsDotDot(relPath) {
 		return "", ErrProtectedPath
 	}
 	return p.Hash(relPath)

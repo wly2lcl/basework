@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -40,10 +41,12 @@ type JobHandle struct {
 // 输出：命令的 stdout/stderr 写进 Manager 的输出存储（内存配额 + 溢出到私有文件
 // + 保留期 + 越权拒绝读取），分页读取通过 `jobs.Manager.ReadOutput` 暴露。
 //
-// 终止：命令跑在独立进程组里，取消/超时会先温和终止整组、宽限期后强制结束，
-// 因此直接子进程的孙进程不会残留。本机验证平台为 macOS；Windows 没有 POSIX
-// 进程组，退化为终止直接子进程（`jobs.ProcessGroupSupported()` 为 false），
-// 该限制由交叉编译检查覆盖，Windows 运行时行为未实测。
+// 终止：命令跑在独立进程组/进程组等价物里，取消/超时会终止整棵进程树
+// （unix 用进程组信号，Windows 用 `taskkill /T`），因此直接子进程的孙进程
+// 不会残留。两个平台的差异只在「有没有温和阶段」：unix 先 SIGTERM 再 SIGKILL，
+// Windows 直接强制结束（没有可捕获的信号，见 internal/jobs/process_windows.go）。
+// 该能力由 `jobs.ProcessTreeTerminationSupported()` 显式声明，为 false 的平台
+// 退化为只杀直接子进程。
 //
 // 仍未实现、也没有假装实现的部分：把输出/查询/取消注册成模型可调用工具、
 // 跨重启恢复属于 JOB-004。
@@ -178,19 +181,23 @@ func (t *BackgroundBashTool) Execute(ctx context.Context, args json.RawMessage) 
 		}
 
 		cmd := exec.CommandContext(execCtx, "sh", "-c", command)
-		// 让命令在独立进程组里跑，并接管取消动作：默认的取消只杀直接子进程，
+		// 让命令脱离调用方的进程组，并接管取消动作：默认的取消只杀直接子进程，
 		// `sh -c "make -j8 test"` 这类命令的孙进程会被留下继续跑。
 		jobs.PrepareCommand(cmd)
 		cmd.Cancel = func() error {
-			if err := jobs.TerminateCommand(cmd, t.KillGrace); err != nil {
-				// 平台不支持进程组（Windows）时退化为终止直接子进程，
-				// 并把这个事实暴露出来，而不是假装整棵树都清理干净了。
+			err := jobs.TerminateCommand(cmd, t.KillGrace)
+			if err == nil {
+				return nil
+			}
+			if errors.Is(err, jobs.ErrProcessTreeUnsupported) {
+				// 既没有 POSIX 进程组、也没有 taskkill 这类等价手段的平台：
+				// 退化为终止直接子进程。孙进程会残留，这个事实不掩饰——
+				// 错误值本身就是这句话的载体。
 				if cmd.Process != nil {
 					return cmd.Process.Kill()
 				}
-				return err
 			}
-			return nil
+			return err
 		}
 		// 输出接进 Manager 的输出存储：先驻留内存，超过配额后溢出到 0600 私有文件。
 		// 写端永不因配额或磁盘问题报错，所以这里的复制协程不会被输出量"打死"。
