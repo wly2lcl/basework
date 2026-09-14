@@ -29,7 +29,7 @@
 
 真实模型调用已有两条路径的证据，均记录在 [REL-003 记录](development/evidence/REL-003.md)：核心层（可嵌入 API）对两个协议各跑 3 次真实闭环 6/6 通过；产品层（CLI）在自定义端点配置（[CFG-004](development/evidence/CFG-004.md)）落地后，用同一场景重跑 3 次全部通过（退出码 0、文件确实被改、`go test` 由 CLI 进程之外独立复核）。端点生效性有反向对照：把 `base_url` 指向不可达地址后错误直接指向该端点，而不再是此前那种误导性的 401。
 
-仍缺少按统一模板保存的长任务中断恢复、在**目标系统**上的跨平台干净安装（只有 darwin/arm64 产物真实运行过，其余平台仅交叉编译）、Docker 镜像的实际构建与运行（本机缺 `buildx`，CI 的 dry-run 也刻意跳过 docker）和人工 TUI 验证报告；CLI 路径只跑了 `openai` 协议一侧，`anthropic` 协议仅核心层验证。`tests/integration_test.go` 的 `TestIntegration_OpenAI_E2E` 测试体仍被整段注释，属占位测试，不能当作真实闭环证据。**跨平台 CI 已于 2026-09-13 首次实际触发**（run `34758258996`）：macOS、文档与静态检查通过，Ubuntu 失败 1 个、Windows 失败 13 个测试——其中 4 个（Windows）由 2 个真实产品缺陷引起（Windows 上超时/取消对后台命令不生效、`wrapHash` 漏判 Windows 根路径），其余 10 个是测试自身的平台假设错误（只设 `HOME`、断言 Unix 权限位、未关溢出文件句柄、拼接 JSON 未转义，以及 1 个 Ubuntu 上的写输出竞态）；全部已修复并补回归测试，结果见下方 2026-09-14 条目。仍未在 Ubuntu / Windows 上**实机本地**验证（CI 之外无机器可跑）；`tests/benchmark` 的基准测试在 `go test` 下报 `no tests to run`，从未实际执行。
+仍缺少按统一模板保存的长任务中断恢复、在**目标系统**上的跨平台干净安装（只有 darwin/arm64 产物真实运行过，其余平台仅交叉编译）、Docker 镜像的实际构建与运行（本机缺 `buildx`，CI 的 dry-run 也刻意跳过 docker）和人工 TUI 验证报告；CLI 路径只跑了 `openai` 协议一侧，`anthropic` 协议仅核心层验证。`tests/integration_test.go` 的 `TestIntegration_OpenAI_E2E` 测试体仍被整段注释，属占位测试，不能当作真实闭环证据。**跨平台 CI 已于 2026-09-13 首次实际触发**（run `34758258996`）：macOS、文档与静态检查通过，Ubuntu 失败 1 个、Windows 失败 13 个测试——其中 4 个（Windows）由 2 个真实产品缺陷引起（Windows 上超时/取消对后台命令不生效、`wrapHash` 漏判 Windows 根路径），其余 10 个是测试自身的平台假设错误（只设 `HOME`、断言 Unix 权限位、未关溢出文件句柄、拼接 JSON 未转义，以及 1 个 Ubuntu 上的写输出竞态）；全部已修复并补回归测试，**修复后重跑 CI（run `34797549128`）三平台测试、Quality 与 Release Dry Run 全部通过——这是本仓库首次跨平台 CI 全绿**。仍未在 Ubuntu / Windows 上**实机本地**验证（CI 之外无机器可跑）；`tests/benchmark` 的基准测试在 `go test` 下报 `no tests to run`，从未实际执行。
 
 2026-09-13 M8 发布准备（[SHIP-001](development/evidence/SHIP-001.md)、[SHIP-002](development/evidence/SHIP-002.md)、[SHIP-003](development/evidence/SHIP-003.md)）：
 
@@ -46,7 +46,7 @@
 - **跨平台 CI 首轮失败修复（2026-09-14）**：M2–M8 首次推送后 CI 矩阵实际运行（run `34758258996`），Ubuntu 失败 1 个、Windows 失败 13 个测试，按根因分两类修完：
   - **产品缺陷 2 个**：① Windows 上超时/取消对后台命令**不生效**——原先退化为只杀直接子进程，`sh -c "sleep 30"` 的孙进程继续持有继承的管道写端，`cmd.Wait()` 阻塞到它自然退出（实测 1 秒超时拖满 30 秒才进终态）；新增 `internal/jobs/process_windows.go`，用 `taskkill /T /F` 终止整棵进程树，平台能力改名为 `ProcessTreeTerminationSupported()`。② `FactsSummaryProvider.wrapHash` 只用 `filepath.IsAbs` 判绝对路径，而它在 Windows 上对 `/abs/path` 返回 false，越界路径会被放行到哈希函数；改为 `path.IsAbs || filepath.IsAbs`。
   - **测试自身的平台假设错误 10 个**（9 个 Windows + 1 个 Ubuntu）：只设 `HOME` 隔离（Windows 的 `os.UserHomeDir` 读 `USERPROFILE`）、断言 0600 权限（Windows 不实现 Unix 权限位，`os.Stat` 一律 0666）、溢出文件句柄未关导致 `t.TempDir` 清理失败、用字符串拼接构造工具参数 JSON 使 Windows 路径里的 `\U` 成为非法转义、以及 Ubuntu 上写输出未落地即断言的竞态。这些不是产品缺陷，但会让 CI 红灯，所以照实修完而不是跳过用例。
-  - 新增 Windows 专属测试 `internal/jobs/process_windows_test.go`（其中 `TestTerminateCommand_KillsGrandchildren` 用「stdout 走 io.Writer 而非 *os.File」精确复现了上述管道阻塞形态）。修复后本地在 macOS 上复跑双 tag 全量测试、race 与全部门禁均通过。
+  - 新增 Windows 专属测试 `internal/jobs/process_windows_test.go`（其中 `TestTerminateCommand_KillsGrandchildren` 用「stdout 走 io.Writer 而非 *os.File」精确复现了上述管道阻塞形态）。修复后本地在 macOS 上复跑双 tag 全量测试、race 与全部门禁均通过；**重跑 CI 后三平台全部通过**（run `34797549128`：macos 1m9s、ubuntu 1m14s、windows 3m47s、Quality 2m58s、Release Dry Run 3m47s），这是本仓库**首次跨平台 CI 全绿**。仍未获得的是 Docker/GHCR 镜像的实际构建（本机 Docker daemon 未运行，且沙箱内无法启动 colima）。
 
 
 规模见自动生成的 [STATS](STATS.md)，依赖见 [DEPGRAPH](DEPGRAPH.md)。后续方向见 [路线图](ROADMAP.md)，执行与进度只在 [TASKS](TASKS.md) 更新。

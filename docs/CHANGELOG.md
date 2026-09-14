@@ -54,6 +54,12 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
   `TestTerminateCommand_KillsGrandchildren` 让 stdout 走 `io.Writer` 而非 `*os.File`，使 `os/exec`
   自建管道并被孙进程继承，从而**精确复现**上述「孙进程持管道 → `Wait` 阻塞」的缺陷形态。
 
+**验证结果**
+- 修复后重跑 CI（run `34797549128`）：macos 1m9s、ubuntu 1m14s、windows 3m47s、Quality 2m58s、
+  Release Dry Run 3m47s **全部通过**——本仓库首次跨平台 CI 全绿。本地在 macOS 上双 tag 全量测试
+  （各 34 个 `ok` 行、0 FAIL）、race 子集、`make gen` 幂等、`check-arch`/`check-docs`、看板 29/29 亦全部通过。
+- 仍未获得：Docker/GHCR 镜像的实际构建（本机 Docker daemon 未运行，沙箱内无法启动 colima）。
+
 ### M8 发布准备：固定场景回归集、安装升级验证与迁移缺陷修复（2026-09-13）
 
 **修复（TUI 与并发，候选版本验收中发现）**
