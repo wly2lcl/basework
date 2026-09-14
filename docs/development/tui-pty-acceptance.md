@@ -1,5 +1,8 @@
 # tests/tui_pty — 终端级 TUI 验收夹具（SHIP-003）
 
+> **2026-09-14 复审**：下面保留历史运行方式用于定位；当前不能从干净目录直接复跑，QA-001 待修。全新 SHIP003_ROOT 运行 scenario1 会因缺少 fixtures 退出；fake_openai.py 也从该临时根读取。scenario5 的 examples 路径少一级，GO_ROOT 硬编码。详见 [复审报告](evidence/REVIEW-2026-09-14.md) A13/A14。旧临时目录成功不构成新 checkout 的验收。
+
+
 这是**验收工具，不是 `go test` 测试**：用 PTY 在真实终端里启动编译出的
 `basework tui`，投递按键、抓屏、断言路线图的代表性业务场景。`go test`
 不运行它们（它们依赖 python3 + pty + 真实终端语义，且耗时以分钟计）。

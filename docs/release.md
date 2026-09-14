@@ -2,6 +2,10 @@
 
 本文档描述当前仓库实际支持的发布路径，避免发布入口、构建产物和安装文档漂移。
 
+## 当前发布门槛
+
+2026-09-14 复审发现尚未关闭的 P1/P2 问题；不能以旧看板 29/29 或检查报告已写完为由发布。先按 [TASKS](TASKS.md) 完成修复、QA-001 和 SHIP-001/002/003；[复审报告](development/evidence/REVIEW-2026-09-14.md) 保存本次依据。
+
 ## 发布产物
 
 正式发布由 `.github/workflows/release.yml` 和 `.goreleaser.yml` 驱动，当前会生成：
@@ -42,7 +46,7 @@ tag push 会触发同一个 `Release` workflow。
 3. 填写版本号。
 4. 设置 `dry_run=true`。
 
-日常 CI 的 `release-dry-run` job 也会执行 GoReleaser snapshot，用于提前发现发布配置问题。
+日常 CI 的 `release-dry-run` job 也会执行 GoReleaser snapshot，用于提前发现发布配置问题。它使用 `--skip=docker,publish`，不构建/运行镜像，也不在目标平台解包执行产物；这些必须单独验收。
 
 ## 本地验证
 
@@ -59,7 +63,7 @@ goreleaser release --snapshot --clean --skip=docker,publish
 
 ## 安装渠道状态
 
-当前正式支持：
+当前已接入以下发布配置；具体候选版本的构建/安装验证状态见 SHIP-002，不由配置存在性证明：
 
 - GitHub Releases 预编译二进制
 - Go install

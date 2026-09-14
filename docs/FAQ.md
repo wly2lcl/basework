@@ -110,13 +110,14 @@ basework tui
 
 ### 如何使用特定模型？
 
-通过 `--model` 标志指定，格式为 `provider/model-id`：
+当前 agent 没有 `--model` 参数。在配置顶层设置 `provider` 和 `model`，或用 `model list` 后的 `model use <model-id>` 选择已知模型；自定义端点放在 `providers.<provider>.base_url`。
 
 ```bash
-basework agent --model anthropic/claude-sonnet-4-20250514
-basework agent --model openai/gpt-4o
-basework agent -m "写一个函数" --model deepseek/deepseek-chat
+basework --config /path/to/config.json config explain
+basework --config /path/to/config.json agent -m "写一个函数"
 ```
+
+详见 [CLI 指南](guides/cli-guide.md)。
 
 ### 如何查看可用工具？
 

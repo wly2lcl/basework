@@ -159,6 +159,8 @@ func main() {
 
 ---
 
+> 当前 `examples/embed` 引用了 `internal/runtime`，只适用于仓库内部；外部 Go module 应直接使用 `pkg/agent` 等公共接口。外部模块的可运行示例由 QA-001 补齐。
+
 ## 处理会话
 
 basework 使用事件溯源（Event Sourcing）管理会话。创建带会话能力的 agent：

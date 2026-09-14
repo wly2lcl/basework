@@ -278,6 +278,10 @@ store.Save()
 
 ---
 
+## 配置解析与产品消费边界
+
+2026-09-14 复审：配置字段被解析/显示，不代表每条入口都已生效。主 runtime 固定创建 JSONLStore；session.store / sqlite_path 不切换主后端。压缩、循环检测、观测与子代理选项缺少主入口接线（RUN-003）；事实摘要缺少生产写入、刷新与过期检测（CTX-001/002）。下方 SQLite/存储压缩说明属于对应组件能力，不应视为 CLI 已自动启用。实际使用先核对 [STATUS](../STATUS.md) 与 config explain。
+
 ## 数据库配置
 
 ### `database.mode`
@@ -301,7 +305,7 @@ SQLite 日志模式，影响并发读写性能。
 
 ### `session.compression.enabled`
 
-是否启用长会话消息压缩（默认 `true`）。当会话消息数超过 1000 条时自动触发 Snappy 压缩。
+存储压缩配置字段，与模型上下文压缩不是同一机制。当前主入口固定 JSONL，不能据该字段宣称超过 1000 条后会自动触发 Snappy；具体组件契约见 [session](../reference/pkg/session.md)。
 
 ```json
 {

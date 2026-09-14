@@ -65,7 +65,9 @@ setupTurn ──► callLLM ──► executeTools ──► finalize
   只重放最近一轮的策略；反复插话会增加后续请求上下文长度。
 - **每步都会重新读取并投影全量事件日志**（`setupTurn` 一次、压缩判断一次、循环检测一次），
   长会话下存在 O(事件数) 的重复开销。上下文压缩是主要缓解手段。
-- **一个 `AgentLoop` 绑定一个 sessionID**：多会话需要多个实例，实例之间不共享状态。
+- **一个 `AgentLoop` 绑定一个 sessionID**：当前构造始终创建新会话，`WithSession` 只选 Store，不会选择旧 ID；恢复已有会话的产品/API 入口尚待 CTX-003。
+- 主 CLI/TUI 运行时遗漏了 `runtimeBehaviorOptions` 调用，库层的 WithCompactor 等能力不能证明产品配置已接线；见 RUN-003。
+- FactsSummaryProvider 当前每次 Collect 新建过期检测基线，且产品没有事实文件的生产写入链；摘要预算和 Windows 路径检查也待 CTX-001/002 修复。
 - `Agent` 接口属于核心 API（SemVer 严格兼容），只能通过 Option 扩展，不能改签名。
 - 请求指纹覆盖 messages + tools 的**内容**；若 provider 在传输层再做改写（例如自行裁剪
   历史），指纹无法反映，需要在该 provider 内单独记录。

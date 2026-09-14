@@ -56,6 +56,24 @@
 
 **范围外**：不顺手改其他任务；公共 API、存储格式、默认权限的额外变化必须先写明影响并拆分。
 
+### 2026-09-14 复审补充
+
+**优先级**：P1。问题依据：[复审报告](../development/evidence/REVIEW-2026-09-14.md)（A05）；先复跑相关 [最小复现](../development/review-reproduction.md)。原实现与历史测试保留，以下是继续工作清单。
+
+**小步骤**：
+
+1. 保留同步 Start 契约，先加入复审中的关闭时排队与关闭后订阅两条测试。
+2. 原子协调接收运行、入队、取消与关闭：取到执行权后重查 closed/ctx；排队等候必须响应 ctx 取消，明确并限制等待队列。
+3. Close 停止接收、取消运行和等待者，等待进行中的 Agent 调用退出，再按顺序释放资源；关闭后 Subscribe 立即返回已关闭订阅或契约规定的错误。
+4. 使用屏障/通道控制时序，覆盖 Start/Cancel/Close/Subscribe/Unsubscribe 交错、重复 Close、慢消费者和不同实例隔离。
+
+**补充验收**：
+
+- [ ] 关闭后不再进入 Agent；取消排队请求及时返回且无副作用。
+- [ ] 所有等待者和订阅者都结束，资源只释放一次；终态、错误与持久化记录一致。
+
+**针对性验证**：go test -race -tags "sqlite memory" ./internal/runtime ./pkg/agent ./cmd/basework -count=1。记录在本任务原证据文件的新日期段，保留旧记录；满足全部原有与补充验收后才更新看板。
+
 <a id="run-003"></a>
 
 ## RUN-003：CLI/TUI 统一接入服务
@@ -82,3 +100,22 @@
 **交付与回填**：代码/文档 diff、必要测试，以及 `docs/development/evidence/RUN-003.md`。更新看板的状态和证据；有用户可见行为变化时更新对应指南及 STATUS。
 
 **范围外**：不顺手改其他任务；公共 API、存储格式、默认权限的额外变化必须先写明影响并拆分。
+
+### 2026-09-14 复审补充
+
+**优先级**：P1。问题依据：[复审报告](../development/evidence/REVIEW-2026-09-14.md)（A02、A09、A12）；先复跑相关 [最小复现](../development/review-reproduction.md)。原实现与历史测试保留，以下是继续工作清单。
+
+**小步骤**：
+
+1. 在主 newRuntimeAgent 构造中接回 runtimeBehaviorOptions，验证 compactor、循环检测、事件总线和子代理四项；不能只断言 helper 返回的 Option 数量。
+2. 以真实 runtime + 本地 Provider 验证配置实际影响行为；为资源创建/回收补失败路径检查。
+3. 为每次运行建立不可变的 session/run 或 generation 令牌，覆盖文本、thinking、工具、错误、最终响应、job 输出与审批；仅 CallbackSwitch 解绑不能过滤已排入 UI 队列的消息。
+4. 修 runSimpleREPL 检查取消的时机：区分 Provider/工具错误与用户取消；TUI 定义取消当前轮和退出应用的独立行为，不把错误吞成正常退出。
+5. 验证 CLI、TUI、--no-tui 三入口的成功/普通错误/取消/关闭，并在事件丢弃时明确提示或重新读取事实。
+
+**补充验收**：
+
+- [ ] 启用的行为真正出现在主 Agent 并触发相应结果，默认行为无意外回退。
+- [ ] 旧运行的迟到消息不污染下一运行；三入口错误类型和退出结果符合相同契约。
+
+**针对性验证**：go test -race -tags "sqlite memory" ./internal/runtime ./internal/tui ./cmd/basework -count=1。记录在本任务原证据文件的新日期段，保留旧记录；满足全部原有与补充验收后才更新看板。
