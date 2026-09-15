@@ -4,6 +4,7 @@ package jobs
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -48,6 +49,13 @@ func terminateCommand(cmd *exec.Cmd, _ time.Duration) error {
 	pid := cmd.Process.Pid
 
 	err := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(pid)).Run()
+	// taskkill 的 /T 遍历不是原子的：一个子进程可能正好在遍历结束后
+	// 创建，随后继承 stdout/stderr 管道而变成孤儿。父进程已经被杀掉后，
+	// 再次以父 PID 调 taskkill 也找不到它，所以补一次基于 ParentProcessId
+	// 的快照清理。PowerShell 是 Windows 的系统组件；这条补偿失败时仍保留
+	// taskkill 的结果和直接 Kill 兜底，不把“没有 PowerShell”伪装成主路径成功。
+	_ = reconcileWindowsProcessTree(pid)
+
 	var exitErr *exec.ExitError
 	switch {
 	case err == nil:
@@ -64,4 +72,47 @@ func terminateCommand(cmd *exec.Cmd, _ time.Duration) error {
 		return killErr
 	}
 	return nil
+}
+
+// reconcileWindowsProcessTree 清理 taskkill /T 可能漏掉的后代进程。
+//
+// 这里把 PID 作为数字直接嵌入 PowerShell 脚本，不经过 shell 拼接，因此
+// 不会把命令内容带入脚本。脚本先建立一次 ParentProcessId 图，再从根 PID
+// 做 BFS，最后反向 Stop-Process，确保子进程先于父进程结束。
+func reconcileWindowsProcessTree(rootPID int) error {
+	const script = `$root = %d
+$all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId, ParentProcessId)
+$children = @{}
+foreach ($p in $all) {
+  $parent = [int]$p.ParentProcessId
+  if (-not $children.ContainsKey($parent)) { $children[$parent] = New-Object 'System.Collections.Generic.List[int]' }
+  [void]$children[$parent].Add([int]$p.ProcessId)
+}
+$queue = New-Object 'System.Collections.Generic.Queue[int]'
+$seen = New-Object 'System.Collections.Generic.HashSet[int]'
+$ids = New-Object 'System.Collections.Generic.List[int]'
+$queue.Enqueue($root)
+[void]$seen.Add($root)
+while ($queue.Count -gt 0) {
+  $parent = $queue.Dequeue()
+  if (-not $children.ContainsKey($parent)) { continue }
+  foreach ($child in $children[$parent]) {
+    if ($seen.Add($child)) {
+      $queue.Enqueue($child)
+      $ids.Add($child)
+    }
+  }
+}
+for ($i = $ids.Count - 1; $i -ge 0; $i--) {
+  Stop-Process -Id $ids[$i] -Force -ErrorAction SilentlyContinue
+}`
+
+	return exec.Command(
+		"powershell.exe",
+		"-NoLogo",
+		"-NoProfile",
+		"-NonInteractive",
+		"-ExecutionPolicy", "Bypass",
+		"-Command", fmt.Sprintf(script, rootPID),
+	).Run()
 }

@@ -31,8 +31,9 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
   `sh -c "sleep 30"` 的孙进程仍持有继承来的管道写端，`cmd.Wait()` 会一直阻塞到它自然退出——1 秒超时
   实测拖满 30 秒才进终态，即超时在 Windows 上等于没有。新增 `internal/jobs/process_windows.go`：
   `prepareCommand` 设 `CREATE_NEW_PROCESS_GROUP`（脱离调用方控制台，不被 Ctrl+C 连带），
-  `terminateCommand` 用 `taskkill /T /F` 按父进程链终止整棵树；`taskkill` 退出码 128（进程已不存在）
-  按 unix 的 `ESRCH` 语义处理。Windows 侧**没有温和阶段**——控制台进程没有可捕获的终止信号，
+  `terminateCommand` 先用 `taskkill /T /F` 按父进程链终止整棵树，再按 `ParentProcessId` 调用系统
+  PowerShell 进程表补清理 taskkill 的竞态漏网进程；`taskkill` 退出码 128（进程已不存在）按 unix 的
+  `ESRCH` 语义处理。Windows 侧**没有温和阶段**——控制台进程没有可捕获的终止信号，
   等一个发不出去的宽限期没有意义（签名用空标识符接收 `grace` 以显式表达这一点）。
   平台能力随之从 `ProcessGroupSupported()` 改名为 `ProcessTreeTerminationSupported()`：旧名字在
   Windows 上会变成谎话；`ErrProcessGroupUnsupported` 改名 `ErrProcessTreeUnsupported`，只保留给

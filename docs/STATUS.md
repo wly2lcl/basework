@@ -23,7 +23,9 @@
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
 | 发布准备 | 三系统源码测试、代码候选 GoReleaser 五平台归档与哈希、Darwin arm64 归档运行、linux/amd64+arm64 OCI 构建运行与恢复场景 | 尚缺 Windows/Linux 与 Darwin x86_64 目标安装、真实 CI run 和外部 Provider 验收（SHIP-002/003） |
 
-Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，无温和阶段。此实现已有目标 CI 测试记录，但不能据此推导所有 Windows 安装环境均有 bash/sh 或终端支持。
+Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
+补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
+推导所有 Windows 安装环境均有 bash/sh 或终端支持。
 
 ## 本轮验证
 

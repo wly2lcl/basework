@@ -34,8 +34,9 @@ func PrepareCommand(cmd *exec.Cmd) { prepareCommand(cmd) }
 // unix：顺序是「先温和、后强制」——先向进程组发可捕获的终止信号，等待 grace；
 // 若仍有存活成员，再强制结束。grace <= 0 时用 DefaultKillGrace。
 //
-// Windows：直接强制终止整棵树（`taskkill /T /F`）。平台没有可捕获的信号，
-// 宽限期在那边没有对象可等，见 process_windows.go。
+// Windows：直接强制终止整棵树（`taskkill /T /F`），随后按 ParentProcessId
+// 补清理一次 taskkill 的竞态漏网进程。平台没有可捕获的信号，宽限期在那边
+// 没有对象可等，见 process_windows.go。
 //
 // 返回 ErrProcessTreeUnsupported 表示平台没有进程树终止手段（此时调用方只能
 // 退化为 os.Process.Kill，孙进程会残留）；返回其他错误表示终止动作失败。
@@ -51,6 +52,7 @@ func TerminateCommand(cmd *exec.Cmd, grace time.Duration) error {
 
 // ProcessTreeTerminationSupported 报告当前平台是否支持终止整棵进程树。
 //
-// unix 靠进程组（Setpgid + 负 pid 信号），Windows 靠 `taskkill /T`。
+// unix 靠进程组（Setpgid + 负 pid 信号），Windows 靠 `taskkill /T` 加系统进程表
+// 补偿清理。
 // 返回 false 的平台调用方会退化为只杀直接子进程。
 func ProcessTreeTerminationSupported() bool { return processTreeTerminationSupported }
