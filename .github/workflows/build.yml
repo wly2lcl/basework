@@ -68,7 +68,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            expected_goos: linux
+            expected_goarch: amd64
+          - os: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - os: macos-latest
+            expected_goos: darwin
+            expected_goarch: arm64
+          - os: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - os: windows-latest
+            expected_goos: windows
+            expected_goarch: amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -129,6 +144,8 @@ jobs:
           set -euo pipefail
           goos="$(go env GOOS)"
           goarch="$(go env GOARCH)"
+          test "$goos" = "${{ matrix.expected_goos }}"
+          test "$goarch" = "${{ matrix.expected_goarch }}"
           case "$goos" in
             darwin) os_name="Darwin" ;;
             linux) os_name="Linux" ;;
@@ -153,7 +170,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $goos = go env GOOS
           $goarch = go env GOARCH
+          if ($goos -ne "${{ matrix.expected_goos }}") { throw "unexpected GOOS: $goos" }
+          if ($goarch -ne "${{ matrix.expected_goarch }}") { throw "unexpected GOARCH: $goarch" }
           $archName = if ($goarch -eq "amd64") { "x86_64" } elseif ($goarch -eq "arm64") { "arm64" } else { throw "unsupported Windows GOARCH: $goarch" }
           $artifact = "dist/basework_Windows_$archName.zip"
           if (-not (Test-Path $artifact)) { throw "missing artifact: $artifact" }
