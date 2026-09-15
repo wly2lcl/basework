@@ -92,10 +92,84 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: go test -tags "sqlite memory" ./pkg/agent ./cmd/basework -run "TestFactsSummaryProvider_RejectsWindows|TestFactsHashFunc_RejectsSymlinkOutsideWorkspace" -count=1 -v
 
+  release-artifact-smoke:
+    name: Release Artifact Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [quality, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build release archives
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ~> v2
+          args: release --snapshot --clean --skip=docker,publish --parallelism=1
+
+      - name: Run packaged artifact (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          goos="$(go env GOOS)"
+          goarch="$(go env GOARCH)"
+          case "$goos" in
+            darwin) os_name="Darwin" ;;
+            linux) os_name="Linux" ;;
+            *) echo "unsupported Unix GOOS: $goos" >&2; exit 1 ;;
+          esac
+          case "$goarch" in
+            amd64) arch_name="x86_64" ;;
+            arm64) arch_name="arm64" ;;
+            *) echo "unsupported Unix GOARCH: $goarch" >&2; exit 1 ;;
+          esac
+          artifact="dist/basework_${os_name}_${arch_name}.tar.gz"
+          test -f "$artifact"
+          install_root="$RUNNER_TEMP/basework-package"
+          home_root="$RUNNER_TEMP/basework-home"
+          mkdir -p "$install_root" "$home_root"
+          tar -xzf "$artifact" -C "$install_root"
+          export HOME="$home_root"
+          "$install_root/basework" version
+          "$install_root/basework" config explain
+
+      - name: Run packaged artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $goarch = go env GOARCH
+          $archName = if ($goarch -eq "amd64") { "x86_64" } elseif ($goarch -eq "arm64") { "arm64" } else { throw "unsupported Windows GOARCH: $goarch" }
+          $artifact = "dist/basework_Windows_$archName.zip"
+          if (-not (Test-Path $artifact)) { throw "missing artifact: $artifact" }
+          $installRoot = Join-Path $env:RUNNER_TEMP "basework-package"
+          $homeRoot = Join-Path $env:RUNNER_TEMP "basework-home"
+          New-Item -ItemType Directory -Force -Path $installRoot, $homeRoot | Out-Null
+          Expand-Archive -Path $artifact -DestinationPath $installRoot -Force
+          $env:HOME = $homeRoot
+          $env:USERPROFILE = $homeRoot
+          & (Join-Path $installRoot "basework.exe") version
+          & (Join-Path $installRoot "basework.exe") config explain
+
   release-dry-run:
     name: Release Dry Run
     runs-on: ubuntu-latest
-    needs: [quality, test]
+    needs: [quality, test, release-artifact-smoke]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -127,7 +201,7 @@ jobs:
   docker-smoke:
     name: Docker Smoke
     runs-on: ubuntu-latest
-    needs: [quality, test]
+    needs: [quality, test, release-artifact-smoke]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

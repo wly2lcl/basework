@@ -20,8 +20,8 @@
 “进行中”包含已重开、尚待继续修复的任务，不表示已有 AI 在后台并行开发。“待验证”保留既有实现，等待依赖修复或补齐验收。本轮已执行代码修复；未完成的任务保留为进行中/待验证，等待真实入口或跨平台证据。
 
 1. **P1 修复回归**：EDIT-002、JOB-004、RUN-002 已完成；保留对应回归测试，后续变更不得破坏安全撤销、日志恢复和关闭竞态。
-2. **恢复产品闭环**：EDIT-003、RUN-003、CTX-001、CTX-003 已完成；继续 CTX-002 的 Windows 路径与外部临时文件验收。
-3. **终端验收**：UI-001、UI-002 已完成；UI-003 的恢复面板、会话切换和迟到事件已有单测/PTY 证据，继续候选发布门禁收口。
+2. **恢复产品闭环**：EDIT-003、RUN-003、CTX-001、CTX-002、CTX-003 已完成；Windows 路径边界由候选 CI 的 Windows runner 实测覆盖。
+3. **终端验收**：UI-001、UI-002、UI-003 已完成；恢复面板、会话切换和迟到事件有真实 PTY 与单测证据。
 4. **重新验收**：QA-001 保证夹具可复跑，再完成 SHIP-001 → SHIP-002 → SHIP-003。
 5. **后续优化**：OPT-001、OPT-002，优先级低于已有 P1/P2 问题。
 
@@ -49,14 +49,14 @@
 | CFG-003 | M4 | [注册资源归属与逆序释放](tasks/04-composition.md#cfg-003) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-003.md) |
 | CFG-004 | M4 | [自定义模型端点配置](tasks/04-composition.md#cfg-004) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-004.md) |
 | CTX-001 | M5 | [统一工作区事实模型](tasks/05-context.md#ctx-001) | 完成 | JOB-004, EDIT-003 | Codex | [记录](development/evidence/CTX-001.md) |
-| CTX-002 | M5 | [受预算约束的项目摘要](tasks/05-context.md#ctx-002) | 进行中 | CTX-001 | Unix/交叉编译与路径防护已补；待 Windows runner 实测外部临时文件、UNC、软链 | [记录](development/evidence/CTX-002.md) |
-| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 进行中 | CTX-002, REL-004, RUN-003 | 真实 TUI 双压缩重启已通过；待 CTX-002 收口后关闭依赖状态 | [记录](development/evidence/CTX-003.md) |
+| CTX-002 | M5 | [受预算约束的项目摘要](tasks/05-context.md#ctx-002) | 完成 | CTX-001 | Windows runner 已实测盘符、UNC、反斜杠穿越与工作区外软链拒绝；默认关闭与外部临时文件防护通过 | [记录](development/evidence/CTX-002.md) |
+| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 完成 | CTX-002, REL-004, RUN-003 | 真实 TUI 双压缩、同 ID 重启、旧 job 中断和恢复请求均通过 | [记录](development/evidence/CTX-003.md) |
 | RUN-001 | M6 | [抽取运行服务接口与所有权](tasks/06-runtime.md#run-001) | 完成 | CFG-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/RUN-001.md) |
 | RUN-002 | M6 | [有序事件与会话取消](tasks/06-runtime.md#run-002) | 完成 | RUN-001, JOB-004 | Codex | [记录](development/evidence/RUN-002.md) |
 | RUN-003 | M6 | [CLI/TUI 统一接入服务](tasks/06-runtime.md#run-003) | 完成 | RUN-002 | Codex | [记录](development/evidence/RUN-003.md) |
 | UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 完成 | RUN-003 | Codex | [记录](development/evidence/UI-001.md) |
 | UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 完成 | UI-001, EDIT-003 | Codex | [记录](development/evidence/UI-002.md) |
-| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 进行中 | UI-002, CTX-003 | `/session`、恢复面板、迟到事件和 PTY 已通过；待 CTX-002 与候选发布门禁 | [记录](development/evidence/UI-003.md) |
+| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 完成 | UI-002, CTX-003 | `/session`、恢复面板、迟到事件隔离和真实 PTY 流程均通过；真人主观体验按用户指定保留为边界 | [记录](development/evidence/UI-003.md) |
 | SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 待验证 | REL-003, CTX-003 | 清洁候选 checkout、离线/当前 PTY/真实 Provider runner 已在；待注入凭据绑定候选 commit 和当前 Provider 记录 | [记录](development/evidence/SHIP-001.md) |
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | 代码候选五平台归档有哈希，Darwin arm64 已从归档运行；双架构镜像脚本与 `docker-smoke` job 已接入，待候选 CI、其余目标安装与发布包关系 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | 清洁候选 PTY 1–8、恢复/审批和本地门禁已通过；待前置任务和发布候选证据收口 | [记录](development/evidence/SHIP-003.md) |

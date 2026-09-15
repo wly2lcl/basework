@@ -273,3 +273,27 @@ Linux arm64/x86_64、Windows x86_64 五个归档。归档 SHA-256 如下：
   - "升级不破坏原用户数据且有可执行恢复说明" —— 满足。v1 升级后源 JSONL 逐字节未变、内容完整落库；恢复说明在安装指南的故障排除一节。
 - **建议状态：完成**，且附带"发现并修复 3 个迁移缺陷"。
 - 原因：卡片的四条实施步骤（验证承诺平台产物、验证初次配置与升级/拒绝、执行打包 dry-run 并核对文档、记录系统与产物哈希及缺失平台）均有可复现证据。同时必须连带说明**两项未获得的证据**（目标平台真实运行、Docker 镜像构建），它们不构成本卡的阻塞项——因为卡片要求的正是"记录缺失平台"与"不得冒充"，而不是"必须本机跑通所有平台"；但 SHIP-003 在写发布报告时**不得**把这两项写成已验证。
+
+## 2026-09-15 候选 CI 与镜像门禁
+
+候选提交 `1e9c8198f6d29530692ed6d3a0dc3e1bbb1eb3b8` 的 [GitHub Actions run
+34945363069](https://github.com/wly2lcl/basework/actions/runs/34945363069) 已全绿：
+
+| Job | 结果 | 覆盖 |
+|---|---|---|
+| Test (ubuntu-latest) | 通过 | `sqlite memory` 全量测试、Linux amd64 二进制构建 |
+| Test (macos-latest) | 通过 | `sqlite memory` 全量测试、Darwin runner 二进制构建 |
+| Test (windows-latest) | 通过 | `sqlite memory` 全量测试、Windows runner 二进制构建及路径门禁 |
+| Quality | 通过 | vet、架构/文档/生成物、race、Unix PTY smoke、OPT-001 PTY smoke |
+| Docker Smoke | 通过 | QEMU/Buildx 构建双架构 OCI，并分别加载 amd64/arm64 镜像运行 `version` 与只读 `facts show` |
+| Release Dry Run | 通过 | GoReleaser `check` 与 `release --snapshot --clean --skip=docker,publish` |
+
+本次 CI 关闭了“候选 CI 未运行”和“Docker Smoke 未运行”的证据缺口；Docker Smoke
+使用 `BASEWORK_DOCKER_SMOKE=1` 生成单架构可加载标签，避免把多架构 OCI manifest list
+直接交给 `docker load`。它仍不等价于五个发布归档在目标系统上的实际安装运行，因此
+Linux arm64、Darwin amd64、Windows amd64 等归档安装仍需按发布矩阵另行补证，不能把源码
+构建结果冒充归档安装结果。
+
+**当前结论：SHIP-002 仍待验证。** 已完成的 CI、Docker 与 dry-run 证据绑定到候选提交；
+剩余项是发布归档的目标系统安装/升级实测，以及真实 Provider 凭据验收（后者由 SHIP-001/
+QA-001 记录）。

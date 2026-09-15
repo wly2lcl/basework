@@ -229,3 +229,15 @@ if !ok {
 提交 `9d7458bb5c53274b5d5b1742cb88abe75ad4ac64` 的干净 worktree 已通过文档门禁、完整
 tag race 和 PTY scenario1–8；这收口了本地候选的产品入口复核。当前仍缺该提交对应的
 远端 CI、目标平台安装和真实 Provider 结果，因此 SHIP-003 继续保持待验证。
+
+## 2026-09-15 当前候选 CI 回填
+
+当前候选提交 `1e9c8198f6d29530692ed6d3a0dc3e1bbb1eb3b8` 的 [GitHub Actions run
+34945363069](https://github.com/wly2lcl/basework/actions/runs/34945363069) 已完成并全绿：
+Ubuntu、macOS、Windows 三平台测试/构建，Quality race、文档与 PTY smoke，Docker Smoke
+双架构镜像运行，以及 Release Dry Run 全部通过。该结果同时验证了本轮修复的 Windows
+进程树终止路径和 Docker 单平台加载路径。
+
+这次回填关闭了“当前候选没有远端 CI 结果”的旧记录，但不关闭真实 Provider、五平台发布
+归档安装/升级和真人主观体验边界。**当前 SHIP-003 仍待验证**，等待 SHIP-001、SHIP-002
+和 QA-001 的剩余外部门禁；本段不创建 tag，也不代表已发布。
