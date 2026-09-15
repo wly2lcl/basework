@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,13 @@ import (
 	"github.com/wly2lcl/basework/pkg/session"
 	_ "modernc.org/sqlite"
 )
+
+func expectedFileLockPath(path string) string {
+	if runtime.GOOS == "windows" {
+		return path + ".lock"
+	}
+	return path
+}
 
 // ---------------------------------------------------------------------------
 // Phase 26: WAL 模式端到端测试
@@ -89,7 +97,7 @@ func TestE2E_FileLock(t *testing.T) {
 	}
 
 	// 3. 验证锁文件存在
-	if _, err := os.Stat(lockPath); os.IsNotExist(err) {
+	if _, err := os.Stat(expectedFileLockPath(lockPath)); os.IsNotExist(err) {
 		t.Fatal("锁文件未创建")
 	}
 
@@ -165,7 +173,7 @@ func TestE2E_FileLockForceUnlock(t *testing.T) {
 	}
 
 	// 3. 验证锁文件被删除
-	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(expectedFileLockPath(lockPath)); !os.IsNotExist(err) {
 		t.Fatal("强制解锁后锁文件应被删除")
 	}
 

@@ -121,8 +121,16 @@ func (j *JSONLJournal) Append(rec Record) error {
 		return fmt.Errorf("%w: 获取追加锁失败: %v", ErrJournal, err)
 	}
 	defer func() { _ = fileLock.Unlock() }()
-	if err := os.Chmod(j.path, 0o600); err != nil {
-		return fmt.Errorf("%w: 设置日志权限失败: %v", ErrJournal, err)
+	// Unix FileLock opens the data path itself, so it already exists here;
+	// Windows keeps the coordination handle in a sibling .lock file and the
+	// data file is created by the append open below. Apply the mode only when
+	// the data file exists; OpenFile still creates a new file with 0600.
+	if _, statErr := os.Stat(j.path); statErr == nil {
+		if err := os.Chmod(j.path, 0o600); err != nil {
+			return fmt.Errorf("%w: 设置日志权限失败: %v", ErrJournal, err)
+		}
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("%w: 检查日志权限失败: %v", ErrJournal, statErr)
 	}
 	// 如果文件末尾是一次崩溃留下的未结束且无效 JSON，先截掉这条残尾，
 	// 再追加新记录。只允许修剪“最后一条未换行的坏记录”；带换行的中间
