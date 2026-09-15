@@ -225,3 +225,7 @@ if !ok {
 
 同样，历史交接中“benchmark 尚未实际执行”的描述已由 OPT-002 的三次 `-benchmem`
 样本覆盖；该历史段保留用于追溯，不再代表当前性能验收状态。
+
+提交 `9d7458bb5c53274b5d5b1742cb88abe75ad4ac64` 的干净 worktree 已通过文档门禁、完整
+tag race 和 PTY scenario1–8；这收口了本地候选的产品入口复核。当前仍缺该提交对应的
+远端 CI、目标平台安装和真实 Provider 结果，因此 SHIP-003 继续保持待验证。

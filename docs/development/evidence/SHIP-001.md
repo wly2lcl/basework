@@ -145,3 +145,7 @@ real provider runner requires BASEWORK_REAL_API_KEY, BASEWORK_REAL_BASE_URL, and
 均通过；恢复、审批、双压缩和会话切换使用的是该候选副本产生的新数据，不复用历史模型
 结果。当前 Provider 仍未注入凭据，因此本段只关闭“清洁 checkout/恢复依赖复核”本地
 验收，不关闭真实 Provider 证据。
+
+同日提交 `9d7458bb5c53274b5d5b1742cb88abe75ad4ac64` 的干净 detached worktree 已重新完成
+完整 tag race 与 PTY scenario1–8；八个场景均通过，scenario7 使用详情等待修复后不再
+出现审批弹窗读取竞态。该结果仍属于本地提交级证据，尚未形成远端 CI 结果。
