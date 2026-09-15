@@ -24,8 +24,11 @@ def main():
         deny.type_line("[S1] 请修复 calc.go")
         ok, dt = deny.wait_text("权限确认", timeout=45, tag="拒绝弹窗")
         rep.check("拒绝场景显示权限确认弹窗", ok, f"{dt:.2f}s")
-        screen = deny.screen.text()
-        rep.check("弹窗展示工具和路径证据", "工具:" in screen and "路径:" in screen,
+        # 标题和详情由不同的 Bubble Tea 更新到 PTY；只等到标题会偶发
+        # 在详情尚未绘制时读取旧屏幕，造成无意义的 flaky 失败。
+        tool_ok, _ = deny.wait_text("工具:", timeout=5, tag="拒绝弹窗工具详情")
+        path_ok, _ = deny.wait_text("路径:", timeout=5, tag="拒绝弹窗路径详情")
+        rep.check("弹窗展示工具和路径证据", tool_ok and path_ok,
                   "见拒绝场景屏幕")
         deny.type_text("n")
         deny.pump(1.0)
