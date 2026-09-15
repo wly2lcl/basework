@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/wly2lcl/basework/pkg/session"
@@ -22,6 +23,9 @@ import (
 type runtimeEditEventSink struct {
 	store     *session.JSONLStore
 	sessionID func() string
+	// factsBase 为空时只写会话事件（便于纯审阅测试）；运行时传入会话
+	// 数据根目录后，同时更新跨会话 WorkspaceFacts 投影。
+	factsBase string
 }
 
 // AppendEditEvent 实现 runtimetools.EditEventSink。
@@ -40,11 +44,24 @@ func (s *runtimeEditEventSink) AppendEditEvent(data *session.FileEditedData) err
 	if err != nil {
 		return fmt.Errorf("编码编辑事件失败: %w", err)
 	}
-	return s.store.AppendEvent(session.Event{
+	if err := s.store.AppendEvent(session.Event{
 		SessionID: id,
 		Type:      session.EventFileEdited,
 		Data:      encoded,
-	})
+	}); err != nil {
+		return err
+	}
+	if s.factsBase != "" && data.WorkspaceID != "" {
+		facts, err := session.LoadWorkspaceFacts(s.factsBase, data.WorkspaceID)
+		if err != nil {
+			return fmt.Errorf("加载工作区事实失败: %w", err)
+		}
+		session.FoldFileEdited(facts, *data, time.Now())
+		if err := session.SaveWorkspaceFacts(s.factsBase, facts); err != nil {
+			return fmt.Errorf("保存工作区事实失败: %w", err)
+		}
+	}
+	return nil
 }
 
 var (

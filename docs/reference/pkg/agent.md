@@ -31,8 +31,8 @@ setupTurn ──► callLLM ──► executeTools ──► finalize
 |---|---|
 | 模型与提示 | `WithModel`、`WithSystemPrompt` |
 | 工具 | `WithTools`、`WithToolRegistry`、`WithToolFactory` |
-| 会话 | `WithSession` |
-| 行为 | `WithMaxSteps`、`WithCompactor`、`WithLoopDetector`、`WithSteeringManager` |
+| 会话 | `WithSession`、`WithSessionID` |
+| 行为 | `WithMaxSteps`、`WithMaxContextTokens`、`WithCompactor`、`WithLoopDetector`、`WithSteeringManager` |
 | 观测与权限 | `WithObserver`、`WithCallback`、`WithPermissionChecker`、`WithEventBus` |
 | 扩展 | `WithHook`、`WithPlugin`、`WithSubAgentRunner` |
 
@@ -65,9 +65,9 @@ setupTurn ──► callLLM ──► executeTools ──► finalize
   只重放最近一轮的策略；反复插话会增加后续请求上下文长度。
 - **每步都会重新读取并投影全量事件日志**（`setupTurn` 一次、压缩判断一次、循环检测一次），
   长会话下存在 O(事件数) 的重复开销。上下文压缩是主要缓解手段。
-- **一个 `AgentLoop` 绑定一个 sessionID**：当前构造始终创建新会话，`WithSession` 只选 Store，不会选择旧 ID；恢复已有会话的产品/API 入口尚待 CTX-003。
-- 主 CLI/TUI 运行时遗漏了 `runtimeBehaviorOptions` 调用，库层的 WithCompactor 等能力不能证明产品配置已接线；见 RUN-003。
-- FactsSummaryProvider 当前每次 Collect 新建过期检测基线，且产品没有事实文件的生产写入链；摘要预算和 Windows 路径检查也待 CTX-001/002 修复。
+- **一个 `AgentLoop` 绑定一个 sessionID**：库层通过 `WithSessionID` 绑定已有 ID，缺失 ID 会报错；CLI/TUI 以 `--session` 或 TUI `/session <id>` 作为产品入口。
+- 主 CLI/TUI 运行时已接入 `runtimeBehaviorOptions`，并通过 `WithMaxContextTokens` 传入配置的上下文预算；压缩、循环检测、观测与子代理配置由同一装配路径生效；外部 Provider 兼容性仍需单独实测。
+- FactsSummaryProvider 复用跨 Collect 的过期检测基线；运行时编辑事件会保存 WorkspaceFacts，摘要默认关闭，启用后在每轮请求前刷新。Windows 目标系统路径夹具仍属于发布边界。
 - `Agent` 接口属于核心 API（SemVer 严格兼容），只能通过 Option 扩展，不能改签名。
 - 请求指纹覆盖 messages + tools 的**内容**；若 provider 在传输层再做改写（例如自行裁剪
   历史），指纹无法反映，需要在该 provider 内单独记录。

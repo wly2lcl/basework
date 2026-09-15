@@ -15,6 +15,7 @@ package jobs
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wly2lcl/basework/pkg/session"
 )
 
 // ErrJournal 表示 job 记录无法落盘。它被单独定义，是为了让"这次提交没有可恢复记录"
@@ -112,11 +115,71 @@ func (j *JSONLJournal) Append(rec Record) error {
 	if err := os.MkdirAll(filepath.Dir(j.path), 0o700); err != nil {
 		return fmt.Errorf("%w: %v", ErrJournal, err)
 	}
+	// 锁住日志本身，避免为只读查询额外创建 .lock 文件。
+	fileLock := session.NewFileLock(j.path)
+	if err := fileLock.Lock(5 * time.Second); err != nil {
+		return fmt.Errorf("%w: 获取追加锁失败: %v", ErrJournal, err)
+	}
+	defer func() { _ = fileLock.Unlock() }()
+	if err := os.Chmod(j.path, 0o600); err != nil {
+		return fmt.Errorf("%w: 设置日志权限失败: %v", ErrJournal, err)
+	}
+	// 如果文件末尾是一次崩溃留下的未结束且无效 JSON，先截掉这条残尾，
+	// 再追加新记录。只允许修剪“最后一条未换行的坏记录”；带换行的中间
+	// 损坏仍然保留并由 Records 报错，避免把历史问题静默掩盖。
+	needsSeparator := false
+	if data, readErr := os.ReadFile(j.path); readErr == nil && len(data) > 0 && data[len(data)-1] != '\n' {
+		lastNL := -1
+		for i := len(data) - 1; i >= 0; i-- {
+			if data[i] == '\n' {
+				lastNL = i
+				break
+			}
+		}
+		tail := bytes.TrimSpace(data[lastNL+1:])
+		var ignored Record
+		switch {
+		case len(tail) == 0:
+			// 只有空白残尾：保留此前完整行，去掉无意义的尾部字节。
+			f, openErr := os.OpenFile(j.path, os.O_WRONLY, 0o600)
+			if openErr != nil {
+				return fmt.Errorf("%w: 修剪残尾失败: %v", ErrJournal, openErr)
+			}
+			if truncErr := f.Truncate(int64(lastNL + 1)); truncErr != nil {
+				_ = f.Close()
+				return fmt.Errorf("%w: 修剪残尾失败: %v", ErrJournal, truncErr)
+			}
+			if closeErr := f.Close(); closeErr != nil {
+				return fmt.Errorf("%w: 关闭日志失败: %v", ErrJournal, closeErr)
+			}
+		case json.Unmarshal(tail, &ignored) == nil:
+			// 最后一行是完整 JSON 但崩溃前没有写换行：补分隔符，避免
+			// 新记录与它粘成同一行。
+			needsSeparator = true
+		default:
+			f, openErr := os.OpenFile(j.path, os.O_WRONLY, 0o600)
+			if openErr != nil {
+				return fmt.Errorf("%w: 修剪残尾失败: %v", ErrJournal, openErr)
+			}
+			if truncErr := f.Truncate(int64(lastNL + 1)); truncErr != nil {
+				_ = f.Close()
+				return fmt.Errorf("%w: 修剪残尾失败: %v", ErrJournal, truncErr)
+			}
+			if closeErr := f.Close(); closeErr != nil {
+				return fmt.Errorf("%w: 关闭日志失败: %v", ErrJournal, closeErr)
+			}
+		}
+	}
 	f, err := os.OpenFile(j.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrJournal, err)
 	}
 	defer f.Close()
+	if needsSeparator {
+		if _, err := f.Write([]byte{'\n'}); err != nil {
+			return fmt.Errorf("%w: %v", ErrJournal, err)
+		}
+	}
 	if _, err := f.Write(line); err != nil {
 		return fmt.Errorf("%w: %v", ErrJournal, err)
 	}
@@ -131,6 +194,17 @@ func (j *JSONLJournal) Append(rec Record) error {
 func (j *JSONLJournal) Records() ([]Record, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
+	if _, err := os.Stat(j.path); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("jobs: 读取日志失败: %w", err)
+	}
+	fileLock := session.NewFileLock(j.path)
+	if err := fileLock.Lock(5 * time.Second); err != nil {
+		return nil, fmt.Errorf("jobs: 获取读取锁失败: %v", err)
+	}
+	defer func() { _ = fileLock.Unlock() }()
 	return j.recordsLocked()
 }
 

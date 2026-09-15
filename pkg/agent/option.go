@@ -11,17 +11,21 @@ import (
 type Option func(*config)
 
 type config struct {
-	model            llm.Model
-	tools            []tool.Tool
-	registry         *tool.Registry
-	systemPrompt     string
-	session          session.Store
-	hooks            []hook.Hook
-	maxSteps         int
-	plugins          []Plugin
-	observer         Observer
-	callback         Callback
-	maxContextTokens int
+	model        llm.Model
+	tools        []tool.Tool
+	registry     *tool.Registry
+	systemPrompt string
+	// systemPromptProvider 刷新每轮请求使用的动态 system prompt（例如
+	// 工作区事实摘要）。为空时沿用固定 systemPrompt。
+	systemPromptProvider func() string
+	session              session.Store
+	sessionID            string
+	hooks                []hook.Hook
+	maxSteps             int
+	plugins              []Plugin
+	observer             Observer
+	callback             Callback
+	maxContextTokens     int
 
 	// 集成模块接口
 	compactor      Compactor
@@ -61,9 +65,22 @@ func WithSystemPrompt(prompt string) Option {
 	return func(c *config) { c.systemPrompt = prompt }
 }
 
+// WithSystemPromptProvider 设置每轮请求前刷新 system prompt 的函数。
+// 返回值会在请求写入 system.prompt_set 事件前落盘，因此动态上下文仍可审计。
+// provider 应返回完整 prompt；返回空字符串表示本轮使用空 prompt。
+func WithSystemPromptProvider(provider func() string) Option {
+	return func(c *config) { c.systemPromptProvider = provider }
+}
+
 // WithSession 设置会话存储
 func WithSession(s session.Store) Option {
 	return func(c *config) { c.session = s }
+}
+
+// WithSessionID 绑定到已有会话。会话必须已存在；省略时沿用创建新会话的行为。
+// 该选项供 CLI/TUI 在用户明确选择历史会话后恢复上下文。
+func WithSessionID(id string) Option {
+	return func(c *config) { c.sessionID = id }
 }
 
 // WithHook 追加生命周期钩子
@@ -74,6 +91,17 @@ func WithHook(h ...hook.Hook) Option {
 // WithMaxSteps 设置最大执行步数
 func WithMaxSteps(n int) Option {
 	return func(c *config) { c.maxSteps = n }
+}
+
+// WithMaxContextTokens 设置触发上下文压缩的最大 token 预算。
+// <= 0 时沿用 Agent 的默认值；运行时配置应通过此选项显式传入，
+// 否则配置文件里的 max_context_tokens 不会影响实际压缩判断。
+func WithMaxContextTokens(n int) Option {
+	return func(c *config) {
+		if n > 0 {
+			c.maxContextTokens = n
+		}
+	}
 }
 
 // WithPlugin 追加插件

@@ -233,6 +233,18 @@ func BuildApprovalRequest(toolName string, args map[string]interface{}, riskFn R
 			if data, err := json.Marshal(val); err == nil {
 				diffParts = append(diffParts, contentPreview(string(data)))
 			}
+		case "_approval_paths":
+			if list, ok := val.([]string); ok {
+				for _, p := range list {
+					if p != "" {
+						paths[p] = true
+					}
+				}
+			}
+		case "_approval_diff":
+			if s, ok := val.(string); ok && s != "" {
+				diffParts = append(diffParts, s)
+			}
 		}
 		if s, ok := val.(string); ok && looksLikePath(s) {
 			paths[s] = true

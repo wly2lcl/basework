@@ -4,10 +4,12 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,6 +21,8 @@ import (
 	"github.com/wly2lcl/basework/internal/tui"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
+	"github.com/wly2lcl/basework/pkg/llm"
+	"github.com/wly2lcl/basework/pkg/session"
 )
 
 // tuiCmd 表示 tui 子命令
@@ -31,13 +35,15 @@ var tuiCmd = &cobra.Command{
 }
 
 var (
-	noTUI     bool
-	tuiPreset string
+	noTUI        bool
+	tuiPreset    string
+	tuiSessionID string
 )
 
 func init() {
 	tuiCmd.Flags().BoolVar(&noTUI, "no-tui", false, "回退到简单 REPL 模式（无 TUI）")
 	tuiCmd.Flags().StringVar(&tuiPreset, "preset", "", "启动预设（readonly / coding），与配置文件 preset 冲突时报错")
+	tuiCmd.Flags().StringVar(&tuiSessionID, "session", "", "恢复指定会话 ID（省略则创建新会话）")
 }
 
 // runTUIE 执行 tui 子命令
@@ -64,7 +70,7 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 
 	// --no-tui：回退到简单 REPL，无需流式回调
 	if noTUI {
-		rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{Preset: tuiPreset})
+		rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{Preset: tuiPreset, SessionID: tuiSessionID})
 		if err != nil {
 			return err
 		}
@@ -90,6 +96,7 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 
 	opts.Preset = tuiPreset
 	opts.ApprovalPrompt = permission.ApprovalPromptFunc(approvalBroker, 0)
+	opts.SessionID = tuiSessionID
 	rt, err := newRuntimeAgent(cfg, opts)
 	if err != nil {
 		return err
@@ -100,15 +107,15 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 	if svc == nil {
 		return fmt.Errorf("构造运行服务失败")
 	}
-	defer svc.Close()
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "配置: provider=%s model=%s tools=%d\n", rt.ProviderName, rt.ModelName, len(rt.Agent.Tools()))
 	}
 	reportRuntimeCapabilities(rt, verbose)
 
+	controller := newTUIRuntimeController(cfg, rt, opts)
 	app.SetInputHandler(func(ctx context.Context, input string) (string, error) {
-		run, err := svc.Start(ctx, input)
+		run, err := controller.Start(ctx, input)
 		if err != nil {
 			return "", fmt.Errorf("启动运行失败: %w", err)
 		}
@@ -122,26 +129,29 @@ func runTUIE(cmd *cobra.Command, args []string) error {
 	// 会话绑定与恢复进度（UI-003）：App 构造时还不知道会话 ID，这里
 	// 显式切换绑定；随后装入「重启后可恢复进度」事实。
 	app.SwitchSession(rt.sessionID())
-	if sess := rt.sess; sess != nil {
-		app.SetResumeItems(collectResumeItems(rt.jobManager, rt.sessionID(), sess, rt.sessionID(), runtimeWorkspaceID()))
-	}
+	app.SetSessionSwitcher(controller.SwitchSession)
+	controller.SetOnSwitch(func(next *runtimeAgent) {
+		app.SwitchSession(next.sessionID())
+		app.SetSessionHistory(projectSessionMessages(next.sess, next.sessionID()))
+		app.SetResumeItems(controller.ResumeItems())
+	})
+	app.SetSessionHistory(projectSessionMessages(rt.sess, rt.sessionID()))
+	app.SetResumeItems(controller.ResumeItems())
 
 	// 后台任务卡片（UI-001）：注入读取/取消能力 + 快照轮询。
-	jobOwner := rt.sessionID()
-	jobMgr := rt.jobManager
 	app.SetJobsRuntime(
 		func(jobID string, offset int64) tui.JobOutputMsg {
-			return readJobOutputPage(jobMgr, jobOwner, jobID, offset)
+			return controller.ReadJobOutput(jobID, offset)
 		},
 		func(jobID string) error {
-			return jobMgr.Cancel(jobOwner, jobID)
+			return controller.CancelJob(jobID)
 		},
 	)
 	snapshotMsg := func() tui.JobStatusMsg {
-		return tui.JobStatusMsg{Jobs: mergedJobStatuses(jobMgr, jobOwner), SessionID: jobOwner}
+		return controller.JobSnapshot()
 	}
 
-	return runTUI(cmd.Context(), app, bindSend, svc, snapshotMsg, approvalBroker)
+	return runTUI(cmd.Context(), app, bindSend, controller, snapshotMsg, approvalBroker)
 }
 
 // forwardApprovalRequests 把 broker 的批准请求转成 TUI 消息（UI-002）。
@@ -223,11 +233,234 @@ func newTUIStreamingOptions() (runtimeAgentOptions, func(func(tea.Msg))) {
 	}
 }
 
+// tuiRuntimeController 负责 TUI 当前会话的 runtime 所有权。切换会话时
+// 先构造并校验新的 runtime，再替换服务、任务归属和事件订阅，最后关闭旧
+// 服务；这样用户不会看到半切换状态，旧运行也会按 Service.Close 取消。
+type tuiRuntimeController struct {
+	mu      sync.RWMutex
+	cfg     *config.Config
+	opts    runtimeAgentOptions
+	current *runtimeAgent
+	svc     intruntime.Service
+
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	events   chan tui.RunEventMsg
+	closed   bool
+	onSwitch func(*runtimeAgent)
+}
+
+func (c *tuiRuntimeController) SetOnSwitch(fn func(*runtimeAgent)) {
+	c.mu.Lock()
+	c.onSwitch = fn
+	c.mu.Unlock()
+}
+
+func newTUIRuntimeController(cfg *config.Config, rt *runtimeAgent, opts runtimeAgentOptions) *tuiRuntimeController {
+	c := &tuiRuntimeController{
+		cfg: cfg, opts: opts, current: rt, svc: rt.Service(),
+		stopCh: make(chan struct{}), events: make(chan tui.RunEventMsg, 256),
+	}
+	c.subscribe(c.svc)
+	return c
+}
+
+func (c *tuiRuntimeController) subscribe(svc intruntime.Service) {
+	if svc == nil {
+		return
+	}
+	sub := svc.Subscribe()
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		for {
+			select {
+			case <-c.stopCh:
+				return
+			case ev, ok := <-sub.Events():
+				if !ok {
+					return
+				}
+				msg := tui.RunEventMsg{RunID: ev.RunID, SessionID: ev.SessionID, Kind: ev.Kind, Err: ev.Err}
+				select {
+				case c.events <- msg:
+				case <-c.stopCh:
+					return
+				}
+			}
+		}
+	}()
+}
+
+func (c *tuiRuntimeController) Events() <-chan tui.RunEventMsg { return c.events }
+
+func (c *tuiRuntimeController) Start(ctx context.Context, input string) (*intruntime.Run, error) {
+	c.mu.RLock()
+	svc := c.svc
+	c.mu.RUnlock()
+	if svc == nil {
+		return nil, intruntime.ErrClosed
+	}
+	return svc.Start(ctx, input)
+}
+
+func (c *tuiRuntimeController) SwitchSession(sessionID string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return fmt.Errorf("会话 ID 不能为空")
+	}
+	c.mu.RLock()
+	if c.closed {
+		c.mu.RUnlock()
+		return intruntime.ErrClosed
+	}
+	if c.current != nil && c.current.sessionID() == sessionID {
+		c.mu.RUnlock()
+		return nil
+	}
+	c.mu.RUnlock()
+
+	opts := c.opts
+	opts.SessionID = sessionID
+	newRT, err := newRuntimeAgent(c.cfg, opts)
+	if err != nil {
+		return fmt.Errorf("切换会话失败: %w", err)
+	}
+	newSvc := newRT.Service()
+	if newSvc == nil {
+		_ = newRT.Agent.Close()
+		return fmt.Errorf("切换会话失败: 构造运行服务失败")
+	}
+
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		_ = newSvc.Close()
+		return intruntime.ErrClosed
+	}
+	oldSvc := c.svc
+	c.current, c.svc = newRT, newSvc
+	onSwitch := c.onSwitch
+	c.mu.Unlock()
+
+	// 先让旧服务停止发布，再启动新订阅，避免切换窗口内旧事件进入队列。
+	if oldSvc != nil {
+		_ = oldSvc.Close()
+	}
+	c.subscribe(newSvc)
+	if onSwitch != nil {
+		onSwitch(newRT)
+	}
+	return nil
+}
+
+func (c *tuiRuntimeController) Current() (*runtimeAgent, intruntime.Service) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.current, c.svc
+}
+
+func (c *tuiRuntimeController) ReadJobOutput(jobID string, offset int64) tui.JobOutputMsg {
+	rt, _ := c.Current()
+	if rt == nil {
+		return tui.JobOutputMsg{JobID: jobID, Err: "后台任务不可用"}
+	}
+	return readJobOutputPage(rt.jobManager, rt.sessionID(), jobID, offset)
+}
+
+func (c *tuiRuntimeController) CancelJob(jobID string) error {
+	rt, _ := c.Current()
+	if rt == nil || rt.jobManager == nil {
+		return fmt.Errorf("后台任务不可用")
+	}
+	return rt.jobManager.Cancel(rt.sessionID(), jobID)
+}
+
+func (c *tuiRuntimeController) JobSnapshot() tui.JobStatusMsg {
+	rt, _ := c.Current()
+	if rt == nil {
+		return tui.JobStatusMsg{}
+	}
+	owner := rt.sessionID()
+	return tui.JobStatusMsg{Jobs: mergedJobStatuses(rt.jobManager, owner), SessionID: owner}
+}
+
+func (c *tuiRuntimeController) ResumeItems() []tui.ResumeItem {
+	rt, _ := c.Current()
+	if rt == nil || rt.sess == nil {
+		return nil
+	}
+	return collectResumeItems(rt.jobManager, rt.sessionID(), rt.sess, rt.sessionID(), runtimeWorkspaceID())
+}
+
+// projectSessionMessages 将事件溯源投影转换成 TUI 的轻量消息模型，
+// 只读取当前会话，避免切换时把其他会话的历史混入屏幕。
+func projectSessionMessages(store *session.JSONLStore, sessionID string) []tui.Message {
+	if store == nil || sessionID == "" {
+		return nil
+	}
+	events, err := store.Events(session.EventFilter{SessionID: sessionID})
+	if err != nil {
+		return nil
+	}
+	projected := session.ProjectMessages(events)
+	out := make([]tui.Message, 0, len(projected))
+	for _, msg := range projected {
+		if msg.Role == llm.RoleTool {
+			out = append(out, tui.Message{Role: "tool", ToolMsg: &tui.ToolCallMsg{
+				ToolName: msg.Name, Args: msg.ToolCallID, Result: messageText(msg),
+			}})
+			continue
+		}
+		content := messageText(msg)
+		if content == "" && len(msg.ToolCalls) == 0 {
+			continue
+		}
+		role := string(msg.Role)
+		if role != "user" && role != "assistant" {
+			role = "assistant"
+		}
+		out = append(out, tui.Message{Role: role, Content: content})
+	}
+	return out
+}
+
+func messageText(msg llm.ChatMessage) string {
+	var b strings.Builder
+	for _, part := range msg.Content {
+		if part.Type == llm.ContentTypeText {
+			b.WriteString(part.Text)
+		}
+	}
+	return b.String()
+}
+
+func (c *tuiRuntimeController) Close() {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return
+	}
+	c.closed = true
+	svc := c.svc
+	c.mu.Unlock()
+	close(c.stopCh)
+	if svc != nil {
+		_ = svc.Close()
+	}
+	c.wg.Wait()
+	close(c.events)
+}
+
 // runTUI 启动 TUI 模式。
 //
 // bindSend 在 tea.Program 创建之后被调用，用于把 program.Send 交给调用方，
 // 从而接上 agent 流式回调（见 internal/tui/callback.go）。
-func runTUI(ctx context.Context, app *tui.App, bindSend func(func(tea.Msg)), svc intruntime.Service, snapshotMsg func() tui.JobStatusMsg, approvalBroker *permission.ApprovalBroker) error {
+func runTUI(ctx context.Context, app *tui.App, bindSend func(func(tea.Msg)), controller *tuiRuntimeController, snapshotMsg func() tui.JobStatusMsg, approvalBroker *permission.ApprovalBroker) error {
+	if controller == nil {
+		return fmt.Errorf("TUI runtime 控制器为空")
+	}
+	defer controller.Close()
 	program := tea.NewProgram(app)
 	if bindSend != nil {
 		bindSend(program.Send)
@@ -260,16 +493,10 @@ func runTUI(ctx context.Context, app *tui.App, bindSend func(func(tea.Msg)), svc
 	// 每条事件带 ID，App.Update 据此忽略不属于当前会话的事件）。
 	// defer Unsubscribe 覆盖全部退出路径：退订会关闭事件通道，
 	// 转发 goroutine 随之结束，不遗留。
-	sub := svc.Subscribe()
-	defer sub.Unsubscribe()
+	events := controller.Events()
 	go func() {
-		for ev := range sub.Events() {
-			program.Send(tui.RunEventMsg{
-				RunID:     ev.RunID,
-				SessionID: ev.SessionID,
-				Kind:      ev.Kind,
-				Err:       ev.Err,
-			})
+		for ev := range events {
+			program.Send(ev)
 		}
 	}()
 
@@ -325,6 +552,7 @@ func runSimpleREPL(ctx context.Context, svc intruntime.Service) error {
 
 		// 经运行服务处理（取消/错误语义与 CLI、TUI 一致）
 		run, startErr := svc.Start(replCtx, input)
+		wasCanceled := replCtx.Err() != nil
 		cancel()
 
 		err := startErr
@@ -338,7 +566,7 @@ func runSimpleREPL(ctx context.Context, svc intruntime.Service) error {
 		}
 
 		if err != nil {
-			if replCtx.Err() != nil {
+			if wasCanceled || errors.Is(err, context.Canceled) {
 				fmt.Fprintln(os.Stderr, "\n[响应被中断]")
 				continue
 			}

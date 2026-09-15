@@ -1,4 +1,6 @@
-# SHIP-001 验证记录：固定编码场景回归集（完成）
+# SHIP-001 验证记录：固定编码场景回归集（历史完成记录；当前待验证）
+
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。下文早期“完成”只表示当时工作区快照满足当时范围；本轮清洁候选、真实 Provider 和发布门禁结果见文末日期段。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-001) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -104,3 +106,42 @@
   - 四条实施步骤（建立五类样例、固定输入与断言产物而非文案、离线重放与真实结果分开、记录成功率/耗时/调用量/失败类型）均有可复现证据。
 - **建议状态：完成。**
 - 原因：卡片要求的五类样例在离线层与真实层都有记录，两层分工写清，失败类型按卡要求如实归类（含 3 次"中间态 `go test` 失败"这种容易被误记成缺陷的正常迭代）。必须连带说明两项限制：**单次运行的三个场景不构成成功率**，以及**一次未复现的停滞未定位到根因**（已记录在"剩余与交接"，不阻塞本卡——卡片不要求解释环境偶发停滞，但要求不夸大）。
+
+## 2026-09-15 当前工作区复核
+
+历史段的真实模型结果仍保留为指定端点的历史记录；本轮没有外部 Provider 密钥，
+因此没有把历史结果冒充当前候选版本。当前工作区已完成以下可复跑复核：
+
+- 默认与 `sqlite memory` 全量 Go 测试、race、vet、构建、架构和文档门禁均通过；
+- `tests/tui_pty/scenario1.py` 到 `scenario8.py` 在独立临时根、隔离 HOME 和本地确定性
+  Provider 下全量通过，覆盖固定编码场景的真实 TUI 入口、后台取消、硬杀恢复、
+  `/session` 隔离、审批拒绝/允许和双压缩重启；
+- 复核结果能独立由磁盘文件、会话 JSONL、请求日志、进程退出和外部 module 测试
+  交叉确认，不采信模型自述。
+
+任务看板仍将 SHIP-001 保持“待验证”：候选 commit、当前版本的真实 Provider 记录和
+发布门禁需要一起绑定，不能因为当前 dirty worktree 的脚本化入口通过就提前关闭。
+
+为避免真实 Provider 夹具只存在于临时目录，本轮新增 `tests/real_provider/`：运行器
+从仓库 fixture 复制随机临时项目，使用 `BASEWORK_REAL_PROVIDER`、
+`BASEWORK_REAL_BASE_URL`、`BASEWORK_REAL_API_KEY`、`BASEWORK_REAL_MODEL` 注入配置，
+独立执行 `go test ./...`，并只写脱敏结果（工具名、耗时、退出码、文件是否修改、最终
+文本哈希）。缺少任一凭据时不会发请求；当前环境没有这些凭据，所以当前 Provider
+结果仍待补跑，历史 `/private/tmp` 结果不冒充当前候选。
+
+本轮实际执行无凭据负向门禁：
+
+```text
+GOCACHE=/private/tmp/basework-real-provider-cache \
+  go run ./tests/real_provider --output /private/tmp/basework-real-provider-missing.json
+exit code: 1
+real provider runner requires BASEWORK_REAL_API_KEY, BASEWORK_REAL_BASE_URL, and BASEWORK_REAL_MODEL; no request was sent
+```
+
+未生成结果文件，也没有发出 Provider 请求；这只证明缺凭据时的安全失败，不替代真实模型正向闭环。
+
+同日用清洁临时 checkout（candidate commit
+`ac6852dc33d77a01ccb927e5a6cc46dafad804d5`）重新执行完整 tag 测试和 PTY scenario1–8，
+均通过；恢复、审批、双压缩和会话切换使用的是该候选副本产生的新数据，不复用历史模型
+结果。当前 Provider 仍未注入凭据，因此本段只关闭“清洁 checkout/恢复依赖复核”本地
+验收，不关闭真实 Provider 证据。

@@ -3,6 +3,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -57,7 +58,9 @@ type RunEventMsg struct {
 
 // AgentResponseMsg 表示 Agent 响应消息
 type AgentResponseMsg struct {
-	Text string
+	Text       string
+	SessionID  string
+	Generation uint64
 }
 
 // ToolCallMsg 表示工具调用消息
@@ -70,7 +73,9 @@ type ToolCallMsg struct {
 
 // ErrorMsg 表示错误消息
 type ErrorMsg struct {
-	Err error
+	Err       error
+	RunID     string
+	SessionID string
 }
 
 // InputHandler 处理用户输入并返回助手回复。
@@ -159,9 +164,10 @@ type App struct {
 	MountedPlugins []plugin.TUIPlugin
 
 	// 生命周期管理
-	ctx          context.Context
-	cancel       context.CancelFunc
-	inputHandler InputHandler
+	ctx           context.Context
+	cancel        context.CancelFunc
+	inputHandler  InputHandler
+	cancelCurrent context.CancelFunc
 
 	// SessionID 是当前会话（RUN-003 的路由键）。空表示未绑定（全部接受）。
 	SessionID string
@@ -173,9 +179,14 @@ type App struct {
 	// Jobs 时需要复用（UI-003）。
 	jobsReader func(jobID string, offset int64) JobOutputMsg
 	jobsCancel func(jobID string) error
+	// sessionSwitcher 由产品层注入，负责重建绑定到新会话的 runtime。
+	// nil 时仍保留内部状态切换能力，便于纯 UI 单元测试。
+	sessionSwitcher func(string) error
 	// lastRunEvent 是最近一条通过路由的 RunEventMsg（测试观察点；
 	// UI 呈现属 UI-001 的状态卡片，这里只做路由与记录）。
 	lastRunEvent *RunEventMsg
+	generation   uint64
+	activeRunID  string
 }
 
 // NewApp 创建新的 TUI 应用
@@ -269,6 +280,10 @@ func (m *App) cleanup() {
 	if m.cancel != nil {
 		m.cancel()
 	}
+	if m.cancelCurrent != nil {
+		m.cancelCurrent()
+		m.cancelCurrent = nil
+	}
 }
 
 // Init 实现 Bubble Tea Model 接口
@@ -295,43 +310,73 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.StartStreaming()
 		text := msg.Text
+		sessionID, generation := m.SessionID, m.generation
+		m.activeRunID = ""
+		runCtx, runCancel := context.WithCancel(m.ctx)
+		m.cancelCurrent = runCancel
 		return m, func() tea.Msg {
-			reply, err := m.inputHandler(m.ctx, text)
+			defer runCancel()
+			reply, err := m.inputHandler(runCtx, text)
 			if err != nil {
 				return ErrorMsg{Err: err}
 			}
-			return AgentResponseMsg{Text: reply}
+			return AgentResponseMsg{Text: reply, SessionID: sessionID, Generation: generation}
 		}
 
 	case AgentResponseMsg:
+		if !m.IsStreaming || (msg.SessionID != "" && msg.SessionID != m.SessionID) ||
+			(msg.Generation != 0 && msg.Generation != m.generation) {
+			return m, nil
+		}
 		m.StopStreaming()
+		m.cancelCurrent = nil
 		if strings.TrimSpace(msg.Text) != "" {
 			m.AddAssistantMessage(msg.Text)
 		}
 		return m, nil
 
 	case ErrorMsg:
+		if !m.acceptsCallback(msg.SessionID, msg.RunID) {
+			return m, nil
+		}
 		m.StopStreaming()
+		m.cancelCurrent = nil
 		if msg.Err != nil {
-			m.AddErrorMessage(msg.Err.Error())
+			if errors.Is(msg.Err, context.Canceled) {
+				m.AddSystemNotice("[本轮已取消]")
+			} else {
+				m.AddErrorMessage(msg.Err.Error())
+			}
 		}
 		return m, nil
 
 	// 以下由 agentCallback 经 tea.Program.Send 投递，
 	// 在事件循环内落状态，避免与 View 并发读写。
 	case StreamDeltaMsg:
+		if !m.acceptsCallback(msg.SessionID, msg.RunID) {
+			return m, nil
+		}
 		m.Streaming.AppendText(msg.Delta)
 		return m, nil
 
 	case ThinkingDeltaMsg:
+		if !m.acceptsCallback(msg.SessionID, msg.RunID) {
+			return m, nil
+		}
 		m.Streaming.AppendThinking(msg.Delta)
 		return m, nil
 
 	case ToolStartMsg:
+		if !m.acceptsCallback(msg.SessionID, msg.RunID) {
+			return m, nil
+		}
 		m.Streaming.SetToolInProgress(msg.Name)
 		return m, nil
 
 	case ToolEndMsg:
+		if !m.acceptsCallback(msg.SessionID, msg.RunID) {
+			return m, nil
+		}
 		m.Streaming.SetToolInProgress("")
 		m.AddToolCall(msg.Name, msg.Args, msg.Result, msg.IsError)
 		return m, nil
@@ -344,6 +389,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		ev := msg
 		m.lastRunEvent = &ev
+		if ev.Kind == "run.started" && m.IsStreaming {
+			m.activeRunID = ev.RunID
+		}
 		// 运行终态可见性（UI-001）：文字标记区分完成/失败/取消，不靠颜色。
 		if ev.Kind == "run.finished" {
 			switch {
@@ -411,21 +459,30 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		key := msg.String()
+		// 流式响应期间 Ctrl+C/Ctrl+D 只取消当前轮次；非流式时仍交给
+		// 原有退出绑定处理，避免误退出并让用户明确看到取消状态。
+		if m.IsStreaming && (key == "ctrl+c" || key == "ctrl+d") {
+			if m.cancelCurrent != nil {
+				m.cancelCurrent()
+			}
+			m.AddSystemNotice("[正在取消本轮]")
+			return m, nil
+		}
 
 		// 恢复面板：任意按键收起（UI-003，用户已「继续工作」）。
 		if m.Resume.Visible() {
 			m.Resume.Hide()
 		}
 
-		// 0. 后台任务卡片可见时优先消费按键（UI-001）。
-		if m.Jobs.Visible() && m.Jobs.HandleKey(key) {
-			return m, nil
-		}
-
-		// 1. 先检查对话框（模态对话框拦截所有按键）
+		// 0. 先检查对话框（审批是最高优先级模态层，不能被任务卡片抢键）。
 		if m.DialogMgr.HasDialog() {
 			cmd := m.DialogMgr.Update(msg)
 			return m, cmd
+		}
+
+		// 1. 后台任务卡片可见时消费按键（UI-001）。
+		if m.Jobs.Visible() && m.Jobs.HandleKey(key) {
+			return m, nil
 		}
 
 		// 2. 检查命令面板
@@ -691,6 +748,27 @@ func (m *App) SetJobsRuntime(reader func(jobID string, offset int64) JobOutputMs
 	m.Jobs.SetRuntime(reader, cancel)
 }
 
+// SetSessionSwitcher 注入产品层的真实会话切换器。
+func (m *App) SetSessionSwitcher(switcher func(string) error) {
+	m.sessionSwitcher = switcher
+}
+
+// RequestSessionSwitch 是 /session 命令使用的用户入口。只有 runtime
+// 重建成功后才改变界面绑定，失败时保留当前会话和消息。
+func (m *App) RequestSessionSwitch(sessionID string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return fmt.Errorf("会话 ID 不能为空")
+	}
+	if m.SessionID == sessionID {
+		return nil
+	}
+	if m.sessionSwitcher == nil {
+		return fmt.Errorf("当前运行模式不支持会话切换")
+	}
+	return m.sessionSwitcher(sessionID)
+}
+
 // SwitchSession 重新绑定会话（UI-003）：清空旧会话的运行观察点与流式
 // 状态，重建任务卡片（复用运行时钩子）。事件路由按 SessionID 隔离——
 // 旧会话迟到的 RunEventMsg 不会进入新会话的界面（RUN-003 语义）。
@@ -698,12 +776,40 @@ func (m *App) SwitchSession(sessionID string) {
 	if m.SessionID == sessionID {
 		return
 	}
+	if m.cancelCurrent != nil {
+		m.cancelCurrent()
+		m.cancelCurrent = nil
+	}
 	m.SessionID = sessionID
+	m.StatusBar.SessionID = sessionID
+	m.generation++
+	m.activeRunID = ""
+	m.Messages = nil
+	m.IsStreaming = false
 	m.lastRunEvent = nil
 	m.Streaming = NewStreamingView()
 	m.Jobs = NewJobsView(m.jobsReader, m.jobsCancel)
 	m.Resume.Hide()
 	m.AddSystemNotice(fmt.Sprintf("[已切换到会话 %s]", shortIDText(sessionID)))
+}
+
+// acceptsCallback 过滤带运行标识的异步回调。旧版本/单元测试构造的空标识
+// 消息保留兼容；生产回调由 runtime.Service 填入 session/run ID。
+func (m *App) acceptsCallback(sessionID, runID string) bool {
+	if sessionID != "" && m.SessionID != "" && sessionID != m.SessionID {
+		return false
+	}
+	if runID == "" {
+		return true
+	}
+	if !m.IsStreaming {
+		return false
+	}
+	if m.activeRunID == "" {
+		m.activeRunID = runID
+		return true
+	}
+	return m.activeRunID == runID
 }
 
 // shortIDText 是会话 ID 的短展示（UI-003；避免直接暴露完整 UUID）。
@@ -721,6 +827,13 @@ func (m *App) SetResumeItems(items []ResumeItem) {
 		m.AddSystemNotice(fmt.Sprintf("[恢复检查] %d 项遗留，其中 %d 项需要重试/复核",
 			len(items), m.Resume.RetryCount()))
 	}
+}
+
+// SetSessionHistory 将持久化投影装入当前会话的消息区。调用方应先完成
+// SwitchSession；空历史仍保留恢复提示，避免用户误以为切换失败。
+func (m *App) SetSessionHistory(messages []Message) {
+	m.Messages = append([]Message(nil), messages...)
+	m.AddSystemNotice(fmt.Sprintf("[已恢复会话 %s：历史 %d 条]", shortIDText(m.SessionID), len(messages)))
 }
 
 // AddSystemNotice 添加中性系统通知（状态卡片类信息）。
@@ -751,12 +864,18 @@ func (m *App) AddThinking(text string) {
 func (m *App) StartStreaming() {
 	m.IsStreaming = true
 	m.Streaming.Start()
+	if m.StatusBar != nil {
+		m.StatusBar.SetBusy(true)
+	}
 }
 
 // StopStreaming 停止流式输出
 func (m *App) StopStreaming() {
 	m.IsStreaming = false
 	m.Streaming.Stop()
+	if m.StatusBar != nil {
+		m.StatusBar.SetBusy(false)
+	}
 }
 
 // UpdateStreamingText 更新流式输出文本

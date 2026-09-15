@@ -280,7 +280,7 @@ store.Save()
 
 ## 配置解析与产品消费边界
 
-2026-09-14 复审：配置字段被解析/显示，不代表每条入口都已生效。主 runtime 固定创建 JSONLStore；session.store / sqlite_path 不切换主后端。压缩、循环检测、观测与子代理选项缺少主入口接线（RUN-003）；事实摘要缺少生产写入、刷新与过期检测（CTX-001/002）。下方 SQLite/存储压缩说明属于对应组件能力，不应视为 CLI 已自动启用。实际使用先核对 [STATUS](../STATUS.md) 与 config explain。
+2026-09-15 复核：主 runtime 已接入压缩、循环检测、观测、子代理和事实摘要选项；编辑事件会保存工作区事实，摘要启用后按请求刷新。主运行时仍固定使用 JSONLStore，`session.store` / `sqlite_path` 不会自动切换后端。下方 SQLite/存储压缩说明属于对应组件能力，不应视为 CLI 已自动启用。实际使用先核对 [STATUS](../STATUS.md) 与 `config explain`。
 
 ## 数据库配置
 

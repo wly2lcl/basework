@@ -21,6 +21,7 @@ import (
 
 // agentPreset 是 agent 子命令的 --preset 启动预设（CFG-002）。
 var agentPreset string
+var agentSessionID string
 
 // agentCmd 表示 agent 子命令
 var agentCmd = &cobra.Command{
@@ -40,6 +41,7 @@ func init() {
 	agentCmd.Flags().BoolVar(&noStream, "no-stream", false, "关闭流式输出（一次性输出完整响应）")
 	agentCmd.Flags().StringVarP(&message, "message", "m", "", "一次性消息模式，指定后直接发送消息并退出")
 	agentCmd.Flags().StringVar(&agentPreset, "preset", "", "启动预设（readonly / coding），与配置文件 preset 冲突时报错")
+	agentCmd.Flags().StringVar(&agentSessionID, "session", "", "恢复指定会话 ID（省略则创建新会话）")
 }
 
 // runAgentE 执行 agent 子命令
@@ -59,7 +61,7 @@ func runAgentE(cmd *cobra.Command, args []string) error {
 	}
 	cfg := store.Get()
 
-	rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{Preset: agentPreset})
+	rt, err := newRuntimeAgent(cfg, runtimeAgentOptions{Preset: agentPreset, SessionID: agentSessionID})
 	if err != nil {
 		return err
 	}
@@ -116,7 +118,6 @@ func runREPL(ctx context.Context, svc intruntime.Service) error {
 	for {
 		// 检测 Ctrl+C 中断
 		replCtx, cancel := signal.NotifyContext(ctx, syscall.SIGINT)
-		defer cancel()
 
 		fmt.Fprint(os.Stderr, "> ")
 		scanned := scanner.Scan()
@@ -140,6 +141,7 @@ func runREPL(ctx context.Context, svc intruntime.Service) error {
 
 		// 处理消息（经运行服务；SIGINT 取消 replCtx 传导为运行取消）
 		run, err := svc.Start(replCtx, input)
+		wasCanceled := replCtx.Err() != nil
 		cancel() // 确保取消信号处理
 
 		if err != nil {
@@ -147,7 +149,7 @@ func runREPL(ctx context.Context, svc intruntime.Service) error {
 		}
 		if run.Err != nil {
 			// 检查是否被中断：取消在 Run.Err 里体现为 context.Canceled
-			if errors.Is(run.Err, context.Canceled) || replCtx.Err() != nil {
+			if errors.Is(run.Err, context.Canceled) || wasCanceled {
 				fmt.Fprintln(os.Stderr, "\n[响应被中断]")
 				continue
 			}

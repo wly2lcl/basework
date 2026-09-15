@@ -76,3 +76,31 @@
 ## 结论
 
 EDIT-003 完成。`internal/edits` 的预览/提交/撤销能力首次接入产品：`edit_files` 工具走「预览（不写盘）→ 批准（提交前基线与权限重查）→ 提交/撤销」闭环，每一步落成 `file.edited` 会话事件；`basework edits list/show` 提供只读审阅，会话恢复后记录仍可用、同一编辑无法重复提交（机制性拒绝）。用户可看改动前后与失败原因，批准与拒绝不可绕过。全部 28 项门禁命令通过，人工场景 5 项通过。M3 阶段（EDIT-001~003）全部完成。
+
+## 2026-09-15 修复复核
+
+补齐复审发现的三处接线：运行时编辑事件写入后同步保存 `WorkspaceFacts`；批量部分
+失败保留已写文件的事实；权限适配器按 `plan_id` 注入真实路径与 diff 到审批请求。
+相关 `cmd/basework`、`internal/tools`、`internal/permission` 测试及全量带 tag race
+通过。
+
+历史段中的“全部完成”只描述上一候选快照。当前看板将 EDIT-003 保留为“待验证”，
+因为尚未用真实 runtime Provider 完成批准/拒绝、部分提交与重启后审阅的完整产品流程；
+旧证据继续保留用于追溯。
+
+## 2026-09-15 真实 runtime 复核
+
+- `SHIP003_ROOT=/private/tmp/ship003-s7-final5 python3 tests/tui_pty/scenario7.py` 通过：
+  真实 TUI + 脚本化 OpenAI Provider 启用 interactive 权限，拒绝审批后 `calc.go` 未改盘；
+  逐次批准后 edit_files 完成预览/提交，路径与预览展示可见，文件结果与产品答复一致。
+- `scenario1.py` 通过同一链路继续验证 `facts show` 的 `file_modified` 来源和同 session
+  重启；现有 `internal/tools`/`internal/edits` race 测试覆盖部分成功、重复提交、撤销
+  冲突和并发状态边界。
+
+真实外部 Provider 凭证仍不注入；这里的“runtime”指真实产品运行时和本地确定性 Provider，
+不是把脚本化结果扩大成外部模型兼容性承诺。
+
+## 结论（2026-09-15）
+
+编辑事实、CLI 审阅、TUI 审批与真实 runtime 读改流程已经闭环，任务状态更新为“完成”。
+外部模型兼容性仍按 REL-003/SHIP-001 单独记录。

@@ -35,7 +35,10 @@ make gen
 go test -tags "sqlite memory" -race -timeout=5m -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
 ```
 
-CI 准确范围以 `.github/workflows/build.yml` 为准；当前尚未把上面额外三个包和 PTY 全部纳入必跑门禁，QA-001 跟踪。本地通过不等于 CI 已通过。
+CI 准确范围以 `.github/workflows/build.yml` 为准；当前 quality job 的 race 已覆盖
+`internal/runtime`、`internal/jobs`、`internal/edits`，并在 Ubuntu 增加 scenario1 与
+OPT-001 真实 PTY 烟测。scenario2–8 的完整产品验收按 QA-001/SHIP-001 分组执行；scenario8 专门
+验证真实配置触发两次压缩、同 ID 重启与恢复请求历史。本地通过不等于 CI 已通过。
 
 性能必须显式执行 `go test -run '^$' -bench . -benchmem` 并保存多次样本；普通 go test 的 `no tests to run` 不算性能证据。
 

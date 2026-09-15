@@ -1,0 +1,50 @@
+name: Real Provider Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Provider type (for example openai or openai-compat)"
+        required: true
+        default: openai
+      base_url:
+        description: "OpenAI-compatible or provider endpoint"
+        required: true
+      model:
+        description: "Model ID"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  real-provider:
+    name: Real Provider Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run opt-in redacted acceptance fixture
+        env:
+          BASEWORK_REAL_PROVIDER: ${{ inputs.provider }}
+          BASEWORK_REAL_BASE_URL: ${{ inputs.base_url }}
+          BASEWORK_REAL_MODEL: ${{ inputs.model }}
+          BASEWORK_REAL_API_KEY: ${{ secrets.BASEWORK_REAL_API_KEY }}
+          BASEWORK_REAL_OUTPUT: ${{ runner.temp }}/basework-real-provider.json
+        run: go run ./tests/real_provider
+
+      - name: Upload redacted result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-provider-result-${{ github.run_id }}
+          path: ${{ runner.temp }}/basework-real-provider.json
+          if-no-files-found: ignore

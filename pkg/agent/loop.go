@@ -139,7 +139,13 @@ func newAgentLoop(cfg *config, chain *hook.Chain) (*AgentLoop, error) {
 		sess = session.NewMemoryStore()
 	}
 
-	info, err := sess.Create(session.CreateOpts{Title: "agent session"})
+	var info *session.Info
+	var err error
+	if cfg.sessionID != "" {
+		info, err = sess.Get(cfg.sessionID)
+	} else {
+		info, err = sess.Create(session.CreateOpts{Title: "agent session"})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +215,7 @@ func (a *AgentLoop) HandleMessage(ctx context.Context, input string) (*Response,
 	a.compressionApplied = false
 
 	// 2. 运行工具循环
+	a.refreshSystemPrompt()
 	resp, err := a.runLoop(ctx)
 
 	// 通知观测器
@@ -242,6 +249,7 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 
 	// 新消息到来时重置压缩标记，允许再次压缩
 	a.compressionApplied = false
+	a.refreshSystemPrompt()
 
 	// 将消息转换为事件存储
 	for _, msg := range messages {
@@ -331,6 +339,15 @@ func (a *AgentLoop) HandleMessages(ctx context.Context, messages []llm.ChatMessa
 	}
 
 	return a.runLoop(ctx)
+}
+
+// refreshSystemPrompt 在每轮请求开始前读取动态 prompt。配置里的静态 prompt
+// 仍由 WithSystemPrompt 提供；动态提供者用于把本轮最新事实写入同一套
+// system.prompt_set 事件，避免「事实已经落盘但下一请求仍使用启动快照」。
+func (a *AgentLoop) refreshSystemPrompt() {
+	if a.cfg != nil && a.cfg.systemPromptProvider != nil {
+		a.cfg.systemPrompt = a.cfg.systemPromptProvider()
+	}
 }
 
 // runLoop 执行工具循环，每次迭代调用 pipeline.Run()

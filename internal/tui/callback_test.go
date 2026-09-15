@@ -31,6 +31,21 @@ func TestAgentCallback_ImplementsCallback(t *testing.T) {
 	}
 }
 
+func TestAgentCallback_ForRunAddsRoutingMetadata(t *testing.T) {
+	got, cb := collectCallback()
+	scoped, ok := cb.(interface {
+		ForRun(string, string) agent.Callback
+	})
+	if !ok {
+		t.Fatal("callback should expose per-run scope")
+	}
+	scoped.ForRun("run-7", "session-9").OnTextDelta("chunk")
+	msg, ok := (*got)[0].(StreamDeltaMsg)
+	if !ok || msg.RunID != "run-7" || msg.SessionID != "session-9" {
+		t.Fatalf("routing metadata missing: %#v", (*got)[0])
+	}
+}
+
 // TestAgentCallback_OnTextDeltaEmitsStreamDeltaMsg 验证文本增量被翻译为 StreamDeltaMsg。
 func TestAgentCallback_OnTextDeltaEmitsStreamDeltaMsg(t *testing.T) {
 	got, cb := collectCallback()
@@ -375,6 +390,31 @@ func TestApp_Update_ApprovalFlowIsolated(t *testing.T) {
 	}
 	if app.DialogMgr.HasDialog() {
 		t.Fatal("拒绝后对话框应关闭")
+	}
+}
+
+func TestApp_ApprovalModalHasPriorityOverJobs(t *testing.T) {
+	app := NewApp("model", "opencode", "sess-1")
+	app.Jobs.Toggle()
+	if !app.Jobs.Visible() {
+		t.Fatal("测试前应打开任务卡片")
+	}
+	responded := false
+	_, _ = app.Update(ApprovalRequestMsg{
+		ID: "apr-modal", ToolName: "edit_files", Purpose: "提交编辑",
+		Respond: func(approved bool) bool { responded = approved; return true },
+	})
+	_, cmd := app.Update(tea.KeyPressMsg{Code: 'y'})
+	if !responded {
+		t.Fatal("任务卡片可见时 y 仍应由审批弹窗消费")
+	}
+	if cmd != nil {
+		if msg := cmd(); msg != nil {
+			_, _ = app.Update(msg)
+		}
+	}
+	if app.DialogMgr.HasDialog() {
+		t.Fatal("审批决定后弹窗应关闭")
 	}
 }
 

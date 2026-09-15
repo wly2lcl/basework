@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """场景 5：嵌入 Go 服务。
 
-可观察的成功结果（路线图口径）：把 basework 当库嵌进任意 Go 服务——
-provider/agent/runtime.NewLocal 全部走公共 API，一次运行完成
-read → edit → bash → 答复，断言磁盘产物、事件流与会话落盘。
+可观察的成功结果（路线图口径）：把 basework 当库嵌进仓库外 Go module——
+provider/agent/session 全部走公共 API，一次运行完成 read → edit → bash → 答复，
+断言磁盘产物、回调事件与会话落盘。
 
 运行体是 examples/embed/main.go（仓库内），本脚本只负责起假服务、
 准备隔离环境并运行它、报告结果。
@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import harness as H  # noqa: E402
 
-EMBED_SRC = os.path.join(HERE, "..", "..", "examples", "embed")
+EMBED_SRC = os.path.join(H.REPO_ROOT, "examples", "embed")
 
 
 def main():
@@ -33,14 +33,26 @@ def main():
         if os.path.isdir(home):
             shutil.rmtree(home)
 
-        # 构建嵌入示例（在仓库 examples/embed 下）。
+        # 复制到仓库外临时 module；这样导入 internal/runtime 会在这里直接编译失败。
+        external_src = os.path.join(H.ROOT, "external-embed")
+        os.makedirs(external_src, exist_ok=True)
+        shutil.copy2(os.path.join(EMBED_SRC, "main.go"),
+                     os.path.join(external_src, "main.go"))
+        with open(os.path.join(external_src, "go.mod"), "w", encoding="utf-8") as fh:
+            fh.write("module example.com/basework-embed-check\n\n"
+                     "go 1.26\n\n"
+                     "require github.com/wly2lcl/basework v0.0.0\n\n"
+                     "replace github.com/wly2lcl/basework => " + H.REPO_ROOT + "\n")
+
+        # 构建仓库外的嵌入示例。
         go = H.go_env(home)
         build = subprocess.run(
             [os.path.join(H.GO_ROOT, "bin", "go"), "build",
-             "-o", os.path.join(H.ROOT, "embed-check"), EMBED_SRC],
+             "-o", os.path.join(H.ROOT, "embed-check"), "."],
+            cwd=external_src,
             capture_output=True, text=True,
             env={**os.environ, **go, "GOFLAGS": "-mod=mod"})
-        rep.check("examples/embed 可独立构建", build.returncode == 0,
+        rep.check("仓库外 Go module 仅用 pkg 公共 API 可构建", build.returncode == 0,
                   build.stderr.strip()[:200] if build.returncode else "")
         if build.returncode != 0:
             rep.save("s5")
@@ -57,7 +69,7 @@ def main():
 
         out = p.stdout
         rep.check("嵌入路径完成工具调用并收到运行事件",
-                  "工具调用=3" in out and "run.started" in out and "run.finished" in out,
+                  "工具调用=3" in out and "tool.started" in out and "turn.finished" in out,
                   out.strip()[:160])
         rep.check("嵌入路径的会话事实已持久化",
                   "事件落盘=" in out and not out.endswith("事件落盘=0 条"), out.strip()[-40:])

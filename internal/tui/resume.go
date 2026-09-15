@@ -88,9 +88,10 @@ func (p *ResumePanel) Render(width int) string {
 			marker = "[需重试]"
 		}
 		label := it.Label
-		if width > 10 && len([]rune(label)) > width-24 {
+		maxLabel := width - 24
+		if maxLabel > 0 && len([]rune(label)) > maxLabel {
 			r := []rune(label)
-			label = string(r[:width-24]) + "…"
+			label = string(r[:maxLabel]) + "…"
 		}
 		switch it.Kind {
 		case "job":

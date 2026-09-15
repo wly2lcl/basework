@@ -50,6 +50,9 @@ def main():
             observed.append((label, ok, dt))
             s.snapshot(label)
 
+        ok, dt = s.wait_text("忙", timeout=20, tag="状态栏忙碌")
+        rep.check("运行中状态栏显示忙碌状态", ok, f"{dt:.2f}s")
+
         # 预演差异必须真的显示改动前后两行。
         ok, dt = s.wait_for(lambda t: "-return a - b" in t and "+return a + b" in t,
                             timeout=60, tag="差异")
@@ -95,6 +98,23 @@ def main():
         raw_path = s.save(H.RUNS, "s1")
         rep.set("transcript", raw_path)
 
+        # 重启同一工作区并显式绑定刚才的会话，证明事实所在会话可继续打开。
+        session_files = [name for name in os.listdir(H.session_dir(home))
+                         if name.endswith(".jsonl") and name != "jobs.jsonl"]
+        rep.check("首轮会话事件文件已落盘", len(session_files) == 1, str(session_files))
+        if len(session_files) == 1:
+            sid = session_files[0][:-len(".jsonl")]
+            resumed = H.run_tui(cwd, env, "s1-resume", cols=120, rows=46,
+                                 argv=[H.BIN, "tui", "--session", sid])
+            ok, dt = resumed.wait_text("空闲", timeout=25, tag="重启绑定")
+            resumed.pump(1.0)
+            resumed_screen = resumed.screen.text()
+            rep.check("重启后绑定同一会话", ok and sid[:12] in resumed_screen, f"{dt:.2f}s")
+            resumed.key("CTRL_C")
+            resumed.pump(0.8)
+            rep.check("重启后退出无残留", not resumed.alive())
+            resumed.stop()
+
         # ---- 磁盘事实（不采信模型自述）----
         calc = open(os.path.join(cwd, "calc.go"), encoding="utf-8").read()
         rep.check("磁盘 calc.go 已改为 a + b", "return a + b" in calc)
@@ -107,6 +127,15 @@ def main():
                            text=True, env={**os.environ, **genv})
         rep.check("独立执行 go test ./... 通过（夹具侧复核）", p.returncode == 0,
                   (p.stdout + p.stderr).strip().splitlines()[-1] if (p.stdout + p.stderr).strip() else "")
+
+        # 运行时编辑事件还应折叠进工作区事实；读取 CLI 只读视图，避免只相信模型答复。
+        facts = subprocess.run([H.BIN, "facts", "show"], cwd=cwd, capture_output=True,
+                               text=True, env={**os.environ, **genv})
+        facts_out = facts.stdout + facts.stderr
+        rep.set("facts_show", facts_out.strip()[:600])
+        rep.check("编辑事实已持久化并可由 facts show 读取",
+                  facts.returncode == 0 and "calc.go" in facts_out and "modified" in facts_out.lower(),
+                  facts_out.strip()[:240])
 
         # ---- 请求侧证据 ----
         recs = H.read_fake_log(log)

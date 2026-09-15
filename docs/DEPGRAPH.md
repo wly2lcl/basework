@@ -136,6 +136,7 @@ graph LR
   n26 --> n21
   n28 --> n21
   n29 --> n28
+  n3 --> n26
   n4 --> n18
   n4 --> n21
   n6 --> n18
@@ -154,6 +155,7 @@ graph LR
 |---|---|
 | `cmd/basework` | `internal/compaction`、`internal/jobs`、`internal/loopdetect`、`internal/oauth`、`internal/observability`、`internal/permission`、`internal/runtime`、`internal/subagent`、`internal/tools`、`internal/tui`、`pkg/agent`、`pkg/config`、`pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/provider`、`pkg/session`、`pkg/skill`、`pkg/tool`、`pkg/tool/builtin` |
 | `internal/compaction` | `pkg/agent`、`pkg/llm`、`pkg/session` |
+| `internal/jobs` | `pkg/session` |
 | `internal/loopdetect` | `pkg/agent`、`pkg/llm` |
 | `internal/observability` | `pkg/agent` |
 | `internal/permission` | `pkg/agent` |
@@ -172,7 +174,6 @@ graph LR
 | `pkg/tool` | `pkg/llm` |
 | `pkg/tool/builtin` | `pkg/tool` |
 | `internal/edits` | （无模块内依赖） |
-| `internal/jobs` | （无模块内依赖） |
 | `internal/oauth` | （无模块内依赖） |
 | `internal/tui/command` | （无模块内依赖） |
 | `internal/tui/dialog` | （无模块内依赖） |
@@ -195,7 +196,7 @@ graph LR
 | `pkg/llm` | 12 |
 | `pkg/tool` | 10 |
 | `pkg/agent` | 8 |
-| `pkg/session` | 5 |
+| `pkg/session` | 6 |
 | `internal/jobs` | 3 |
 | `pkg/config` | 3 |
 | `internal/permission` | 2 |
@@ -221,10 +222,10 @@ graph LR
 | `internal/subagent` | 2 |
 | `pkg/hook` | 2 |
 | `pkg/provider` | 2 |
+| `internal/jobs` | 1 |
 | `internal/observability` | 1 |
-| `internal/permission` | 1 |
 
-（共 19 个包有非零计数，此处仅列前 12）
+（共 20 个包有非零计数，此处仅列前 12）
 
 ## 层级违规检测
 

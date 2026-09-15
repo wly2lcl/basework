@@ -38,6 +38,7 @@ func TestEditFactsSurviveSessionReload(t *testing.T) {
 	}
 	sessionID := info.ID
 	sink := &runtimeEditEventSink{store: store, sessionID: func() string { return sessionID }}
+	sink.factsBase = storeDir
 
 	editTool := runtimetools.NewEditFilesTool(workRoot)
 	editTool.Sink = sink
@@ -82,6 +83,13 @@ func TestEditFactsSurviveSessionReload(t *testing.T) {
 	}
 	if len(facts[1].Files) != 1 || facts[1].Files[0].State != "written" || facts[1].Files[0].Path != "a.txt" {
 		t.Fatalf("提交事实的文件结局不符: %+v", facts[1].Files)
+	}
+	wsFacts, err := session.LoadWorkspaceFacts(storeDir, session.WorkspaceID(workRoot))
+	if err != nil {
+		t.Fatalf("读取持久化工作区事实: %v", err)
+	}
+	if wsFacts.Count() != 1 {
+		t.Fatalf("提交后的工作区事实应持久化，得到 %d 条", wsFacts.Count())
 	}
 
 	// 3. 重启后同一编辑不能重复提交：old 文本已不在文件里，重新 preview 直接失败。

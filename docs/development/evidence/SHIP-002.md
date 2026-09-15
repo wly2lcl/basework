@@ -1,4 +1,6 @@
-# SHIP-002 验证记录：跨平台安装与升级验证（完成）
+# SHIP-002 验证记录：跨平台安装与升级验证（历史完成记录；当前待验证）
+
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。早期“完成”只描述历史快照；当前候选、镜像和平台缺口见文末日期段。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-002) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -85,6 +87,103 @@
   - `fixtures/upgrade-v1.jsonl`（v1）、`fixtures/future-v99.jsonl`（v99）。
   - dry-run 命令见 `docs/release.md` 的"本地验证"一节。
 - 下一步（不属本项）：SHIP-003 候选版本验收，需在本卡与 SHIP-001 完成后进行。
+
+## 2026-09-15 当前工作区镜像复核
+
+旧记录中的“缺 buildx”只描述 2026-09-13 的环境快照；当前环境已安装并可用
+Docker Buildx v0.30.0，`basework-builder` 支持 linux/amd64、linux/arm64。
+这段证据仍明确标记为 dirty worktree 产物，不能替代候选 commit 的发布包。
+
+- 当前工作区用 `CGO_ENABLED=0`、`-tags "sqlite memory"` 分别构建
+  `linux/amd64` 与 `linux/arm64` 二进制；SHA-256 分别为
+  `c231eb71c83fffbb8027eba9e2fe1bcd8e66ab61835d4e61801cc4eb2f66328b` 和
+  `f61c35d0ef00230b12f5d824d3b06b00a2f4cf3532eb8e9f75bffa5a10833991`。
+- 使用 `docker buildx build --platform linux/amd64,linux/arm64` 从
+  `docker/Dockerfile.goreleaser` 构建离线 OCI 镜像；manifest list digest 为
+  `sha256:e898c8e2dea1deb4e452ab5c0b20880e9de0baa7ae93f78be071da3f4ad30f5c`，
+  OCI 文件 SHA-256 为
+  `96de5ae011ab790b8f9ce82c8b13dac8d71857ada0452889168aa7d69d1829e3`。
+- 两个架构均实际运行 `basework version`：输出分别为 `linux/arm64`、
+  `linux/amd64`；两个架构均在只读工作区挂载下运行 `facts show`，返回空事实且
+  无写入工作区。镜像默认用户为 UID 0，`/usr/local/bin/basework` 权限为 0755，
+  这是当前 Dockerfile 的实际发布语义。
+- 只读根文件系统直接运行 `facts show` 会因产品需要创建会话数据目录而失败；补充
+  隔离可写 `/root/.local/share/basework` 后通过。这一区分已记录，不能把“只读工作区”
+  误写成“整个容器根目录只读可运行”。
+
+## 2026-09-15 当前边界
+
+本节补齐了当前候选工作区的 Docker 构建与运行证据，但 GoReleaser 当前候选包、
+Windows/macOS/Linux 目标系统安装、真实 CI run 和外部 Provider 仍未获得，因此
+SHIP-002 继续保持“待验证”，不把 dirty worktree 镜像当作发布候选。
+
+当前本机 `gh auth status` 返回 GitHub token 无效，无法从这个工作区为未提交修改
+触发或读取新的候选 CI run；这解释了为什么 CI 结果仍是待补证据，而不是把旧 run
+或 workflow 定义误写成当前候选已通过。
+
+## 2026-09-15 清洁候选镜像复核
+
+为避免把 dirty worktree 镜像当成发布候选，本轮在清洁临时 checkout 的候选提交
+`ac6852dc33d77a01ccb927e5a6cc46dafad804d5` 中重新交叉构建二进制，并用本机
+`basework-builder`（BuildKit v0.32.2，支持 linux/amd64、linux/arm64）构建 OCI
+manifest：
+
+```text
+docker buildx build --builder basework-builder \
+  --platform linux/amd64,linux/arm64 \
+  --file docker/Dockerfile.goreleaser \
+  --tag basework:candidate-ac6852d \
+  --output type=oci,dest=/private/tmp/basework-candidate-CMwi7Z/basework-ac6852d.oci .
+```
+
+结果可追溯为：manifest `sha256:97beb43a4bdf317d7be93b97623ffef2cce2dc0d9cba549b155e2b04bd0ef5b0`，
+OCI 文件 SHA-256 `b74f8f0ebc7a4cc295541da5b50cefecd927966ff07b66c7a74976ce3605c455`；
+候选二进制 SHA-256 为 linux/amd64 `dbbeb59d8638723e4ebd6065a48bee7626b6c57c23bea6568cb09e58fc8742eb`
+和 linux/arm64 `00e1067b724cb04500cbfd540e1fbc4631e7f5c69fd380d0faf9f7288e250a5c`。
+
+载入本机 Docker 后，两种架构均实际运行 `basework version`，分别返回
+`platform: linux/amd64` 与 `platform: linux/arm64`；在 `/workspace:ro` 挂载候选源码、
+并将会话数据隔离到临时可写目录时，两种架构均实际运行 `facts show`，返回空事实且
+候选 checkout 的 Git 状态除构建上下文目录外没有源文件改动。候选全量
+`go test -tags 'sqlite memory' -count=1 ./...` 已通过，覆盖迁移/恢复回归。
+
+这段证据关闭“镜像构建与运行有记录”补充验收；它仍不能关闭“每个声明平台都有实际
+安装结果且 CI 与候选 commit 可追溯”，因为 macOS/Windows 安装与候选 CI 尚未在对应
+目标环境执行。
+
+## 2026-09-15 当前 GoReleaser 快照
+
+使用当前工作区（`HEAD=7a874c9`，仍有未提交修改）安装 GoReleaser 2.18.1 后，
+重新执行与 CI 相同的检查和快照命令：
+
+```text
+goreleaser check
+goreleaser release --snapshot --clean --skip=docker,publish
+```
+
+两条命令均退出 0。快照版本为 `0.1.4-SNAPSHOT-7a874c9`，产出 5 个平台包：
+Darwin arm64/x86_64、Linux arm64/x86_64、Windows x86_64。当前机器实际解包运行
+的只有 Darwin arm64：`basework version` 返回 `platform: darwin/arm64`，随后在
+隔离 HOME 下运行 `config explain`，默认配置可解析且没有网络请求。其余包已用
+`file` 核对为对应 ELF/PE/Mach-O 架构并记录哈希，但未在目标系统执行。
+
+当前快照包 SHA-256：
+
+| 产物 | SHA-256 |
+|---|---|
+| `basework_Darwin_arm64.tar.gz` | `9d102e9455d5a831544416a6d6fec3fdd7fc42e4de3f951d109c93e80babea6b` |
+| `basework_Darwin_x86_64.tar.gz` | `a3d040dd14fff791cf716ee6f6e61cbcdfdba986595b78a915f034193b009398` |
+| `basework_Linux_arm64.tar.gz` | `0087bd9dd4d9c56f05e22f088fe7ebb167d6a03c43a4833a1a45d5b582778192` |
+| `basework_Linux_x86_64.tar.gz` | `db5b028ff71000d013f0d0acb7c13bf77371d27f7527cb196d94c22a0c9a7f85` |
+| `basework_Windows_x86_64.zip` | `93ca415b3e28b9be5133e9d8fbe2eb515d3cb6d13f79148b26ee4489e3ee7143` |
+
+这段证据把“旧 macOS 包”替换为当前 dirty worktree 快照，但仍不把它写成候选
+commit 或 CI 结果；Docker 多平台证据见上一节。
+
+补充状态校正：历史“已知限制”中关于 `basework init` 在保持打开的空管道上阻塞的
+描述已由 OPT-001 修复覆盖。当前 `cmd/basework` 单测与真实 PTY 初始化入口均通过，
+该段只保留为历史问题记录，不再作为当前能力缺口；当前发布缺口仍是目标平台安装、
+候选 CI 和真实 Provider。
 
 ## 结论
 

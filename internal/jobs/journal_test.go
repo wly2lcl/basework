@@ -171,6 +171,98 @@ func TestJSONLJournal_MiddleCorruptionIsError(t *testing.T) {
 	}
 }
 
+func TestJSONLJournal_AppendAfterTruncatedTail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "jobs.jsonl")
+	j := NewJSONLJournal(path)
+	rec := Record{Kind: RecordStarted, JobID: "one", Owner: "owner", State: StateRunning}
+	if err := j.Append(rec); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.WriteString("{\"kind\":"); err != nil {
+		_ = f.Close()
+		t.Fatal(err)
+	}
+	if err = f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = j.Records(); err != nil {
+		t.Fatal(err)
+	}
+	rec.Kind, rec.State = RecordTerminal, StateInterrupted
+	if err = j.Append(rec); err != nil {
+		t.Fatal(err)
+	}
+	got, err := j.Records()
+	if err != nil {
+		t.Fatalf("追加后日志应保持可读: %v", err)
+	}
+	if len(got) != 2 || got[1].Kind != RecordTerminal {
+		t.Fatalf("记录不完整: %+v", got)
+	}
+}
+
+func TestJSONLJournal_AppendAfterCompleteTailWithoutNewline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "jobs.jsonl")
+	j := NewJSONLJournal(path)
+	first := Record{Kind: RecordStarted, JobID: "one", Owner: "owner", State: StateRunning}
+	if err := j.Append(first); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		t.Fatal("Append should terminate records with newline")
+	}
+	if err := os.WriteFile(path, data[:len(data)-1], 0o600); err != nil {
+		t.Fatal(err)
+	}
+	second := Record{Kind: RecordTerminal, JobID: "one", Owner: "owner", State: StateSucceeded}
+	if err := j.Append(second); err != nil {
+		t.Fatal(err)
+	}
+	got, err := j.Records()
+	if err != nil {
+		t.Fatalf("complete no-newline tail should remain readable: %v", err)
+	}
+	if len(got) != 2 || got[0].Kind != RecordStarted || got[1].Kind != RecordTerminal {
+		t.Fatalf("records should be separated: %+v", got)
+	}
+}
+
+func TestJSONLJournal_ConcurrentAppendsRemainReadable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "jobs.jsonl")
+	const writers = 8
+	const each = 20
+	var wg sync.WaitGroup
+	for w := 0; w < writers; w++ {
+		wg.Add(1)
+		go func(writer int) {
+			defer wg.Done()
+			j := NewJSONLJournal(path)
+			for n := 0; n < each; n++ {
+				if err := j.Append(Record{Kind: RecordStarted, JobID: fmt.Sprintf("%d-%d", writer, n), Owner: "o", State: StateQueued}); err != nil {
+					t.Errorf("writer %d append %d: %v", writer, n, err)
+					return
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	recs, err := NewJSONLJournal(path).Records()
+	if err != nil {
+		t.Fatalf("concurrent appends should remain valid JSONL: %v", err)
+	}
+	if len(recs) != writers*each {
+		t.Fatalf("expected %d records, got %d", writers*each, len(recs))
+	}
+}
+
 // ---------------------------------------------------------------- 启动即落记录
 
 // TestStart_WritesStartedRecordBeforeRunner 确认 started 记录在命令跑起来之前就已落盘。

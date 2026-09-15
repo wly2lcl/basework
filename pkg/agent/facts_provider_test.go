@@ -107,3 +107,45 @@ func TestFactsSummaryProvider_HashOnlyInsideWorkspace(t *testing.T) {
 		t.Fatalf("绝对路径应拒绝: %v", err)
 	}
 }
+
+func TestFactsSummaryProvider_StaleAcrossCollects(t *testing.T) {
+	base := t.TempDir()
+	wsID := session.WorkspaceID(base)
+	w := session.NewWorkspaceFacts(wsID)
+	w.Add(session.Fact{Kind: session.FactFileModified, Key: session.FileFactKey(session.FactFileModified, "a.go"), Path: "a.go", Source: "edit_files"})
+	if err := session.SaveWorkspaceFacts(base, w); err != nil {
+		t.Fatal(err)
+	}
+	hash := "old"
+	p := NewFactsSummaryProvider(base, wsID, 8192, func(string) (string, error) { return hash, nil })
+	if _, err := p.Collect(); err != nil {
+		t.Fatal(err)
+	}
+	hash = "new"
+	text, err := p.Collect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(text, "已过期") {
+		t.Fatalf("文件哈希变化后应标记过期: %s", text)
+	}
+}
+
+func TestFactsSummaryProvider_RejectsWindowsTraversal(t *testing.T) {
+	called := false
+	p := NewFactsSummaryProvider(t.TempDir(), "ws", 8192, func(string) (string, error) { called = true; return "hash", nil })
+	if _, err := p.wrapHash(`..\outside.txt`); !errors.Is(err, ErrProtectedPath) || called {
+		t.Fatalf("Windows 相对穿越应被拒绝: err=%v hashCalled=%v", err, called)
+	}
+}
+
+func TestFactsSummaryProvider_RejectsWindowsRootAndDrivePaths(t *testing.T) {
+	called := false
+	p := NewFactsSummaryProvider(t.TempDir(), "ws", 8192, func(string) (string, error) { called = true; return "hash", nil })
+	for _, candidate := range []string{`\Windows\system32`, `C:\Windows\system32`, `C:Windows\system32`, `\\server\share\secret.txt`} {
+		called = false
+		if _, err := p.wrapHash(candidate); !errors.Is(err, ErrProtectedPath) || called {
+			t.Fatalf("Windows 越界路径应被拒绝: path=%q err=%v hashCalled=%v", candidate, err, called)
+		}
+	}
+}

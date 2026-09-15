@@ -220,3 +220,13 @@ func TestFoldFileEdited_IdempotentProjection(t *testing.T) {
 		t.Fatalf("撤销应产生 file_reverted: %+v", w3.List())
 	}
 }
+
+func TestFoldFileEdited_PartialFailureKeepsWrittenFact(t *testing.T) {
+	w := NewWorkspaceFacts("ws")
+	FoldFileEdited(w, FileEditedData{Phase: "failed", PlanID: "partial", Files: []FileEditRecord{
+		{Path: "a.go", State: "written"}, {Path: "b.go", State: "conflict"},
+	}}, time.Now())
+	if w.Count() != 1 || w.List()[0].Path != "a.go" {
+		t.Fatalf("部分提交的已写文件必须保留事实: %+v", w.List())
+	}
+}

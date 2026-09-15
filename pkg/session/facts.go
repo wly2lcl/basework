@@ -250,7 +250,7 @@ func FoldFileEdited(w *WorkspaceFacts, data FileEditedData, at time.Time) {
 		}
 		var kind, source string
 		switch {
-		case data.Phase == "committed" && rec.State == "written":
+		case rec.State == "written":
 			kind, source = FactFileModified, "edit_files"
 		case data.Phase == "rolled_back" && rec.State == "reverted":
 			kind, source = FactFileReverted, "edit_files"

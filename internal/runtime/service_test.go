@@ -427,6 +427,83 @@ func TestClose_DuringRunCancelsRunningAndWakesSubscriber(t *testing.T) {
 	}
 }
 
+func TestStartQueuedAfterCloseDoesNotInvokeAgent(t *testing.T) {
+	calls := make(chan string, 1)
+	agt := &fakeAgent{handle: func(context.Context, string) (*agent.Response, error) {
+		calls <- "called"
+		return &agent.Response{}, nil
+	}}
+	svc := mustNew(t, agt, LocalDeps{})
+	// Occupy the single run gate with a running call, then queue another call.
+	block := make(chan struct{})
+	agt.handle = func(ctx context.Context, input string) (*agent.Response, error) {
+		if input == "first" {
+			select {
+			case <-block:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			return nil, ctx.Err()
+		}
+		calls <- input
+		return &agent.Response{}, nil
+	}
+	firstDone := make(chan struct{})
+	go func() { _, _ = svc.Start(context.Background(), "first"); close(firstDone) }()
+	deadline := time.After(2 * time.Second)
+	for {
+		svc.mu.Lock()
+		n := len(svc.cancels)
+		svc.mu.Unlock()
+		if n > 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("first run not registered")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+	queuedDone := make(chan error, 1)
+	go func() { _, err := svc.Start(context.Background(), "queued"); queuedDone <- err }()
+	if err := svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	close(block)
+	<-firstDone
+	select {
+	case err := <-queuedDone:
+		if !errors.Is(err, ErrClosed) {
+			t.Fatalf("queued start after close: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("queued Start did not return")
+	}
+	select {
+	case got := <-calls:
+		t.Fatalf("Agent invoked after Close: %s", got)
+	default:
+	}
+}
+
+func TestSubscribeAfterCloseReturnsClosedChannel(t *testing.T) {
+	svc := mustNew(t, &fakeAgent{}, LocalDeps{})
+	if err := svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	sub := svc.Subscribe()
+	defer sub.Unsubscribe()
+	select {
+	case _, ok := <-sub.Events():
+		if ok {
+			t.Fatal("closed subscription emitted event")
+		}
+	default:
+		t.Fatal("subscription after Close remains open")
+	}
+}
+
 // TestSubscription_DroppedCount 慢消费者策略：缓冲满后丢弃并计数，不阻塞。
 func TestSubscription_DroppedCount(t *testing.T) {
 	agt := &fakeAgent{}

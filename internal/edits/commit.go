@@ -247,6 +247,7 @@ type CommitResult struct {
 	Batch    *Batch
 	Outcomes []FileOutcome
 
+	planner   *Planner
 	originals map[string][]byte
 	perm      map[string]os.FileMode
 }
@@ -304,6 +305,7 @@ func (p *Planner) Commit(batch *Batch, opts CommitOptions) (*CommitResult, error
 	write := opts.writeFile()
 	result := &CommitResult{
 		Batch:     batch,
+		planner:   p,
 		originals: make(map[string][]byte, len(batch.Files)),
 		perm:      make(map[string]os.FileMode, len(batch.Files)),
 	}
@@ -469,6 +471,31 @@ func (r *CommitResult) Rollback(opts CommitOptions) (*RollbackResult, error) {
 		outcome := RollbackOutcome{RelPath: fc.RelPath}
 		if !written[fc.AbsPath] {
 			outcome.State = RollbackNotWritten
+			res.Outcomes = append(res.Outcomes, outcome)
+			continue
+		}
+		// 撤销与提交一样必须重新经过 Planner：提交后工作区的目录、软链或
+		// 权限可能已经改变。直接使用 fc.AbsPath 会让父目录软链把写入重定向
+		// 到工作区外，也会绕过调用方撤回的权限。
+		if r.planner == nil || len(fc.Ops) == 0 {
+			outcome.State = RollbackFailed
+			outcome.Err = "撤销缺少原始路径校验器"
+			failed++
+			res.Outcomes = append(res.Outcomes, outcome)
+			continue
+		}
+		resolved, err := r.planner.ResolvePath(fc.Ops[0].RequestedPath)
+		if err != nil {
+			outcome.State = RollbackFailed
+			outcome.Err = fmt.Sprintf("撤销前路径/权限校验失败: %v", err)
+			failed++
+			res.Outcomes = append(res.Outcomes, outcome)
+			continue
+		}
+		if resolved != fc.AbsPath {
+			outcome.State = RollbackFailed
+			outcome.Err = fmt.Sprintf("撤销目标路径发生变化：%s → %s", fc.AbsPath, resolved)
+			failed++
 			res.Outcomes = append(res.Outcomes, outcome)
 			continue
 		}

@@ -22,9 +22,10 @@
 
 **验收条件**：
 
-- [ ] 全新 checkout + 全新测试目录可一条命令准备并运行，失败给出清楚原因，清理后无该测试的进程残留。
-- [ ] 人为移除恢复/压缩/摘要接线或更换会话 ID，相关验收会失败；普通场景修复后通过。
-- [ ] 外部 module 的嵌入示例编译、运行均通过；无需导入 internal。
+- [x] 全新 checkout + 全新测试目录可一条命令准备并运行，失败给出清楚原因，清理后无该测试的进程残留。
+- [x] 更换为未知会话 ID 时验收明确失败且不创建新会话；正常会话切换场景通过。
+- [x] 在临时副本移除 session 绑定接线后，scenario6 负向验收失败；说明接线断开不会被宽松断言掩盖。
+- [x] 外部 module 的嵌入示例编译、运行均通过；无需导入 internal。
 - [ ] CI job 的具体范围、commit 和结果可查，真实模型与脚本化模型证据分开。
 
 **验证**：Python 入口在空目录运行；`go test -race -tags "sqlite memory" ./internal/runtime ./internal/jobs ./internal/edits ./internal/tui ./cmd/basework -count=1`；外部 module 与 CLI help 对照；保存 `docs/development/evidence/QA-001.md`。
@@ -48,9 +49,10 @@
 
 **验收条件**：
 
-- [ ] 无人值守模式在空目录有确定终态；缺必填值退出非零，不无限等待。
-- [ ] 旧交互模式可继续使用；已有配置保持不变，敏感值不泄漏。
-- [ ] stdin 为 TTY、EOF、打开空管道和异常输入均有测试。
+- [x] 无人值守模式在空目录有确定终态；缺必填值退出非零，不无限等待。
+- [x] 旧交互模式可继续使用；已有配置保持不变，敏感值不泄漏。
+- [x] stdin EOF、保持打开的空管道和异常输入均有测试，非交互路径不读取 stdin。
+- [x] 真实 PTY 交互输入已由 `tests/opt_pty_init.py` 验证；Windows 目标终端仍属发布平台边界。
 
 **验证**：`go test ./cmd/basework ./pkg/config -count=1`，隔离 HOME 的真实二进制初始化；保存 `docs/development/evidence/OPT-001.md`。
 
@@ -72,8 +74,8 @@
 
 **验收条件**：
 
-- [ ] 有可重复的基准命令、原始结果与至少 3 次样本；不能用普通 go test 的 no tests to run 替代。
-- [ ] 比较使用相同数据集和环境；内存、延迟、日志体积分别记录。
-- [ ] 优化建议有证据与验收阈值，尚未测量的项目明确标未知。
+- [x] 有可重复的基准命令、原始结果与至少 3 次样本；不能用普通 go test 的 no tests to run 替代。
+- [x] 比较使用相同数据集和环境；内存、延迟、日志体积分别记录。
+- [x] 优化建议有证据与验收阈值，尚未测量的项目明确标未知。
 
 **验证**：`go test -tags "sqlite memory" ./tests/benchmark -run '^$' -bench . -benchmem -count=3`；独立 TUI/长任务夹具；保存 `docs/development/evidence/OPT-002.md`。

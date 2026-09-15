@@ -14,8 +14,8 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import harness as H  # noqa: E402
 
-SHELL_PID = "/private/tmp/ship003/runs/slow-shell.pid"
-TEST_PID = "/private/tmp/ship003/runs/slow-test.pid"
+SHELL_PID = os.path.join(H.RUNS, "slow-shell.pid")
+TEST_PID = os.path.join(H.RUNS, "slow-test.pid")
 
 
 def read_pid(path):

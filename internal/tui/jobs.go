@@ -186,7 +186,7 @@ func (v *JobsView) loadOutput() {
 		return
 	}
 	job := v.jobs[v.selected]
-	v.output = v.readOut(job.ID, 0)
+	v.output = normalizeOutput(v.readOut(job.ID, 0))
 	v.showOut = true
 	if v.output.Err != "" {
 		v.notice = "读取输出失败：" + v.output.Err
@@ -215,8 +215,27 @@ func (v *JobsView) pageOutput(dir int) {
 			next = 0
 		}
 	}
-	v.output = v.readOut(job.ID, next)
+	v.output = normalizeOutput(v.readOut(job.ID, next))
 	v.notice = ""
+}
+
+// normalizeOutput 将读回内容限制为一页可消费的字节与行数。
+// reader 可能因为实现差异返回超过一页的文本；如果只在 Render 时
+// 截断而不调整 More/Offset，后续翻页会直接跳到 EOF，导致中间行不可达。
+func normalizeOutput(msg JobOutputMsg) JobOutputMsg {
+	text := msg.Text
+	if len(text) > jobOutputMaxBytes {
+		text = text[:jobOutputMaxBytes]
+		msg.More = true
+	}
+	lines := strings.Split(text, "\n")
+	if len(lines) > jobOutputPageSize+1 {
+		// 保留前 30 行并消费它们末尾的换行；下一页从该字节偏移开始。
+		text = strings.Join(lines[:jobOutputPageSize], "\n") + "\n"
+		msg.More = true
+	}
+	msg.Text = text
+	return msg
 }
 
 // cancelSelected 请求取消选中任务。

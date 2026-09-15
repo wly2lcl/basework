@@ -7,34 +7,69 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
+import atexit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from tui_drive import TuiSession  # noqa: E402
 
-# 运行目录可用环境变量覆盖：默认放在系统临时目录，避免污染仓库。
-ROOT = os.environ.get("SHIP003_ROOT", "/private/tmp/ship003")
-BIN = os.path.join(ROOT, "bin", "basework")
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+
+# 运行目录可用环境变量覆盖：默认创建一次性临时目录，避免依赖某次历史运行
+# 留下的 fixtures 或 PID 文件。显式传入 SHIP003_ROOT 时保留目录，方便复盘报告。
+_OWN_ROOT = "SHIP003_ROOT" not in os.environ
+ROOT = os.environ.get("SHIP003_ROOT") or tempfile.mkdtemp(prefix="basework-ship003-")
+BIN = os.environ.get("SHIP003_BIN") or os.path.join(ROOT, "bin", "basework")
+SKIP_BUILD = os.environ.get("SHIP003_SKIP_BUILD") == "1"
 RUNS = os.path.join(ROOT, "runs")
-FIXTURES = os.path.join(ROOT, "fixtures")
+FIXTURES = os.path.join(REPO_ROOT, "tests", "tui_pty", "fixtures")
 TEMPLATES = os.path.join(ROOT, "templates")
 WORK = os.path.join(ROOT, "work")
 
-# 本机有两个 go：/usr/local/go 实为 go1.24.10，真正的 1.26.0 SDK 在 ~/sdk/go1.26.0。
-# GOTOOLCHAIN=auto 时 go 会「切换」到 $HOME/sdk 下已下载的工具链——隔离 HOME 后
-# 那个目录不存在，切换就退化成去 PATH 找 go1.26.0（命中 golang.org/dl 桩）并报
-# 「not downloaded」。因此夹具必须把真实 SDK 放到 PATH 首位并用 GOTOOLCHAIN=local
-# 明确禁止切换：否则测的就不是产品，而是本机工具链解析。
-GO_ROOT = "/Users/wangluyao/sdk/go1.26.0"
+def _go_root():
+    """发现当前工具链；SHIP003_GO_ROOT 可用于 CI 或隔离 SDK。"""
+    explicit = os.environ.get("SHIP003_GO_ROOT")
+    if explicit:
+        return os.path.abspath(explicit)
+    go = shutil.which("go")
+    if not go:
+        raise RuntimeError("未找到 go；可设置 SHIP003_GO_ROOT 指向 SDK")
+    result = subprocess.run([go, "env", "GOROOT"], capture_output=True,
+                            text=True, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise RuntimeError("无法发现 Go SDK: " + result.stderr.strip())
+    return result.stdout.strip()
+
+
+GO_ROOT = _go_root()
+_GO = os.path.join(GO_ROOT, "bin", "go")
+_GO_MODCACHE = os.environ.get("GOMODCACHE")
+if not _GO_MODCACHE:
+    _modcache_probe = subprocess.run([_GO, "env", "GOMODCACHE"],
+                                     capture_output=True, text=True, check=False)
+    _GO_MODCACHE = _modcache_probe.stdout.strip()
+
+
+def _cleanup_owned_root():
+    # 自己创建的临时根只在所有子进程已回收后清理；显式根由调用者保留用于复盘。
+    if _OWN_ROOT:
+        shutil.rmtree(ROOT, ignore_errors=True)
+
+
+atexit.register(_cleanup_owned_root)
 
 
 def go_env(home):
     """夹具与夹具内 `go test` 共用的、确定的 Go 环境。"""
     return {
         "HOME": home,
-        "PATH": os.path.join(GO_ROOT, "bin") + ":/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": os.path.join(GO_ROOT, "bin") + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
         "GOROOT": GO_ROOT,
         "GOTOOLCHAIN": "local",
+        "GOCACHE": os.path.join(ROOT, "go-cache"),
+        **({"GOMODCACHE": _GO_MODCACHE} if _GO_MODCACHE else {}),
     }
 
 
@@ -43,11 +78,32 @@ def reset_work():
     """从模板重建工作区——每次运行都从同一缺陷态出发，保证可复现。"""
     if os.path.isdir(WORK):
         shutil.rmtree(WORK)
+    if not os.path.isdir(FIXTURES):
+        raise RuntimeError(f"夹具目录不存在: {FIXTURES}")
     shutil.copytree(FIXTURES, WORK)
+    ensure_binary()
     return WORK
 
 
+def ensure_binary():
+    """从当前 checkout 构建验收二进制，避免依赖仓库外旧 bin。"""
+    if SKIP_BUILD:
+        if not os.path.isfile(BIN):
+            raise RuntimeError(f"SHIP003_SKIP_BUILD=1 但二进制不存在: {BIN}")
+        return
+    os.makedirs(os.path.dirname(BIN), exist_ok=True)
+    home = os.path.join(ROOT, "bootstrap-home")
+    env = dict(os.environ)
+    env.update(go_env(home))
+    result = subprocess.run(
+        [_GO, "build", "-tags", "sqlite memory", "-o", BIN, "./cmd/basework"],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError("构建 basework 失败:\n" + (result.stderr or result.stdout).strip())
+
+
 def start_fake_server(scenario_script=None, log_name="fake-requests.jsonl"):
+    os.makedirs(RUNS, exist_ok=True)
     log_path = os.path.join(RUNS, log_name)
     if os.path.exists(log_path):
         os.remove(log_path)
@@ -57,10 +113,12 @@ def start_fake_server(scenario_script=None, log_name="fake-requests.jsonl"):
     env = dict(os.environ)
     env["SHIP003_FAKE_LOG"] = log_path
     env["SHIP003_FAKE_PORTFILE"] = portfile
+    env["SHIP003_RUNS"] = RUNS
+    env["SHIP003_REPO_ROOT"] = REPO_ROOT
     if scenario_script:
         env["SHIP003_FAKE_SCRIPT"] = scenario_script
     proc = subprocess.Popen(
-        [sys.executable, os.path.join(ROOT, "fake_openai.py")],
+        [sys.executable, os.path.join(HERE, "fake_openai.py")],
         env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         start_new_session=True)
     deadline = time.time() + 15

@@ -21,30 +21,40 @@ import (
 
 // StreamDeltaMsg 表示一段流式文本增量。
 type StreamDeltaMsg struct {
-	Delta string
+	Delta     string
+	RunID     string
+	SessionID string
 }
 
 // ThinkingDeltaMsg 表示一段思考过程增量。
 type ThinkingDeltaMsg struct {
-	Delta string
+	Delta     string
+	RunID     string
+	SessionID string
 }
 
 // ToolStartMsg 表示工具开始执行。
 type ToolStartMsg struct {
-	Name string
+	Name      string
+	RunID     string
+	SessionID string
 }
 
 // ToolEndMsg 表示工具执行结束。
 type ToolEndMsg struct {
-	Name    string
-	Args    string
-	Result  string
-	IsError bool
+	Name      string
+	Args      string
+	Result    string
+	IsError   bool
+	RunID     string
+	SessionID string
 }
 
 // agentCallback 实现 agent.Callback，把 agent 生命周期事件翻译为 tea.Msg。
 type agentCallback struct {
-	send func(tea.Msg)
+	send      func(tea.Msg)
+	runID     string
+	sessionID string
 }
 
 // NewAgentCallback 创建一个把 agent 事件转发给 TUI 的回调。
@@ -56,8 +66,34 @@ func NewAgentCallback(send func(tea.Msg)) agent.Callback {
 	return &agentCallback{send: send}
 }
 
+// ForRun 返回带有不可变运行/会话标识的回调副本。runtime.Service 在每次
+// StartWithCallback 绑定前调用它，确保异步消息能在 TUI 切换会话时被过滤。
+func (cb *agentCallback) ForRun(runID, sessionID string) agent.Callback {
+	if cb == nil {
+		return nil
+	}
+	return &agentCallback{send: cb.send, runID: runID, sessionID: sessionID}
+}
+
 func (cb *agentCallback) emit(msg tea.Msg) {
 	if cb.send != nil {
+		switch m := msg.(type) {
+		case StreamDeltaMsg:
+			m.RunID, m.SessionID = cb.runID, cb.sessionID
+			msg = m
+		case ThinkingDeltaMsg:
+			m.RunID, m.SessionID = cb.runID, cb.sessionID
+			msg = m
+		case ToolStartMsg:
+			m.RunID, m.SessionID = cb.runID, cb.sessionID
+			msg = m
+		case ToolEndMsg:
+			m.RunID, m.SessionID = cb.runID, cb.sessionID
+			msg = m
+		case ErrorMsg:
+			m.RunID, m.SessionID = cb.runID, cb.sessionID
+			msg = m
+		}
 		cb.send(msg)
 	}
 }

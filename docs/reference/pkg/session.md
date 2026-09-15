@@ -40,7 +40,7 @@ steering 都按事件顺序放入后续请求。`request.built` 只留请求指�
 `TruncatedSeq`、`KeepFrom` 走兼容投影分支。
 
 完整快照会增加事件日志和存储体积，因为压缩后的消息内容会再次持久化。这是精确回放任意策略
-结果所需的成本。包级两次快照与重开 Store 已有测试；CTX-003 尚缺主产品实际触发压缩并按旧 ID 继续的验收，不能将手工写入快照后的投影测试等同于完整重启恢复。
+结果所需的成本。包级两次快照与重开 Store 已有测试；当前产品已支持按旧 ID 继续，双压缩的真实产品触发仍由 CTX-003 验收。
 
 ## 配置
 
@@ -66,7 +66,7 @@ steering 都按事件顺序放入后续请求。`request.built` 只留请求指�
 
 ## Known Limitations
 
-- WorkspaceFacts 的读写/版本接口已实现，但当前生产代码不调用 SaveWorkspaceFacts；facts show 仅临时聚合。FoldFileEdited 还会漏掉整批 failed 中单文件 written 的事实；见 CTX-001。
+- WorkspaceFacts 由运行时编辑事件接线保存，`facts show` 可读取同一工作区的持久化事实；部分提交按单文件 outcome 折叠，重复投影保持幂等。Windows 路径兼容仍由 CTX-002/发布夹具继续覆盖。
 
 - **JSONL 追加是整文件重写**：`AppendEvent` 每次都把文件头 + 全部事件写进临时文件再
   `rename`。事件数增长后，单次追加的代价是 O(文件大小)。长会话建议改用 SQLite 后端。

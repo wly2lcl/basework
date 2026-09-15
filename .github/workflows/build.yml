@@ -50,7 +50,16 @@ jobs:
           git diff --exit-code docs/DEPGRAPH.md docs/STATS.md
 
       - name: Run race tests
-        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework
+        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
+
+      # 至少保留一个真实入口烟测：脚本会从当前 checkout 构建二进制，
+      # 在临时 HOME、临时 fixtures 和本地回环假服务中跑完整修复流程。
+      - name: Run Unix PTY smoke scenario
+        run: python3 tests/tui_pty/scenario1.py
+
+      # 覆盖 init 的真实终端交互；非交互路径的 stdin 边界由 Go 单测覆盖。
+      - name: Run OPT-001 PTY init smoke
+        run: python3 tests/opt_pty_init.py
 
   test:
     name: Test (${{ matrix.os }})
@@ -77,6 +86,10 @@ jobs:
 
       - name: Build binary
         run: go build -tags "sqlite memory" ./cmd/basework
+
+      - name: Run Windows path boundary tests
+        if: matrix.os == 'windows-latest'
+        run: go test -tags "sqlite memory" ./pkg/agent ./cmd/basework -run "TestFactsSummaryProvider_RejectsWindows|TestFactsHashFunc_RejectsSymlinkOutsideWorkspace" -count=1 -v
 
   release-dry-run:
     name: Release Dry Run

@@ -381,6 +381,35 @@ func (t *EditFilesTool) lookupPlan(planID string) (*editPlanRecord, bool) {
 	return rec, ok
 }
 
+// ApprovalDetails 返回已保存计划的真实路径与差异，供权限审批卡片展示。
+// 未知 plan_id 或非编辑调用返回空；这不会放宽权限检查。
+func (t *EditFilesTool) ApprovalDetails(toolName string, args map[string]interface{}) ([]string, string) {
+	if toolName != "edit_files" {
+		return nil, ""
+	}
+	planID, _ := args["plan_id"].(string)
+	if planID == "" {
+		return nil, ""
+	}
+	rec, ok := t.lookupPlan(planID)
+	if !ok || rec.batch == nil {
+		return nil, ""
+	}
+	paths := rec.batch.RelPaths()
+	var b strings.Builder
+	for _, fc := range rec.batch.Files {
+		for _, op := range fc.Ops {
+			fmt.Fprintf(&b, "--- %s (操作 %s)\n", fc.RelPath, shortID(op.ID))
+			for _, line := range op.Diff {
+				b.WriteString(line.Kind.Prefix())
+				b.WriteString(line.Text)
+				b.WriteByte('\n')
+			}
+		}
+	}
+	return paths, b.String()
+}
+
 // emit 落一条编辑事实事件。失败只记日志：事件是审计线索，不阻断编辑流程。
 func (t *EditFilesTool) emit(data *session.FileEditedData) {
 	if t.Sink == nil {

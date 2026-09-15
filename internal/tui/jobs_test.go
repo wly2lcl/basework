@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -111,6 +112,26 @@ func TestJobsView_Pagination(t *testing.T) {
 	v.HandleKey("[")
 	if lastOffset < 0 {
 		t.Fatal("回退不应低于 0")
+	}
+}
+
+func TestJobsView_LongLinePageRemainsReachable(t *testing.T) {
+	var text strings.Builder
+	for i := 1; i <= 60; i++ {
+		fmt.Fprintf(&text, "LINE-%03d\n", i)
+	}
+	all := text.String()
+	v := NewJobsView(func(id string, off int64) JobOutputMsg {
+		return JobOutputMsg{JobID: id, Offset: off, Text: all[off:], More: false}
+	}, nil)
+	v.Toggle()
+	v.Update(JobStatusMsg{Jobs: []JobStatus{{ID: "job", State: "succeeded"}}})
+	v.HandleKey("enter")
+	first := v.Render(100, theme.DefaultTheme)
+	v.HandleKey("]")
+	next := v.Render(100, theme.DefaultTheme)
+	if !strings.Contains(first, "LINE-030") || !strings.Contains(next, "LINE-031") {
+		t.Fatalf("第 31 行应可通过下一页到达:\nfirst=%s\nnext=%s", first, next)
 	}
 }
 

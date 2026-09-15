@@ -697,3 +697,72 @@ func TestCommit_RejectsEmptyBatch(t *testing.T) {
 		t.Fatalf("nil 结果撤销应报 ErrNoOperations，得到 %v", err)
 	}
 }
+
+func TestRollback_RechecksPermissionAfterCommit(t *testing.T) {
+	allowed := true
+	p, root := newPlanner(t, func(string) (bool, string) { return allowed, "revoked" })
+	file := writeFile(t, root, "a.txt", "old")
+	op, err := p.Preview("a.txt", "old", "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch, err := p.Prepare(op)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := p.Commit(batch, CommitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	allowed = false
+	rb, err := res.Rollback(CommitOptions{})
+	if err == nil || rb.Outcomes[0].State != RollbackFailed {
+		t.Fatalf("撤销应因权限撤回失败: %+v, %v", rb, err)
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("权限撤回后不应改写文件: %q", data)
+	}
+}
+
+func TestRollbackRejectsParentSymlinkEscape(t *testing.T) {
+	p, root := newPlanner(t, nil)
+	writeFile(t, root, "sub/a.txt", "old")
+	op, err := p.Preview("sub/a.txt", "old", "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch, err := p.Prepare(op)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := p.Commit(batch, CommitOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	target := filepath.Join(outside, "a.txt")
+	if err := os.WriteFile(target, []byte("new"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "sub"), filepath.Join(root, "saved")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "sub")); err != nil {
+		t.Fatal(err)
+	}
+	rb, err := res.Rollback(CommitOptions{})
+	if err == nil || rb.Outcomes[0].State != RollbackFailed {
+		t.Fatalf("软链逃逸应被拒绝: %+v, %v", rb, err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("工作区外文件被修改: %q", data)
+	}
+}

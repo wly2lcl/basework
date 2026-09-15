@@ -130,9 +130,11 @@ type LocalService struct {
 	closed atomic.Bool
 	runSeq atomic.Int64
 
-	// runsMu 串行化同一会话的运行（RUN-002 并发策略）。Start 持有它
-	// 贯穿整个 HandleMessage；Cancel/Subscribe 不需要它，不会被运行卡住。
-	runsMu sync.Mutex
+	// runGate 串行化同一会话的运行（RUN-002 并发策略）。使用 channel
+	// 而不是不可取消的 Mutex，使排队中的调用能响应 ctx 取消；Close
+	// 持有令牌等待在途运行结束后再释放 Agent。
+	runGate  chan struct{}
+	closedCh chan struct{}
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
@@ -160,6 +162,8 @@ func NewLocal(deps LocalDeps) (*LocalService, error) {
 		cbSwitch:    deps.CallbackSwitch,
 		uiCallback:  deps.UICallback,
 		cancels:     make(map[string]context.CancelFunc),
+		runGate:     func() chan struct{} { ch := make(chan struct{}, 1); ch <- struct{}{}; return ch }(),
+		closedCh:    make(chan struct{}),
 	}, nil
 }
 
@@ -182,11 +186,26 @@ func (s *LocalService) StartWithCallback(ctx context.Context, input string, cb a
 	if cb == nil {
 		cb = s.uiCallback
 	}
+	// 串行化：排队等前一个运行结束再开始；排队期间响应调用方取消。
+	select {
+	case <-s.runGate:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-s.closedCh:
+		return nil, ErrClosed
+	}
+	defer func() { s.runGate <- struct{}{} }()
+	if s.closed.Load() {
+		return nil, ErrClosed
+	}
 	runID := fmt.Sprintf("run-%06d", s.runSeq.Add(1))
-
-	// 串行化：排队等前一个运行结束再开始（见包注释的并发策略）。
-	s.runsMu.Lock()
-	defer s.runsMu.Unlock()
+	// 可选的按运行回调工厂让 UI 给每条异步消息附上不可变的 run/session
+	// 标识。旧回调即使在解绑边界附近迟到，也不会被新会话误收。
+	if scoped, ok := cb.(interface {
+		ForRun(string, string) agent.Callback
+	}); ok {
+		cb = scoped.ForRun(runID, s.sessionID)
+	}
 
 	if s.cbSwitch != nil && cb != nil {
 		s.cbSwitch.Bind(cb)
@@ -249,6 +268,11 @@ func (s *LocalService) Subscribe() Subscription {
 	ch := make(chan RunEvent, s.eventBuffer)
 	sub := &localSub{svc: s, events: ch}
 	s.mu.Lock()
+	if s.closed.Load() {
+		sub.closeOnce.Do(func() { close(ch) })
+		s.mu.Unlock()
+		return sub
+	}
 	s.subs = append(s.subs, sub)
 	s.mu.Unlock()
 	return sub
@@ -260,6 +284,7 @@ func (s *LocalService) Close() error {
 	if !s.closed.CompareAndSwap(false, true) {
 		return nil
 	}
+	close(s.closedCh)
 	// 取消所有进行中的运行：关闭语义是「全停」，让 Start 的调用方
 	// 以 context.Canceled 返回，而不是悬挂到自然结束。
 	s.mu.Lock()
@@ -275,6 +300,9 @@ func (s *LocalService) Close() error {
 		sub.closeOnce.Do(func() { close(sub.events) })
 	}
 	s.mu.Unlock()
+	// 等待当前持有 runGate 的运行退出。令牌在等待期间保持占有，
+	// 因此不会有新的运行进入 Agent；排队调用会通过 closedCh 返回。
+	<-s.runGate
 
 	var firstErr error
 	if s.jobs != nil {
@@ -286,6 +314,8 @@ func (s *LocalService) Close() error {
 			firstErr = err
 		}
 	}
+	// 允许仅为避免误用而释放令牌；closedCh 已关闭，后续 Start 仍会拒绝。
+	s.runGate <- struct{}{}
 	return firstErr
 }
 

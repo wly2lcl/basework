@@ -35,6 +35,8 @@ import (
 
 type runtimeAgentOptions struct {
 	Callback agent.Callback
+	// SessionID 是用户明确选择的历史会话；为空则创建新会话。
+	SessionID string
 	// Preset 是命令行 --preset 指定的启动预设（CFG-002）。
 	// 空表示未指定；与配置文件 preset 不同值时属冲突（ADR 0006）。
 	Preset string
@@ -150,7 +152,7 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 	// configureBuiltinToolRuntime 返回的 pathChecker），不另起一套标准。
 	editTool := runtimetools.NewEditFilesTool(cwd)
 	editTool.CheckPath = pathChecker.CheckPath
-	editTool.Sink = &runtimeEditEventSink{store: sess, sessionID: jobOwner.Get}
+	editTool.Sink = &runtimeEditEventSink{store: sess, sessionID: jobOwner.Get, factsBase: getSessionDir()}
 	editTool.Tracker = session.NewFileTracker()
 
 	var permissionChecker *runtimePermissionChecker
@@ -158,6 +160,9 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 		permissionChecker, err = newPermissionChecker(cfg, opts.ApprovalPrompt)
 		if err != nil {
 			return nil, err
+		}
+		if adapter, ok := permissionChecker.Adapter.(*permission.PathPermissionAdapter); ok {
+			adapter.SetApprovalDetails(editTool.ApprovalDetails)
 		}
 		for i, cleanup := range permissionChecker.Cleanups {
 			scope.Register(fmt.Sprintf("permission-persistence-%d", i), cleanup)
@@ -188,12 +193,41 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 		}
 	}
 
+	// Facts provider 贯穿 Agent 生命周期：初始化时生成首个摘要，每轮请求前
+	// 重新 Collect，确保 edit_files 写入的事实能在下一请求出现，同时复用
+	// StaleTracker 识别文件在两次请求之间的变化。
+	var factsProvider *agent.FactsSummaryProvider
+	if cfg.FactsSummary != nil && cfg.FactsSummary.Enabled {
+		factsProvider = agent.NewFactsSummaryProvider(getSessionDir(), runtimeWorkspaceID(),
+			cfg.FactsSummary.BudgetKB*1024, factsHashFunc(cwd, pathChecker))
+	}
+	collectSystemPrompt := func() string {
+		prompt := runtimeSystemPrompt(cfg, cwd, nil)
+		if factsProvider != nil {
+			if text, collectErr := factsProvider.Collect(); collectErr == nil && text != "" {
+				if prompt == "" {
+					prompt = text
+				} else {
+					prompt += "\n\n" + text
+				}
+			}
+		}
+		return prompt
+	}
+
 	agentOpts := []agent.Option{
 		agent.WithModel(model),
 		agent.WithSession(sess),
-		agent.WithSystemPrompt(runtimeSystemPrompt(cfg, cwd, factsHashFunc(cwd, pathChecker))),
+		agent.WithSystemPrompt(collectSystemPrompt()),
 		agent.WithMaxSteps(cfg.MaxIterations),
+		agent.WithMaxContextTokens(cfg.MaxContextTokens),
 		agent.WithTools(tools...),
+	}
+	if factsProvider != nil {
+		agentOpts = append(agentOpts, agent.WithSystemPromptProvider(collectSystemPrompt))
+	}
+	if opts.SessionID != "" {
+		agentOpts = append(agentOpts, agent.WithSessionID(opts.SessionID))
 	}
 
 	auditMode, err := runtimeAuditMode()
@@ -207,6 +241,10 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 	// 落进下一次运行的界面。CLI 无 UI 回调，路由器保持空绑（转发为空操作）。
 	cbSwitch := intruntime.NewCallbackSwitch()
 	agentOpts = append(agentOpts, agent.WithCallback(cbSwitch))
+	// 运行行为依赖必须接入主 Agent。这个 helper 同时负责压缩、循环检测、
+	// 观测总线和子代理执行器；只在测试中调用而不加入主构造会让配置看似
+	// 生效，实际 Agent 字段仍为空。
+	agentOpts = append(agentOpts, runtimeBehaviorOptions(cfg, model, subAgentCoordinator)...)
 	if cfg.Permission.Enabled {
 		agentOpts = append(agentOpts, agent.WithPermissionChecker(permissionChecker.Adapter))
 	}
@@ -567,6 +605,7 @@ func newRuntimeSubAgentCoordinator(cfg *config.Config, model llm.Model, workDir 
 			agent.WithSession(session.NewMemoryStore()),
 			agent.WithSystemPrompt(runtimeSubAgentPrompt(cfg, workDir, task)),
 			agent.WithMaxSteps(cfg.MaxIterations),
+			agent.WithMaxContextTokens(cfg.MaxContextTokens),
 			agent.WithTools(childTools...),
 		}
 		if permissionChecker != nil {
@@ -888,6 +927,14 @@ func runtimeFactsSummaryPrompt(cfg *config.Config, workDir string, factsHash fun
 func factsHashFunc(workDir string, pathChecker *permission.PathChecker) func(string) (string, error) {
 	return func(relPath string) (string, error) {
 		abs := filepath.Join(workDir, relPath)
+		// Facts are workspace-relative. Resolve symlinks before reading so a
+		// fact pointing at a link cannot make the summary read outside the
+		// workspace root. Missing files remain ordinary unreadable facts.
+		if outside, err := pathEscapesWorkspace(workDir, abs); err != nil {
+			return "", fmt.Errorf("%w: %s (%v)", agent.ErrProtectedPath, relPath, err)
+		} else if outside {
+			return "", fmt.Errorf("%w: %s（符号链接目标在工作区外）", agent.ErrProtectedPath, relPath)
+		}
 		if pathChecker != nil {
 			if allowed, reason := pathChecker.CheckPath(abs); !allowed {
 				return "", fmt.Errorf("%w: %s (%s)", agent.ErrProtectedPath, relPath, reason)
@@ -895,6 +942,29 @@ func factsHashFunc(workDir string, pathChecker *permission.PathChecker) func(str
 		}
 		return agent.FileHash(abs)
 	}
+}
+
+func pathEscapesWorkspace(workDir, absPath string) (bool, error) {
+	root, err := filepath.Abs(workDir)
+	if err != nil {
+		return false, err
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return false, err
+	}
+	target, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return false, err
+	}
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)), nil
 }
 
 func runtimeSkillPrompt(cfg *config.Config, workDir string) string {

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -231,6 +233,34 @@ func TestFactsHashFunc_RespectsPathChecker(t *testing.T) {
 	got, err := h("ok.txt")
 	if err != nil || len(got) != 64 {
 		t.Fatalf("普通路径应得 SHA-256: %q %v", got, err)
+	}
+}
+
+func TestFactsHashFunc_RejectsSymlinkOutsideWorkspace(t *testing.T) {
+	root := t.TempDir()
+	external := t.TempDir()
+	secret := filepath.Join(external, "secret.txt")
+	if err := os.WriteFile(secret, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "linked.txt")
+	target := "linked.txt"
+	if err := os.Symlink(secret, link); err != nil {
+		// Windows runners may deny file symlinks while allowing directory
+		// junctions without Developer Mode. Use a junction fallback so the
+		// test still exercises an external target on the real runner.
+		if runtime.GOOS != "windows" {
+			t.Skipf("当前系统不允许创建符号链接: %v", err)
+		}
+		junction := filepath.Join(root, "linked")
+		if junctionErr := exec.Command("cmd", "/c", "mklink", "/J", junction, external).Run(); junctionErr != nil {
+			t.Skipf("Windows 符号链接和目录 junction 均不可用: symlink=%v junction=%v", err, junctionErr)
+		}
+		target = filepath.Join("linked", "secret.txt")
+	}
+	h := factsHashFunc(root, permission.NewPathChecker(nil, nil, permission.ProtectionOff))
+	if _, err := h(target); !errors.Is(err, agent.ErrProtectedPath) {
+		t.Fatalf("指向工作区外的符号链接应被拒绝: %v", err)
 	}
 }
 

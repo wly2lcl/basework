@@ -119,7 +119,7 @@ func foldFileEditedWithSource(w *session.WorkspaceFacts, data session.FileEdited
 		}
 		var kind string
 		switch {
-		case data.Phase == "committed" && rec.State == "written":
+		case rec.State == "written":
 			kind = session.FactFileModified
 		case data.Phase == "rolled_back" && rec.State == "reverted":
 			kind = session.FactFileReverted

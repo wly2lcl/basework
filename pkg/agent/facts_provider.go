@@ -5,9 +5,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
+	"sync"
+	"unicode/utf8"
 
 	"github.com/wly2lcl/basework/pkg/session"
 )
@@ -27,6 +31,9 @@ type FactsSummaryProvider struct {
 	// Hash 返回工作区相对路径的内容哈希；受保护路径应返回
 	// ErrProtectedPath 或 ("", nil)，摘要会标注「未读取」而不读它。
 	Hash func(relPath string) (string, error)
+	// Tracker 跨多次 Collect 保留哈希基线，才能识别事实记录之后的文件变化。
+	Tracker *session.StaleTracker
+	mu      sync.Mutex
 }
 
 // ErrProtectedPath 由调用方的 Hash 实现返回，表示路径受保护不可读。
@@ -44,6 +51,7 @@ func NewFactsSummaryProvider(factsBase, workspaceID string, budget int, hash fun
 		WorkspaceID: workspaceID,
 		Budget:      budget,
 		Hash:        hash,
+		Tracker:     session.NewStaleTracker(),
 	}
 }
 
@@ -53,6 +61,8 @@ func (p *FactsSummaryProvider) Name() string { return "facts_summary" }
 // Collect 实现 ContextProvider。任何失败都以空文本返回（与既有
 // Provider 的容错口径一致）：摘要是增强，不是依赖。
 func (p *FactsSummaryProvider) Collect() (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	w, err := session.LoadWorkspaceFacts(p.FactsBase, p.WorkspaceID)
 	if err != nil {
 		return "", nil // 拒绝未来版本等错误 → 无摘要，不阻塞运行
@@ -63,7 +73,13 @@ func (p *FactsSummaryProvider) Collect() (string, error) {
 	summary := session.SummarizeFacts(w, session.FactsSummaryOptions{
 		Budget: p.Budget,
 		Hash:   p.wrapHash,
+		Stale:  p.Tracker,
 	})
+	if p.Budget > 0 {
+		summary.Text = truncateUTF8(summary.Text, p.Budget)
+	} else {
+		summary.Text = truncateUTF8(summary.Text, session.DefaultFactsSummaryBudget)
+	}
 	if summary.Text == "" || summary.Included == 0 {
 		return "", nil
 	}
@@ -83,10 +99,28 @@ func (p *FactsSummaryProvider) wrapHash(relPath string) (string, error) {
 	if p.Hash == nil {
 		return "", nil
 	}
-	if path.IsAbs(relPath) || filepath.IsAbs(relPath) || containsDotDot(relPath) {
+	if unsafeRelativePath(relPath) {
 		return "", ErrProtectedPath
 	}
 	return p.Hash(relPath)
+}
+
+// unsafeRelativePath rejects path spellings that can escape a workspace on a
+// different host OS. filepath.IsAbs alone is insufficient when a Unix build
+// receives a Windows path (for example C:\\temp or \\server\\share).
+// Drive-relative paths such as C:foo are rejected too: their target depends on
+// the process' per-drive working directory and cannot be joined safely.
+func unsafeRelativePath(p string) bool {
+	if p == "" || path.IsAbs(p) || filepath.IsAbs(p) || containsDotDot(p) {
+		return true
+	}
+	if strings.HasPrefix(p, `\`) || strings.HasPrefix(p, `//`) {
+		return true // Windows root-relative and UNC spellings.
+	}
+	if len(p) >= 2 && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')) && p[1] == ':' {
+		return true // absolute (C:\\x) and drive-relative (C:x) alike.
+	}
+	return false
 }
 
 func containsDotDot(p string) bool {
@@ -102,7 +136,7 @@ func splitPath(p string) []string {
 	var parts []string
 	for len(p) > 0 {
 		i := 0
-		for i < len(p) && p[i] != '/' {
+		for i < len(p) && p[i] != '/' && p[i] != '\\' {
 			i++
 		}
 		if i > 0 {
@@ -119,10 +153,38 @@ func splitPath(p string) []string {
 // FileHash 是产品层常用的哈希实现：读取文件内容求 SHA-256。
 // 调用方应先做权限/保护判定再传入（本函数不做任何策略判断）。
 func FileHash(absPath string) (string, error) {
-	data, err := os.ReadFile(absPath)
+	const maxHashBytes = 4 << 20
+	info, err := os.Stat(absPath)
 	if err != nil {
 		return "", fmt.Errorf("facts summary: 读取失败: %w", err)
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	if info.Size() > maxHashBytes {
+		return "", fmt.Errorf("facts summary: 文件过大（%d > %d 字节）", info.Size(), maxHashBytes)
+	}
+	f, err := os.Open(absPath)
+	if err != nil {
+		return "", fmt.Errorf("facts summary: 读取失败: %w", err)
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, maxHashBytes+1))
+	if err != nil {
+		return "", fmt.Errorf("facts summary: 读取失败: %w", err)
+	}
+	if n > maxHashBytes {
+		return "", fmt.Errorf("facts summary: 文件超过大小限制")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// truncateUTF8 将摘要裁到字节预算内并保持有效 UTF-8。
+func truncateUTF8(s string, budget int) string {
+	if budget <= 0 || len(s) <= budget {
+		return s
+	}
+	cut := s[:budget]
+	for len(cut) > 0 && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut
 }

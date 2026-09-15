@@ -1,11 +1,12 @@
 # CLI 使用指南
 
-核对基线：2026-09-14 / bb455ff。命令以当前二进制 `--help` 为准；尚未提供的恢复能力见 [STATUS](../STATUS.md) 和 [CTX-003](../tasks/05-context.md#ctx-003)。
+核对基线：2026-09-15 / 当前工作区。命令以当前二进制 `--help` 为准；尚未提供的发布能力见 [STATUS](../STATUS.md) 和任务看板。
 
 ## 启动与配置
 
 ```bash
 basework init
+basework init --yes --provider opencode --preset readonly
 basework model list
 basework config explain
 basework agent
@@ -13,7 +14,7 @@ basework agent -m "说明当前目录结构"
 basework tui
 ```
 
-`init` 是交互式菜单；stdin 为打开但没有数据的管道时会等待输入。无人值守初始化由 OPT-001 跟踪。
+`init` 默认是交互式菜单。脚本或 AI 开发流程使用 `init --yes`；可用 `--provider`、`--model`、`--preset` 指定确定值，已有配置默认不覆盖，覆盖必须显式加 `--force`。需要密钥的 provider 在缺少对应环境变量时返回非零错误，不会等待 stdin 或写入密钥。
 
 模型 ID 使用配置顶层 `provider` / `model`，自定义端点在 `providers.<provider>.base_url`；密钥可以按 [Provider 指南](provider-guide.md) 设置。示例：
 
@@ -47,6 +48,7 @@ basework --config /path/to/config.json agent -m "解释当前项目"
 | `agent --no-stream` | 一次性输出完整响应 |
 | `agent --preset readonly / coding` | 使用启动预设 |
 | `tui` | 全屏终端 UI |
+| `tui --session <id>` | 绑定并恢复指定历史会话 |
 | `tui --no-tui` | 回退简单 REPL |
 | `tui --preset readonly / coding` | 与 Agent 相同的预设解析 |
 | 全局 `--config` / `-v, --verbose` | 配置路径 / 详细输出 |
@@ -80,7 +82,7 @@ basework facts show --help
 
 `jobs` 查看后台任务历史，`edits` 查看编辑事件，`facts` 做事实聚合。这些查询不重新执行命令或提交编辑。
 
-当前 session 子命令为 list、clear、status、unlock；clear/unlock 会修改本地数据，应先阅读各自 help。当前没有 resume/export/search 子命令，也没有 TUI 的 --resume 参数。存储事件可以重读，但产品不能选择旧 ID 继续对话；重启会新建会话，旧 job 的 running 状态可能未归并。
+当前 session 子命令为 list、clear、status、unlock；clear/unlock 会修改本地数据，应先阅读各自 help。TUI 启动时可用 `--session <id>` 绑定历史会话，也可在运行中输入 `/session <id>` 切换；ID 可由 `basework session list` 获取。切换会重建运行服务、任务归属和事件订阅，失败时保留当前会话。尚无独立的 resume/export/search 子命令。
 
 会话数据目录默认是 `~/.local/share/basework/sessions/`（遵循 XDG 数据目录）；当前 CLI/TUI 固定使用 JSONL。SQLite 库与迁移功能存在，但配置文件里的 `session.store` 不会自动改变主运行时后端。
 
@@ -88,7 +90,7 @@ basework facts show --help
 
 模型可调用 `edit_files` 的 preview/commit/rollback，以及 `bash_background`、`job_list`、`job_output`、`job_cancel`。预览不写盘，提交重新核对内容基线；后台任务按会话 owner 过滤。
 
-已知限制：撤销的权限/软链边界待 EDIT-002 修复；部分提交的事实聚合待 CTX-001 补齐；当前审批 commit 详情不完整。历史输出引用也不保证重启后仍有内容。具体触发与复现见 [复审报告](../development/evidence/REVIEW-2026-09-14.md)。
+已知限制：跨文件提交不是全局事务；撤销遇到用户二次编辑会逐文件跳过；历史输出能否继续读取取决于输出文件是否仍存在。审批、事实和会话恢复的当前证据见 [任务看板](../TASKS.md) 及其证据记录。
 
 ## 数据迁移与其他命令
 

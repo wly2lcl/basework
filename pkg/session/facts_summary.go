@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -44,6 +45,7 @@ type FactsSummaryOptions struct {
 
 // StaleTracker 记录文件事实的内容哈希基线，检测「记录之后又被改过」。
 type StaleTracker struct {
+	mu     sync.Mutex
 	hashes map[string]string
 }
 
@@ -60,6 +62,8 @@ func (t *StaleTracker) Classify(relPath, currentHash string) string {
 	if currentHash == "" {
 		return "unknown"
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	prev, seen := t.hashes[relPath]
 	t.hashes[relPath] = currentHash
 	if seen && prev != currentHash {
@@ -122,7 +126,10 @@ func SummarizeFacts(w *WorkspaceFacts, opts FactsSummaryOptions) *FactsSummary {
 	}
 	hashed := 0
 	var b strings.Builder
-	b.WriteString("工作区事实摘要（由会话编辑与后台任务记录折叠，供任务参考）：\n")
+	header := "工作区事实摘要（由会话编辑与后台任务记录折叠，供任务参考）：\n"
+	if len(header) <= budget {
+		b.WriteString(header)
+	}
 
 	for _, f := range sorted {
 		if result.Truncated || b.Len() >= budget {
@@ -176,8 +183,11 @@ func SummarizeFacts(w *WorkspaceFacts, opts FactsSummaryOptions) *FactsSummary {
 		result.Truncated = true
 	}
 	if result.Truncated {
-		b.WriteString(fmt.Sprintf("…（共 %d 条事实，已按预算 %d 字节截断，截断时间 %s）\n",
-			result.Total, budget, now().UTC().Format(time.RFC3339)))
+		footer := fmt.Sprintf("…（共 %d 条事实，已按预算 %d 字节截断，截断时间 %s）\n",
+			result.Total, budget, now().UTC().Format(time.RFC3339))
+		if b.Len()+len(footer) <= budget {
+			b.WriteString(footer)
+		}
 	}
 	result.Text = b.String()
 	return result

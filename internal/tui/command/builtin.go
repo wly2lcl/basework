@@ -15,6 +15,12 @@ type App interface {
 	Quit()
 }
 
+// SessionSwitcher 是可选的会话切换能力。命令包只依赖这个窄接口，
+// 避免把 runtime 生命周期和 TUI 组件耦合在一起。
+type SessionSwitcher interface {
+	RequestSessionSwitch(sessionID string) error
+}
+
 // RegisterBuiltinCommands 注册内置命令
 func RegisterBuiltinCommands(r *Registry, app App) {
 	// /help 命令
@@ -68,6 +74,25 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 		Handler: func(args string) error {
 			// 配置信息由 UI 层展示
 			return nil
+		},
+	})
+
+	// /session <id> 命令：切换到已存在的历史会话。具体的 runtime 重建
+	// 由产品层注入，TUI 只负责校验入口和显示错误。
+	r.Register(&Command{
+		Name:        "session",
+		Description: "切换到已有会话（/session <id>）",
+		Args:        "<session_id>",
+		Handler: func(args string) error {
+			id := strings.TrimSpace(args)
+			if id == "" {
+				return fmt.Errorf("用法: /session <session_id>；可用 `basework session list` 查看会话")
+			}
+			switcher, ok := app.(SessionSwitcher)
+			if !ok {
+				return fmt.Errorf("当前运行模式不支持会话切换")
+			}
+			return switcher.RequestSessionSwitch(id)
 		},
 	})
 }

@@ -3,6 +3,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -149,6 +150,9 @@ func TestAppStreaming(t *testing.T) {
 	if !app.IsStreaming {
 		t.Fatal("StartStreaming 后 IsStreaming 应为 true")
 	}
+	if !app.StatusBar.IsBusy {
+		t.Fatal("StartStreaming 后状态栏应显示忙碌状态")
+	}
 
 	// 更新文本
 	app.UpdateStreamingText("Hello")
@@ -160,6 +164,9 @@ func TestAppStreaming(t *testing.T) {
 	app.StopStreaming()
 	if app.IsStreaming {
 		t.Fatal("StopStreaming 后 IsStreaming 应为 false")
+	}
+	if app.StatusBar.IsBusy {
+		t.Fatal("StopStreaming 后状态栏应恢复空闲状态")
 	}
 }
 
@@ -211,6 +218,41 @@ func TestAppUserInputHandler(t *testing.T) {
 	}
 }
 
+func TestAppCancelStreamingAndIgnoreStaleResponse(t *testing.T) {
+	app := NewApp("model", "provider", "sess-old")
+	started := make(chan struct{})
+	app.SetInputHandler(func(ctx context.Context, _ string) (string, error) {
+		close(started)
+		<-ctx.Done()
+		return "", ctx.Err()
+	})
+	_, cmd := app.Update(UserInputMsg{Text: "长任务"})
+	msgCh := make(chan tea.Msg, 1)
+	go func() { msgCh <- cmd() }()
+	<-started
+	app.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if !app.IsStreaming || len(app.Messages) == 0 || app.Messages[len(app.Messages)-1].Content != "[正在取消本轮]" {
+		t.Fatalf("ctrl+c 应显示取消中且等待命令收尾: %#v", app.Messages)
+	}
+	msg := <-msgCh
+	if errMsg, ok := msg.(ErrorMsg); !ok || !errors.Is(errMsg.Err, context.Canceled) {
+		t.Fatalf("取消命令应返回 context.Canceled，得到 %#v", msg)
+	}
+	app.Update(msg)
+	if app.IsStreaming || app.Messages[len(app.Messages)-1].Content != "[本轮已取消]" {
+		t.Fatalf("取消收尾应停止流式并显示状态: %#v", app.Messages)
+	}
+
+	app.StartStreaming()
+	app.SwitchSession("sess-new")
+	app.Update(AgentResponseMsg{Text: "旧回复", SessionID: "sess-old", Generation: 1})
+	for _, message := range app.Messages {
+		if message.Content == "旧回复" {
+			t.Fatal("切换会话后旧响应不应写入消息")
+		}
+	}
+}
+
 // TestAppCommandPalette 测试命令面板触发
 func TestAppCommandPalette(t *testing.T) {
 	app := NewApp("test-model", "test-provider", "test-session-id")
@@ -236,6 +278,24 @@ func TestAppThemeCommands(t *testing.T) {
 	themes := app.ListThemes()
 	if len(themes) == 0 {
 		t.Fatal("至少应有一个内置主题")
+	}
+}
+
+func TestAppSessionCommandDelegatesToRuntimeSwitcher(t *testing.T) {
+	app := NewApp("model", "provider", "current")
+	var got string
+	app.SetSessionSwitcher(func(id string) error {
+		got = id
+		return nil
+	})
+	if err := app.CommandRegistry.Execute("session historical-42"); err != nil {
+		t.Fatalf("session command failed: %v", err)
+	}
+	if got != "historical-42" {
+		t.Fatalf("session command id = %q, want historical-42", got)
+	}
+	if err := app.CommandRegistry.Execute("session"); err == nil {
+		t.Fatal("session command without id should fail")
 	}
 }
 

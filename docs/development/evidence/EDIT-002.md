@@ -161,3 +161,15 @@ go test -race ./internal/edits -count=1     # 本任务新增代码所在包
 针对性验证（含 `-race`）通过，新增 20 条用例覆盖全部验收条件。
 未实现的部分（编辑事件与 CLI 闭环、跨进程撤销、跨文件事务）已在"剩余与交接"逐条写明，
 未以"编译通过"冒充完成。
+
+## 2026-09-15 修复复核
+
+补齐 A01：`CommitResult.Rollback` 不再直接信任提交时缓存的绝对路径。每个已写文件
+在恢复前重新经过同一 `Planner.ResolvePath`（工作区边界、软链与权限），解析失败或
+目标发生变化即记为 `failed`，不会写盘。
+
+新增 `TestRollback_RechecksPermissionAfterCommit` 与
+`TestRollbackRejectsParentSymlinkEscape`，分别覆盖批准后权限撤回和父目录换成外部
+软链；`go test -race ./internal/edits ./internal/jobs ./internal/runtime` 通过，
+并在全量带 tag race 测试中再次通过。该任务的 P1 补充验收已满足；真实 runtime
+工具审批闭环仍由 EDIT-003 负责。

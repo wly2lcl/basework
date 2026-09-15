@@ -1,0 +1,45 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/wly2lcl/basework/tests/benchmark
+cpu: Apple M3
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	  93874501 ns/op	  988368 B/op	   11402 allocs/op
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	 150424124 ns/op	  983088 B/op	   11315 allocs/op
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	 229191875 ns/op	  982912 B/op	   11312 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	5190883583 ns/op	82002528 B/op	 1013466 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	3230945667 ns/op	81979128 B/op	 1013371 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	2246128500 ns/op	81968784 B/op	 1013296 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	112137687167 ns/op	8026734208 B/op	100151119 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	116100472000 ns/op	8026771856 B/op	100151725 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	130236116541 ns/op	8026777152 B/op	100151745 allocs/op
+BenchmarkJSONLProjectEvents/Events_100-8        	       1	    668333 ns/op	  414184 B/op	    6383 allocs/op
+BenchmarkJSONLProjectEvents/Events_100-8        	       1	    609125 ns/op	  411400 B/op	    6335 allocs/op
+BenchmarkJSONLProjectEvents/Events_100-8        	       1	    590208 ns/op	  411496 B/op	    6336 allocs/op
+BenchmarkJSONLProjectEvents/Events_1000-8       	       1	   6065583 ns/op	 3656016 B/op	   63064 allocs/op
+BenchmarkJSONLProjectEvents/Events_1000-8       	       1	   5937541 ns/op	 3656256 B/op	   63068 allocs/op
+BenchmarkJSONLProjectEvents/Events_1000-8       	       1	   5972917 ns/op	 3656096 B/op	   63066 allocs/op
+BenchmarkJSONLProjectEvents/Events_10000-8      	       1	  61547292 ns/op	37133464 B/op	  630155 allocs/op
+BenchmarkJSONLProjectEvents/Events_10000-8      	       1	  78007625 ns/op	37135992 B/op	  630183 allocs/op
+BenchmarkJSONLProjectEvents/Events_10000-8      	       1	  68973417 ns/op	37135280 B/op	  630173 allocs/op
+BenchmarkFactsSummaryRead/Facts_100-8           	       1	     55375 ns/op	   78048 B/op	     527 allocs/op
+BenchmarkFactsSummaryRead/Facts_100-8           	       1	     38750 ns/op	   77824 B/op	     524 allocs/op
+BenchmarkFactsSummaryRead/Facts_100-8           	       1	     38208 ns/op	   77824 B/op	     524 allocs/op
+BenchmarkFactsSummaryRead/Facts_1000-8          	       1	    198500 ns/op	  255072 B/op	     522 allocs/op
+BenchmarkFactsSummaryRead/Facts_1000-8          	       1	    190833 ns/op	  255072 B/op	     522 allocs/op
+BenchmarkFactsSummaryRead/Facts_1000-8          	       1	    191375 ns/op	  255072 B/op	     522 allocs/op
+BenchmarkFactsSummaryRead/Facts_10000-8         	       1	   2218125 ns/op	 1991584 B/op	     516 allocs/op
+BenchmarkFactsSummaryRead/Facts_10000-8         	       1	   2192875 ns/op	 1991360 B/op	     513 allocs/op
+BenchmarkFactsSummaryRead/Facts_10000-8         	       1	   2856000 ns/op	 1992744 B/op	     518 allocs/op
+BenchmarkJobsHistoryList/Jobs_100-8             	       1	    261666 ns/op	   74368 B/op	     602 allocs/op
+BenchmarkJobsHistoryList/Jobs_100-8             	       1	    224708 ns/op	   74368 B/op	     602 allocs/op
+BenchmarkJobsHistoryList/Jobs_100-8             	       1	    223833 ns/op	   74368 B/op	     602 allocs/op
+BenchmarkJobsHistoryList/Jobs_1000-8            	       1	   2500875 ns/op	  742144 B/op	    6002 allocs/op
+BenchmarkJobsHistoryList/Jobs_1000-8            	       1	   2367625 ns/op	  742144 B/op	    6002 allocs/op
+BenchmarkJobsHistoryList/Jobs_1000-8            	       1	   2276500 ns/op	  742144 B/op	    6002 allocs/op
+BenchmarkJobsHistoryList/Jobs_10000-8           	       1	  25011416 ns/op	 7364096 B/op	   60002 allocs/op
+BenchmarkJobsHistoryList/Jobs_10000-8           	       1	  24624375 ns/op	 7364096 B/op	   60002 allocs/op
+BenchmarkJobsHistoryList/Jobs_10000-8           	       1	  24298541 ns/op	 7364096 B/op	   60002 allocs/op
+BenchmarkTUIInputTransition-8                   	       1	   1037708 ns/op	    5576 B/op	      51 allocs/op
+BenchmarkTUIInputTransition-8                   	       1	     16208 ns/op	    5576 B/op	      51 allocs/op
+BenchmarkTUIInputTransition-8                   	       1	     12333 ns/op	    5576 B/op	      51 allocs/op
+PASS
+ok  	github.com/wly2lcl/basework/tests/benchmark	371.013s

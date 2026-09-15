@@ -29,6 +29,33 @@ func TestNew_WithModel(t *testing.T) {
 	}
 }
 
+func TestWithMaxContextTokensWiresIntoAgentLoop(t *testing.T) {
+	a, err := New(WithModel(&mockModel{}), WithMaxContextTokens(37))
+	if err != nil {
+		t.Fatalf("New 返回错误: %v", err)
+	}
+	defer a.Close()
+
+	loop, ok := a.(*AgentLoop)
+	if !ok {
+		t.Fatalf("New 返回 %T，期望 *AgentLoop", a)
+	}
+	if loop.cfg.maxContextTokens != 37 {
+		t.Fatalf("maxContextTokens = %d，期望 37", loop.cfg.maxContextTokens)
+	}
+
+	// <= 0 不应把默认预算意外改成无预算，避免旧调用方行为变化。
+	b, err := New(WithModel(&mockModel{}), WithMaxContextTokens(0))
+	if err != nil {
+		t.Fatalf("New 默认预算返回错误: %v", err)
+	}
+	defer b.Close()
+	defaultLoop := b.(*AgentLoop)
+	if defaultLoop.cfg.maxContextTokens != 128000 {
+		t.Fatalf("非正预算 = %d，期望默认 128000", defaultLoop.cfg.maxContextTokens)
+	}
+}
+
 func TestNew_DefaultMaxSteps(t *testing.T) {
 	model := &mockModel{}
 	a, err := New(WithModel(model))
