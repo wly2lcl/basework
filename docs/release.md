@@ -61,6 +61,32 @@ goreleaser release --snapshot --clean --skip=docker,publish
 
 其中 GoReleaser 命令需要本机已安装 `goreleaser`。
 
+如需在发布前验证双架构镜像，使用仓库脚本生成临时 Docker context，不要手工在仓库根目录
+留下 `linux/amd64` 或 `linux/arm64` 交叉编译目录：
+
+```bash
+BASEWORK_VERSION=0.1.4-SNAPSHOT-$(git rev-parse --short HEAD) \
+  BUILDX_BUILDER=basework-builder \
+  ./scripts/build_docker_candidate.sh \
+  basework:candidate-$(git rev-parse --short HEAD) \
+  /private/tmp/basework-candidate-$(git rev-parse --short HEAD).oci
+```
+
+脚本会用 `sqlite memory` tags 构建两个 Linux 二进制、注入版本信息、执行
+`docker buildx build --platform linux/amd64,linux/arm64`，最后打印 OCI 文件 SHA-256。
+载入镜像后，目标架构的冒烟命令应使用独立可写会话目录，并把源码工作区挂载为只读：
+
+```bash
+docker load -i /private/tmp/basework-candidate-<commit>.oci
+docker run --rm --platform linux/amd64 --read-only -w /workspace \
+  -v "$PWD:/workspace:ro" \
+  -v /private/tmp/basework-docker-home/config:/root/.config/basework \
+  -v /private/tmp/basework-docker-home/data:/root/.local/share/basework \
+  basework:candidate-<commit> facts show
+```
+
+`--skip=docker` 的 GoReleaser dry-run 只验证归档配置，不替代这组镜像构建与运行检查。
+
 ## 安装渠道状态
 
 当前已接入以下发布配置；具体候选版本的构建/安装验证状态见 SHIP-002，不由配置存在性证明：

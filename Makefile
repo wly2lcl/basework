@@ -1,4 +1,4 @@
-.PHONY: build test lint clean tidy vet check-arch check-docs stats deps gen coverage progress
+.PHONY: build test lint clean tidy vet check-arch check-docs stats deps gen coverage progress docker-candidate
 
 # 默认构建
 build:
@@ -60,3 +60,7 @@ gen: deps stats
 # 从唯一任务看板读取进度，不另存完成率
 progress:
 	go run ./scripts/doccheck -progress
+
+# 构建双架构候选 OCI 镜像；交叉编译产物只放在临时 Docker context 中。
+docker-candidate:
+	./scripts/build_docker_candidate.sh
