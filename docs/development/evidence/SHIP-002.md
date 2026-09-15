@@ -183,21 +183,22 @@ manifest list digest `sha256:03fa578554de6d65554f5a7f618a072ac0275befa830416c65b
 这段关闭当前代码候选的双架构镜像构建/运行记录，但仍不替代候选 CI、Windows/macOS
 目标安装或真实 Provider 结果。
 
-同日将上述手工准备步骤固化为 `scripts/build_docker_candidate.sh`，并在当前文档提交
-`1badb1e7b83bd9deb7f11f2b0c03bd3d2c664152` 上端到端复跑：
+同日将上述手工准备步骤固化为 `scripts/build_docker_candidate.sh`，并在当前提交
+`ef3041bc319690cce8e30aa9edd45af7a4a8c808` 上端到端复跑：
 
 ```text
-BASEWORK_VERSION=0.1.4-SNAPSHOT-1badb1e \
+BASEWORK_VERSION=0.1.4-SNAPSHOT-ef3041b \
   BASEWORK_BUILD_DATE=2026-09-15T00:00:00Z \
   BUILDX_BUILDER=basework-builder \
   scripts/build_docker_candidate.sh \
-  basework:candidate-1badb1e /private/tmp/basework-script-candidate-1badb1e.oci
+  basework:candidate-ef3041b /private/tmp/basework-script-candidate-ef3041b.oci
 ```
 
 脚本完成临时 context、两个 Linux 二进制、版本注入和 buildx 构建，OCI 文件 SHA-256 为
-`3177a0524ef6fcaf74e3840a10b9f7fbb5c5a644a77af954bd93123cc54d1298`；随后两个架构的
-`version` 与只读工作区 `facts show` 均通过。后续验收优先使用此脚本，避免把手工目录
-准备误当成发布命令的一部分。
+`c2cb295e866f604d4b7ef94620446a6350f2e8e4a28c17aa84eeb37a8137073e`，manifest list digest
+为 `sha256:4ce86ca2a85ab60d1afdbc28cfb30329849cd598c006514ec0b06ee3e8029e0e`；随后两个
+架构的 `version` 与只读工作区 `facts show` 均通过。后续验收优先使用此脚本，避免把
+手工目录准备误当成发布命令的一部分。
 
 ## 2026-09-15 历史 dirty worktree GoReleaser 快照
 
