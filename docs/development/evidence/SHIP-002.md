@@ -297,3 +297,25 @@ Linux arm64、Darwin amd64、Windows amd64 等归档安装仍需按发布矩阵�
 **当前结论：SHIP-002 仍待验证。** 已完成的 CI、Docker 与 dry-run 证据绑定到候选提交；
 剩余项是发布归档的目标系统安装/升级实测，以及真实 Provider 凭据验收（后者由 SHIP-001/
 QA-001 记录）。
+
+## 2026-09-15 当前候选发布归档 Smoke
+
+候选提交 `6a2cc3e72aaa02ab87b72067545c42cec92fbd17` 的 [GitHub Actions run
+34946819197](https://github.com/wly2lcl/basework/actions/runs/34946819197) 新增
+`Release Artifact Smoke` 三平台矩阵，三项均通过。每个平台都用 GoReleaser 生成当前候选
+归档，在隔离目录解包后运行 `version` 与 `config explain`；GoReleaser `metadata.json`
+记录的归档 SHA-256 如下：
+
+| Runner / 实际平台 | 归档 | SHA-256 | 运行结果 |
+|---|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `d3dfd646fc2c8c9f53f4133ce865c9f37ae953f00a01cf5f3a28ebfe902846f3` | `version`、`config explain` 通过 |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `5b12924ada95b9532cca43eee746c886335a79f0b791c3280babbe7d32881a18` | `version`、`config explain` 通过 |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `18a118c1052dfbb5a4b5b78abe10019392f6f26c54e3ac204c5419cce735adb6` | `version`、`config explain` 通过 |
+
+这补齐了 Linux amd64、Darwin arm64、Windows amd64 三个发布归档的目标 runner 运行证据，
+并证明归档中的版本字符串和候选短提交一致。Linux arm64、Darwin amd64 只有交叉编译和
+Docker/Buildx 相关证据，当前没有原生归档安装运行记录；Windows arm64 未列为发布产物。
+
+**当前结论：SHIP-002 仍待验证。** 代码、镜像、dry-run 和三个原生归档 Smoke 已闭环；
+是否把 Linux arm64/Darwin amd64 继续列为承诺平台，需要补对应运行环境，或由产品明确缩小
+发布矩阵。不要把 QEMU 镜像冒充发布归档安装结果。

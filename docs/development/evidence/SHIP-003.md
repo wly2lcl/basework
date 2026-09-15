@@ -241,3 +241,14 @@ Ubuntu、macOS、Windows 三平台测试/构建，Quality race、文档与 PTY s
 这次回填关闭了“当前候选没有远端 CI 结果”的旧记录，但不关闭真实 Provider、五平台发布
 归档安装/升级和真人主观体验边界。**当前 SHIP-003 仍待验证**，等待 SHIP-001、SHIP-002
 和 QA-001 的剩余外部门禁；本段不创建 tag，也不代表已发布。
+
+## 2026-09-15 最新候选回填
+
+提交 `6a2cc3e72aaa02ab87b72067545c42cec92fbd17` 的 [CI run
+34946819197](https://github.com/wly2lcl/basework/actions/runs/34946819197) 在加入三平台
+`Release Artifact Smoke` 后全绿。当前证据已覆盖跨平台源码测试、Windows 进程树回归、
+三平台原生发布归档 `version/config explain`、Docker 双架构 Smoke、Release Dry Run 和
+PTY/race/文档门禁。
+
+SHIP-003 仍保持待验证：真实 Provider、Linux arm64/Darwin amd64 归档安装和真人主观体验
+仍未完成；本段只更新候选证据，不创建 tag 或执行发布。

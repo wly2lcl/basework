@@ -21,7 +21,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由 | 发布平台和真实 Provider 体验仍单独验收 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 真人手感、Windows PTY 和跨平台安装仍待发布任务 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 三系统源码测试、候选 GoReleaser dry-run、Windows/macOS/Linux CI、linux/amd64+arm64 Docker Smoke、恢复场景 | 尚缺五平台发布归档的目标安装运行、真实 Provider 与真人主观体验（SHIP-001/002/003、QA-001） |
+| 发布准备 | 三系统源码测试、候选 GoReleaser dry-run、Windows/macOS/Linux CI、三平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、恢复场景 | 尚缺 Linux arm64/Darwin amd64 归档安装、真实 Provider 与真人主观体验（SHIP-001/002/003、QA-001） |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
