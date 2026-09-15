@@ -28,7 +28,13 @@ func NewFileLock(path string) *FileLock {
 
 // Lock 获取排他锁（非阻塞模式，带超时）。
 func (l *FileLock) Lock(timeout time.Duration) error {
-	file, err := os.OpenFile(l.path, os.O_CREATE|os.O_RDWR, 0644)
+	// LockFileEx places a mandatory byte-range lock on Windows. Locking the
+	// data file itself would make the subsequent writer fail to open/write it
+	// because Windows does not allow the second handle to share the locked
+	// range. Keep the coordination handle in a sibling lock file instead; the
+	// data file remains freely readable/writable while this handle is held.
+	lockPath := l.path + ".lock"
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("session: 打开锁文件失败: %w", err)
 	}
@@ -86,7 +92,7 @@ func (l *FileLock) ForceUnlock() error {
 		}
 	}
 
-	err := os.Remove(l.path)
+	err := os.Remove(l.path + ".lock")
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("session: 强制解锁失败: %w", err)
 	}

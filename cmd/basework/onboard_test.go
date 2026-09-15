@@ -115,7 +115,8 @@ func TestRunInitNonInteractiveDoesNotReadOpenPipe(t *testing.T) {
 }
 
 func TestRunInitInteractiveEOFHasDeterministicResult(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	setTestHome(t, home)
 	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"} {
 		t.Setenv(name, "")
 	}
@@ -123,13 +124,14 @@ func TestRunInitInteractiveEOFHasDeterministicResult(t *testing.T) {
 	if err := runInit(); err != nil {
 		t.Fatalf("EOF 下交互初始化不应失败: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(os.Getenv("HOME"), ".config", "basework", "config.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(home, ".config", "basework", "config.json")); err != nil {
 		t.Fatalf("EOF 下没有生成配置: %v", err)
 	}
 }
 
 func TestRunInitInteractiveInvalidInputFallsBack(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	setTestHome(t, home)
 	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"} {
 		t.Setenv(name, "")
 	}
@@ -137,7 +139,7 @@ func TestRunInitInteractiveInvalidInputFallsBack(t *testing.T) {
 	if err := runInit(); err != nil {
 		t.Fatalf("异常输入应回退默认值而非失败: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".config", "basework", "config.json"))
+	data, err := os.ReadFile(filepath.Join(home, ".config", "basework", "config.json"))
 	if err != nil {
 		t.Fatalf("异常输入后没有配置: %v", err)
 	}
