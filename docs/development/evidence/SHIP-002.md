@@ -88,7 +88,7 @@
   - dry-run 命令见 `docs/release.md` 的"本地验证"一节。
 - 下一步（不属本项）：SHIP-003 候选版本验收，需在本卡与 SHIP-001 完成后进行。
 
-## 2026-09-15 当前工作区镜像复核
+## 2026-09-15 历史工作区镜像复核
 
 旧记录中的“缺 buildx”只描述 2026-09-13 的环境快照；当前环境已安装并可用
 Docker Buildx v0.30.0，`basework-builder` 支持 linux/amd64、linux/arm64。

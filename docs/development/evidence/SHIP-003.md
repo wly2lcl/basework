@@ -126,7 +126,7 @@ if !ok {
 | 打包 dry-run | **通过** | 见 [SHIP-002](SHIP-002.md)：与 CI 逐字一致的 `goreleaser release --snapshot --clean --skip=docker,publish` 退出码 0，产出 5 个包并记录哈希 |
 | 真实模型场景 | **通过** | 见 [SHIP-001](SHIP-001.md)：固定 8 次（小函数修复 3、多文件修改 2、大输出/权限拒绝/断流恢复各 1），8/8 通过 |
 | 人工 TUI 流程 | **以终端级自动化验收替代（用户指定）——通过** | 原计划的"人工走查"按用户指示改为自动化执行。夹具：`tests/tui_pty/`（PTY 驱动真实 `basework tui` 二进制 + 本地脚本化 OpenAI SSE 服务 + VT 解析抓屏），路线图 5 条代表性场景全部通过：①修复缺陷（流式/工具卡片/差异/独立 go test 复核）②耗时检查（任务卡片运行中/输出可读/取消后进程组退出/`jobs list` 可回看 canceled）③中断后继续（SIGKILL 硬杀→重启恢复历史/遗留任务标 interrupted/零模型请求=不自动重跑/会话可继续）④不同模型（`gpt-4o`/`gpt-3.5-turbo` 能力来源可追溯/缺密钥明确告知/工具数 23 不被静默关闭）⑤嵌入 Go 服务（`examples/embed` 公共 API 组装，3 次工具调用+事件流+25 条事件落盘）。另以真实模型（`agnes-2.5-flash`）在真实终端完整走一遍场景 1：14.8s 回合结束，read→glob→read→edit→bash 全链路工具卡片可见，磁盘修复与夹具侧独立 `go test` 通过 |
-| 声明平台的安装/升级结果 | **部分** | 只有 darwin/arm64 产物真实运行过；linux/amd64、linux/arm64、darwin/amd64、windows/amd64 仅交叉编译；Docker/GHCR 只有配置层证据（本机缺 `buildx`，未构建镜像）。详见 [SHIP-002](SHIP-002.md) |
+| 声明平台的安装/升级结果 | **历史记录为部分** | 该历史快照只有 darwin/arm64 产物真实运行过，Docker 当时只有配置层证据；当前代码候选五平台归档、Darwin arm64、双架构 OCI 及其运行结果见 [SHIP-002](SHIP-002.md) 文末，其他目标平台仍未实机安装 |
 | 已知问题清单 | **已给出** | 见下方「已知问题清单」 |
 
 ### 本地门禁（在修复后的工作区上重跑）
@@ -191,7 +191,7 @@ if !ok {
 - **建议状态：完成**。条件与边界：自动化替代人工是用户指定并已在本文件如实记录；两项发布外部证据（跨平台 CI、Docker 镜像）仍不存在，已列入交接——它们阻塞的是"可以发布"，不是本卡的检查环节。
 - 若将来补做真人 TUI 走查，据实回填「验证」表即可；不要因为本文件结论是"完成"就跳过跨平台 CI 与镜像构建这两道发布前检查。
 
-## 2026-09-15 当前工作区复审
+## 2026-09-15 历史工作区复审
 
 上面的“完成”结论属于历史工作区快照，不能覆盖当前看板的候选门禁。本轮最初在历史
 `HEAD=7a874c9` 加未提交修改的工作区上重新核对：
@@ -201,7 +201,7 @@ if !ok {
 - 路径保护补丁后，scenario3 与 scenario8 又分别复跑通过；默认/tag 测试、race、
   vet、构建、Windows 目标交叉编译、`make gen`、`make check-docs`、`make check-arch`
   和 `git diff --check` 均通过；
-- 当前工作区 GoReleaser 快照和 linux/amd64、linux/arm64 OCI 镜像已构建并在本机可
+- 该历史工作区的 GoReleaser 快照和 linux/amd64、linux/arm64 OCI 镜像已构建并在本机可
   运行，但仍属于 dirty worktree 证据；没有候选 commit 的 CI 结果，也没有目标平台
   安装或外部 Provider 结果。
 

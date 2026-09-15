@@ -120,7 +120,7 @@
   交叉确认，不采信模型自述。
 
 任务看板仍将 SHIP-001 保持“待验证”：候选 commit、当前版本的真实 Provider 记录和
-发布门禁需要一起绑定，不能因为当前 dirty worktree 的脚本化入口通过就提前关闭。
+发布门禁需要一起绑定，不能因为本地脚本化入口通过就提前关闭。
 
 为避免真实 Provider 夹具只存在于临时目录，本轮新增 `tests/real_provider/`：运行器
 从仓库 fixture 复制随机临时项目，使用 `BASEWORK_REAL_PROVIDER`、
