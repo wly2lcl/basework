@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-15；当前工作区包含本轮代码、测试和文档修改，尚未形成新的提交候选。任务状态只在 [TASKS](TASKS.md) 维护；本页只描述当前实现边界。
+核对日期：2026-09-15；代码候选为 `9d7458bb5c53274b5d5b1742cb88abe75ad4ac64`，当前主工作区在其后只增加了文档证据提交 `67975ef`，工作区干净。任务状态只在 [TASKS](TASKS.md) 维护；本页只描述当前实现边界。
 
 **结论：核心实现、真实 Unix PTY 入口和自动测试已具备；CTX-002 的 Windows 实机边界与 M8 发布验收仍未完成。** 双压缩重启链路已由 CTX-003 的真实产品场景收口。缺陷、复现与历史证据的边界见 [复审报告](development/evidence/REVIEW-2026-09-14.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
@@ -21,7 +21,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由 | 发布平台和真实 Provider 体验仍单独验收 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 真人手感、Windows PTY 和跨平台安装仍待发布任务 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 三系统源码测试、当前 dirty worktree GoReleaser 快照、linux/amd64+arm64 OCI 构建运行与恢复场景 | 尚缺候选 commit 的目标平台安装、真实 CI run 和外部 Provider 验收（SHIP-002/003） |
+| 发布准备 | 三系统源码测试、代码候选 GoReleaser 五平台归档与哈希、Darwin arm64 归档运行、linux/amd64+arm64 OCI 构建运行与恢复场景 | 尚缺 Windows/Linux 与 Darwin x86_64 目标安装、真实 CI run 和外部 Provider 验收（SHIP-002/003） |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，无温和阶段。此实现已有目标 CI 测试记录，但不能据此推导所有 Windows 安装环境均有 bash/sh 或终端支持。
 
@@ -31,7 +31,7 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，无温�
 - CI 原 race 范围及额外 runtime/jobs/edits 检查通过。
 - 真实 PTY 场景 1–8 均已通过仓库内一键编排器在独立临时根、隔离 HOME、当前 checkout 二进制和本地确定性 Provider 下全量复跑，覆盖读改跑/事实重启、后台取消、硬杀恢复、模型能力、外部嵌入、`/session` 切换、审批允许/拒绝和双压缩重启；默认临时根会自动清理。
 - 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已转为后续优化候选。
-- 当前尚未验证真实外部 Provider、当前候选 commit 的 Windows/macOS/Linux 发布产物实际安装、真实 CI run 和真人主观体验；Docker 多平台镜像已对当前 dirty worktree 完成构建与本地运行，但不能替代候选发布证据。
+- 当前尚未验证真实外部 Provider、代码候选对应的 Windows/Linux 与 Darwin x86_64 发布产物实际安装、真实 CI run 和真人主观体验；Docker 多平台镜像已对清洁候选完成构建与本地运行，但不能替代候选 CI 和目标平台安装证据。
 
 ## 如何阅读历史证据
 
