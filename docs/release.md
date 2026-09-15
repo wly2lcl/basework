@@ -86,6 +86,9 @@ docker run --rm --platform linux/amd64 --read-only -w /workspace \
 ```
 
 `--skip=docker` 的 GoReleaser dry-run 只验证归档配置，不替代这组镜像构建与运行检查。
+`.github/workflows/build.yml` 的 `docker-smoke` job 会在候选 CI 中执行同一脚本，并在
+QEMU 下分别运行 amd64/arm64 的 `version` 与只读 `facts show`；在远端 CI 实际运行前，
+它仍只是已提交的检查定义。
 
 ## 安装渠道状态
 

@@ -52,4 +52,8 @@ if [[ -n "$builder" ]]; then
 fi
 
 docker "${build_args[@]}" "$stage_dir"
-shasum -a 256 "$output_path"
+if command -v shasum >/dev/null 2>&1; then
+  shasum -a 256 "$output_path"
+else
+  sha256sum "$output_path"
+fi

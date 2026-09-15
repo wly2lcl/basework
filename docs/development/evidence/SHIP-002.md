@@ -200,6 +200,11 @@ BASEWORK_VERSION=0.1.4-SNAPSHOT-ef3041b \
 架构的 `version` 与只读工作区 `facts show` 均通过。后续验收优先使用此脚本，避免把
 手工目录准备误当成发布命令的一部分。
 
+随后把脚本接入 `.github/workflows/build.yml` 的 `docker-smoke` job：候选 CI 会设置
+QEMU/Buildx、构建同一 OCI、载入镜像，并分别运行两个架构的 `version` 与只读
+`facts show`。该 job 当前只有配置证据，必须等当前候选进入远端 CI 后才能回填实际提交、
+运行编号和结果。
+
 ## 2026-09-15 历史 dirty worktree GoReleaser 快照
 
 使用历史工作区（`HEAD=7a874c9`，仍有未提交修改）安装 GoReleaser 2.18.1 后，

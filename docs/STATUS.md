@@ -28,7 +28,8 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，无温�
 ## 本轮验证
 
 - 默认与 `sqlite memory` 全量测试通过；完整构建、vet、架构检查和生成物新鲜度通过。
-- CI 原 race 范围及额外 runtime/jobs/edits 检查通过。
+- CI 原 race 范围及额外 runtime/jobs/edits 检查通过；当前工作流另增加 `docker-smoke`
+  双架构镜像冒烟，但尚未在当前候选的远端 CI 中实际运行。
 - 真实 PTY 场景 1–8 均已通过仓库内一键编排器在独立临时根、隔离 HOME、当前 checkout 二进制和本地确定性 Provider 下全量复跑，覆盖读改跑/事实重启、后台取消、硬杀恢复、模型能力、外部嵌入、`/session` 切换、审批允许/拒绝和双压缩重启；默认临时根会自动清理。
 - 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已转为后续优化候选。
 - 当前尚未验证真实外部 Provider、代码候选对应的 Windows/Linux 与 Darwin x86_64 发布产物实际安装、真实 CI run 和真人主观体验；Docker 多平台镜像已对清洁候选完成构建与本地运行，但不能替代候选 CI 和目标平台安装证据。
