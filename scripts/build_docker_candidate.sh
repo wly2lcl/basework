@@ -8,7 +8,9 @@ Usage: scripts/build_docker_candidate.sh [image-tag] [oci-output]
 Build a clean linux/amd64 + linux/arm64 candidate OCI image without leaving
 cross-compiled binaries in the repository. Set BASEWORK_VERSION and
 BASEWORK_BUILD_DATE to control version metadata, and BUILDX_BUILDER to select
-the buildx builder.
+the buildx builder. Set BASEWORK_DOCKER_SMOKE=1 to additionally load one
+single-platform image per architecture into the local Docker daemon for
+runtime smoke checks.
 USAGE
   exit 0
 fi
@@ -52,6 +54,21 @@ if [[ -n "$builder" ]]; then
 fi
 
 docker "${build_args[@]}" "$stage_dir"
+
+if [[ "${BASEWORK_DOCKER_SMOKE:-0}" == "1" ]]; then
+  for arch in amd64 arm64; do
+    smoke_args=(buildx build --platform "linux/${arch}"
+      --file "$stage_dir/Dockerfile.goreleaser"
+      --tag "${image_tag}-${arch}"
+      --load)
+    if [[ -n "$builder" ]]; then
+      smoke_args+=(--builder "$builder")
+    fi
+    echo "loading linux/${arch} smoke image"
+    docker "${smoke_args[@]}" "$stage_dir"
+  done
+fi
+
 if command -v shasum >/dev/null 2>&1; then
   shasum -a 256 "$output_path"
 else

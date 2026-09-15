@@ -148,17 +148,15 @@ jobs:
         env:
           BASEWORK_VERSION: 0.1.4-ci-${{ github.sha }}
           BASEWORK_BUILD_DATE: 1970-01-01T00:00:00Z
+          BASEWORK_DOCKER_SMOKE: "1"
         run: |
           ./scripts/build_docker_candidate.sh \
             "basework:ci-${GITHUB_SHA}" \
             "$RUNNER_TEMP/basework-${GITHUB_SHA}.oci"
 
-      - name: Load candidate image
-        run: docker load --input "$RUNNER_TEMP/basework-${GITHUB_SHA}.oci"
-
       - name: Run amd64 smoke checks
         env:
-          IMAGE: basework:ci-${{ github.sha }}
+          IMAGE: basework:ci-${{ github.sha }}-amd64
         run: |
           mkdir -p "$RUNNER_TEMP/basework-docker/config" "$RUNNER_TEMP/basework-docker/data"
           docker run --rm --platform linux/amd64 "$IMAGE" version
@@ -170,7 +168,7 @@ jobs:
 
       - name: Run arm64 smoke checks
         env:
-          IMAGE: basework:ci-${{ github.sha }}
+          IMAGE: basework:ci-${{ github.sha }}-arm64
         run: |
           docker run --rm --platform linux/arm64 "$IMAGE" version
           docker run --rm --platform linux/arm64 --read-only -w /workspace \

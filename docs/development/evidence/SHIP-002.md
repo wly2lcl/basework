@@ -201,9 +201,10 @@ BASEWORK_VERSION=0.1.4-SNAPSHOT-ef3041b \
 手工目录准备误当成发布命令的一部分。
 
 随后把脚本接入 `.github/workflows/build.yml` 的 `docker-smoke` job：候选 CI 会设置
-QEMU/Buildx、构建同一 OCI、载入镜像，并分别运行两个架构的 `version` 与只读
-`facts show`。该 job 当前只有配置证据，必须等当前候选进入远端 CI 后才能回填实际提交、
-运行编号和结果。
+QEMU/Buildx、构建同一 OCI，并在脚本的 `BASEWORK_DOCKER_SMOKE=1` 模式下为两个架构
+分别执行单平台 `buildx --load`；job 再运行两个架构的 `version` 与只读 `facts show`。
+多架构 OCI manifest 不直接交给 `docker load`，避免 Docker daemon 对 OCI manifest list
+的导入限制。该 job 仍需在当前候选 CI 通过后回填实际提交、运行编号和结果。
 
 ## 2026-09-15 历史 dirty worktree GoReleaser 快照
 

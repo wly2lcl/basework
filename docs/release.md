@@ -67,6 +67,7 @@ goreleaser release --snapshot --clean --skip=docker,publish
 ```bash
 BASEWORK_VERSION=0.1.4-SNAPSHOT-$(git rev-parse --short HEAD) \
   BUILDX_BUILDER=basework-builder \
+  BASEWORK_DOCKER_SMOKE=1 \
   ./scripts/build_docker_candidate.sh \
   basework:candidate-$(git rev-parse --short HEAD) \
   /private/tmp/basework-candidate-$(git rev-parse --short HEAD).oci
@@ -74,21 +75,24 @@ BASEWORK_VERSION=0.1.4-SNAPSHOT-$(git rev-parse --short HEAD) \
 
 脚本会用 `sqlite memory` tags 构建两个 Linux 二进制、注入版本信息、执行
 `docker buildx build --platform linux/amd64,linux/arm64`，最后打印 OCI 文件 SHA-256。
-载入镜像后，目标架构的冒烟命令应使用独立可写会话目录，并把源码工作区挂载为只读：
+设置 `BASEWORK_DOCKER_SMOKE=1` 时，脚本还会为两个架构分别执行单平台
+`buildx --load`，本地标签为 `basework:candidate-<commit>-amd64` 和
+`basework:candidate-<commit>-arm64`。多架构 OCI manifest 作为归档保存，不直接交给
+`docker load`；目标架构的冒烟命令应使用脚本加载的单平台标签、独立可写会话目录，并把
+源码工作区挂载为只读：
 
 ```bash
-docker load -i /private/tmp/basework-candidate-<commit>.oci
 docker run --rm --platform linux/amd64 --read-only -w /workspace \
   -v "$PWD:/workspace:ro" \
   -v /private/tmp/basework-docker-home/config:/root/.config/basework \
   -v /private/tmp/basework-docker-home/data:/root/.local/share/basework \
-  basework:candidate-<commit> facts show
+  basework:candidate-<commit>-amd64 facts show
 ```
 
 `--skip=docker` 的 GoReleaser dry-run 只验证归档配置，不替代这组镜像构建与运行检查。
 `.github/workflows/build.yml` 的 `docker-smoke` job 会在候选 CI 中执行同一脚本，并在
-QEMU 下分别运行 amd64/arm64 的 `version` 与只读 `facts show`；在远端 CI 实际运行前，
-它仍只是已提交的检查定义。
+QEMU 下分别加载单平台 amd64/arm64 标签，运行两个架构的 `version` 与只读 `facts show`；
+多架构 OCI 文件仍作为构建产物保存。CI 通过前，不能把这段定义当成运行证据。
 
 ## 安装渠道状态
 
