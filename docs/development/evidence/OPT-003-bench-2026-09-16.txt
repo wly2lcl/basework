@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/wly2lcl/basework/tests/benchmark
+cpu: Apple M3
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	  12982584 ns/op	  313040 B/op	    2300 allocs/op
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	  10935125 ns/op	  308320 B/op	    2218 allocs/op
+BenchmarkJSONLAppendEvents/Events_100-8         	       1	  10183458 ns/op	  308320 B/op	    2218 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	 112354042 ns/op	 3128440 B/op	   22040 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	 103429209 ns/op	 3128184 B/op	   22035 allocs/op
+BenchmarkJSONLAppendEvents/Events_1000-8        	       1	 103546375 ns/op	 3128344 B/op	   22039 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	1053954291 ns/op	31843200 B/op	  220195 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	1069380750 ns/op	31843552 B/op	  220201 allocs/op
+BenchmarkJSONLAppendEvents/Events_10000-8       	       1	1082467041 ns/op	31843696 B/op	  220203 allocs/op
+BenchmarkSQLiteAppendEvents/Events_100-8        	       1	  10660709 ns/op	  208656 B/op	    6331 allocs/op
+BenchmarkSQLiteAppendEvents/Events_100-8        	       1	  10065208 ns/op	  208168 B/op	    6319 allocs/op
+BenchmarkSQLiteAppendEvents/Events_100-8        	       1	  10253625 ns/op	  208104 B/op	    6318 allocs/op
+BenchmarkSQLiteAppendEvents/Events_1000-8       	       1	  84935083 ns/op	 2070104 B/op	   64515 allocs/op
+BenchmarkSQLiteAppendEvents/Events_1000-8       	       1	  86356042 ns/op	 2069432 B/op	   64512 allocs/op
+BenchmarkSQLiteAppendEvents/Events_1000-8       	       1	  89254667 ns/op	 2069384 B/op	   64511 allocs/op
+BenchmarkSQLiteAppendEvents/Events_10000-8      	       1	 832647417 ns/op	20736968 B/op	  649580 allocs/op
+BenchmarkSQLiteAppendEvents/Events_10000-8      	       1	 835460876 ns/op	20732888 B/op	  649566 allocs/op
+BenchmarkSQLiteAppendEvents/Events_10000-8      	       1	 830620999 ns/op	20734392 B/op	  649595 allocs/op
+PASS
+ok  	github.com/wly2lcl/basework/tests/benchmark	6.733s

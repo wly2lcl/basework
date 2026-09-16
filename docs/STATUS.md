@@ -34,7 +34,7 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
   `34945363069` 中 Quality、Ubuntu、Windows、macOS、Docker Smoke、Release Dry Run 全部通过。
 - 候选 `6a2cc3e` 的 run `34946819197` 中三平台 Release Artifact Smoke、Docker Smoke 和 Release Dry Run 全部通过；随后文档提交 `90b5a98` 的 run `34948470600` 重新验证了 Quality、三平台测试、三平台归档 Smoke、Docker Smoke 与 Release Dry Run。
 - 真实 PTY 场景 1–8 均已通过仓库内一键编排器在独立临时根、隔离 HOME、当前 checkout 二进制和本地确定性 Provider 下全量复跑，覆盖读改跑/事实重启、后台取消、硬杀恢复、模型能力、外部嵌入、`/session` 切换、审批允许/拒绝和双压缩重启；默认临时根会自动清理。
-- 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已拆成 [OPT-003](tasks/09-follow-up.md#opt-003) 优化任务。
+- 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 追加已由 [OPT-003](tasks/09-follow-up.md#opt-003) 优化，10000 事件同条件中位数约 1.07 秒，旧基线约 112–130 秒。
 - 上轮候选真实外部 Provider 的旧 runner 已由 run `35049625067` 验证：Agent 回合成功、实现文件发生修改、独立 `go test ./...` 退出码为 0；历史结果见 [SHIP-001](development/evidence/SHIP-001.md)；B02/B03 暴露旧 runner 的校验/脱敏边界，需修复后补证。
 - 五平台发布归档已在对应 GitHub runner 上解包运行并完成 init、v1→v2 迁移、源文件哈希保持、未来版本拒绝 Smoke，候选 CI 与 Docker Smoke 均有可追溯结果。
 
@@ -47,8 +47,8 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 ## 当前工程边界
 
 - Bash 在宿主执行，权限规则不构成 OS 沙箱。
-- JSONL 单次会话追加重写全文件，长会话成本已有 OPT-002 基线、优化见 OPT-003；CLI 当前固定 JSONL，SQLite 的库支持不等于已接入产品后端切换。
-- 完整压缩快照与累积 steering 增加存储/请求体积；优化前按 OPT-003 补同条件对照、快照体积和 profile。
+- JSONL 会话追加已改为增量单行写入并保留有界批量同步；CLI 当前固定 JSONL，SQLite 的库支持不等于已接入产品后端切换。
+- 完整压缩快照与累积 steering 仍增加存储/请求体积；OPT-003 已补同条件 JSONL/SQLite 对照、快照体积和 profile。
 - 文档检查只验证布局、链接、任务与证据结构，不能自动证明业务完成。root README 仅导航，正文仍统一在 docs。
 
 ## 2026-09-16 上轮 M8 验收记录（本次复审已回退）
@@ -67,11 +67,11 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 - RUN-002 B01 已修复；QA-001 的 B02/B03/B04/B06 已完成局部修复，需在新候选上完成整体验收。
 - RUN-003、CTX-003 与 UI 依赖链已在修复候选回验；SHIP-001 仍需补可信协议样本，再重建 SHIP-002/003 的候选证据。
-- OPT-002 保留性能基线完成结论；存储优化单列 OPT-003，有范围和量化目标。
+- OPT-002 保留性能基线完成结论；OPT-003 已完成 JSONL 增量追加、锁/残尾回归和同条件 JSONL/SQLite 基准，结果见证据文件。
 - 默认/完整构建、相关 race、PTY scenario1–8 与默认 CI 的本轮结果见 [复审报告](development/evidence/REVIEW-2026-09-16.md)。B01–B04/B06 修复回归、正确实现正向验收和超时测试均通过。
 
 ## 2026-09-16 修复进度
 
 - RUN-002 的 B01 关闭登记竞态已修复；新增回归与相关 race 通过。
 - QA-001 的 B02/B03/B04/B06 已修复：验证使用可信测试副本，Bash 子进程使用显式去凭证环境，独立测试有超时/有界输出/进程树终止，CI 已加入无 tags 全量测试。
-- B05 当前候选的 OpenAI-compatible 连续 3 次已完成（runs 35071026911、35071530401、35071644174）；不同协议/入口证据仍未完成。RUN-003/UI 依赖回验已通过；OPT-003 未实施。
+- B05 当前候选的 OpenAI-compatible 连续 3 次已完成（runs 35071026911、35071530401、35071644174）；不同协议/入口证据仍未完成。RUN-003/UI 依赖回验已通过；OPT-003 已完成。

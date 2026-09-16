@@ -61,7 +61,7 @@
 | QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 进行中 | BASE-001, UI-003 | Codex / 复审重开 | [记录](development/evidence/QA-001.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
-| OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 待办 | OPT-002 | — | [记录](development/evidence/OPT-003.md) |
+| OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
 
 ## 进度更新纪律
 

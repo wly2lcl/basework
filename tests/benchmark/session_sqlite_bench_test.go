@@ -66,6 +66,40 @@ func BenchmarkSQLiteStore_AppendEvent(b *testing.B) {
 	}
 }
 
+// BenchmarkSQLiteAppendEvents 与 BenchmarkJSONLAppendEvents 使用相同的事件
+// 规模和 payload，便于 OPT-003 记录后端对照。初始化和关闭不计入计时。
+func BenchmarkSQLiteAppendEvents(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		b.Run(fmt.Sprintf("Events_%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			data := mustMarshalSessionSQLite(b, map[string]string{"content": "fixed benchmark event payload"})
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				dbPath := filepath.Join(b.TempDir(), fmt.Sprintf("append-%d.db", i))
+				store, err := session.NewSQLiteStore(dbPath)
+				if err != nil {
+					b.Fatal(err)
+				}
+				info, err := store.Create(session.CreateOpts{Title: "append"})
+				if err != nil {
+					store.Close()
+					b.Fatal(err)
+				}
+				b.StartTimer()
+				for j := 0; j < n; j++ {
+					if err := store.AppendEvent(session.Event{SessionID: info.ID,
+						Type: session.EventPrompted, Data: data}); err != nil {
+						store.Close()
+						b.Fatal(err)
+					}
+				}
+				b.StopTimer()
+				store.Close()
+			}
+		})
+	}
+}
+
 // BenchmarkSQLiteStore_Read 测试 SQLiteStore.Events 的读取性能。
 func BenchmarkSQLiteStore_Read(b *testing.B) {
 	b.StopTimer()

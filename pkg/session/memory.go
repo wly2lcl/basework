@@ -16,6 +16,15 @@ type sessionData struct {
 	info   *Info
 	events []Event
 	seq    int64 // 该会话的事件序列计数器
+
+	// JSONLStore 用这两个字段判断缓存是否仍对应磁盘上的文件。
+	// MemoryStore 不使用它们；字段放在共享的内部结构中，避免为 JSONL
+	// 维护另一份事件容器。
+	fileSize     int64
+	fileModTime  time.Time
+	needsRewrite bool
+	// eventsSinceSync 由 JSONLStore 使用，用于有界批量 fsync。
+	eventsSinceSync int
 }
 
 // MemoryStore 是一个内存会话存储实现，使用 map + RWMutex 保证并发安全。
