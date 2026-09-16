@@ -149,3 +149,14 @@ real provider runner requires BASEWORK_REAL_API_KEY, BASEWORK_REAL_BASE_URL, and
 同日提交 `9d7458bb5c53274b5d5b1742cb88abe75ad4ac64` 的干净 detached worktree 已重新完成
 完整 tag race 与 PTY scenario1–8；八个场景均通过，scenario7 使用详情等待修复后不再
 出现审批弹窗读取竞态。该结果仍属于本地提交级证据，尚未形成远端 CI 结果。
+
+## 2026-09-16 当前候选 CI 与真实 Provider 前置
+
+候选提交 `3787862cd076b72d49acfc3c1127efcc807f3539` 的 [GitHub Actions run
+35043445341](https://github.com/wly2lcl/basework/actions/runs/35043445341) 已全绿，Quality、
+五平台测试/发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过；发布包的 init、会话
+迁移、源文件哈希保持和未来版本拒绝结果详见 [SHIP-002](SHIP-002.md#2026-09-16-当前候选发布包迁移-smoke)。
+
+这次 CI 没有注入 `BASEWORK_REAL_API_KEY`，没有发出真实 Provider 请求，也没有把本地脚本化
+Provider 当作真实模型。当前仓库 Actions secret 列表中仍无该 secret，因此 SHIP-001 继续
+保持“待验证”；补齐方式见[真实 Provider 验收夹具](../real-provider-acceptance.md#github-actions-运行方式)。

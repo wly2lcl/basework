@@ -25,3 +25,27 @@ Provider、模型、脱敏端点 origin、固定输入、耗时、工具名/成�
 仓库提供 `.github/workflows/real-provider.yml` 作为手动触发入口。它只在明确的
 `workflow_dispatch` 下运行，API key 从 `BASEWORK_REAL_API_KEY` secret 注入，结果以
 artifact 上传脱敏 JSON；默认 `build.yml` 不调用外部模型。
+
+## GitHub Actions 运行方式
+
+密钥只添加到仓库的 Actions secret，不要写入仓库、命令历史或聊天记录。已安装并登录
+GitHub CLI 时，可在本地交互设置：
+
+```bash
+gh secret set BASEWORK_REAL_API_KEY --repo wly2lcl/basework
+```
+
+然后按实际端点手动触发工作流；`provider`、`base_url` 和 `model` 必须与这次验收使用的
+协议入口和模型一致：
+
+```bash
+gh workflow run real-provider.yml --repo wly2lcl/basework \
+  -f provider=openai \
+  -f base_url=https://gateway.example.com/v1 \
+  -f model=gpt-4o
+```
+
+触发后可用 `gh run list --repo wly2lcl/basework --workflow real-provider.yml` 找到运行，
+下载其中的 `real-provider-result-<run_id>` artifact，并将脱敏 JSON 与候选 commit、日期、
+协议入口和重试次数一起回填到 SHIP-001/QA-001。若 secret、端点或模型缺失，工作流必须
+保持失败，不能用脚本化 Provider 结果替代真实请求。
