@@ -1,6 +1,6 @@
-# SHIP-002 验证记录：跨平台安装与升级验证（历史完成记录；当前待验证）
+# SHIP-002 验证记录：跨平台安装与升级验证（历史记录；当前已完成）
 
-> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。早期“完成”只描述历史快照；当前候选、镜像和平台缺口见文末日期段。
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**完成**。早期“完成”只描述历史快照；当前候选、镜像和平台结果见文末日期段。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-002) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -365,3 +365,27 @@ explain` 和 `init --yes`；随后在隔离 HOME 中执行 v1 JSONL → SQLite �
 这次 run 关闭了 SHIP-002 的发布包级升级 Smoke 与五平台哈希证据缺口。它仍不等价于用户
 个人设备上的安装体验，也不包含真实 Provider 请求；后两项继续由 SHIP-001/QA-001 与
 真人体验边界分别记录。
+
+## 2026-09-16 当前候选发布与前置门禁收口
+
+当前候选提交 `2a868864f31c8a66527c1679fd2951a8869c2267` 的 [CI run
+35045978660](https://github.com/wly2lcl/basework/actions/runs/35045978660) 全绿。该 run
+在五个对应 runner 上从 GoReleaser 生成 `0.1.4-SNAPSHOT-2a86886`，解包运行
+`version`、`config explain`、`init --yes`、v1→SQLite 迁移、源 JSONL 哈希保持和未来 v99
+拒绝 Smoke；Docker Smoke 与 Release Dry Run 也通过。当前候选归档 SHA-256 如下：
+
+| Runner / 实际平台 | 归档 | SHA-256 |
+|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `ea53c8140a64f7a3f7271eae77b0ba698e764a2df6e281d52ff3ae44c582f834` |
+| `ubuntu-24.04-arm` / linux-arm64 | `basework_Linux_arm64.tar.gz` | `841052a089b38ae36fac6007a99c2fe79c31604e36a75b7eef0180c0bd357253` |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `35ebd37c4b142ea05cee40247f7528c29b8614276be84a54ba93768ac1211737` |
+| `macos-15-intel` / darwin-amd64 | `basework_Darwin_x86_64.tar.gz` | `25c79e19c1c260285fc4d0fd8da71ff216ac7a8f2f897bb10f7772b5affc7a80` |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `f53075166f2bda2d9457f8dfd94a407e3f0f70813bca8e3803372414dcd94b74` |
+
+该 run 与 [SHIP-001 当前候选真实 Provider 结果](SHIP-001.md#2026-09-16-当前候选真实-provider-正向验收)
+及 [QA-001 收口结果](QA-001.md#2026-09-16-当前候选真实-provider-正向与验收收口) 绑定；
+此前五平台迁移断言的详细日志和哈希仍保留，当前 run 证明同一候选提交的发布流程可复跑。
+平台 runner 证据不等同于每位用户个人设备的人工安装体验，但已满足任务卡要求的声明平台
+实际产物运行、升级保护和可追溯记录。
+
+**当前结论：SHIP-002 完成。**

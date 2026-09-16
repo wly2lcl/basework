@@ -1,0 +1,45 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-2.5-flash",
+  "endpoint_origin": "https://newapi.doubb.top/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-16T02:52:24Z",
+  "elapsed_ms": 6522,
+  "agent_ok": true,
+  "final_text_sha256": "3d52e14193997ac17b70605227eac2de5c038e996952677fe1d1688ed2b6d10c",
+  "tool_calls": [
+    {
+      "name": "glob",
+      "success": true
+    },
+    {
+      "name": "glob",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "edit",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    }
+  ],
+  "independent_test_exit_code": 0,
+  "independent_test_output_tail": "ok  \tbasework-real-provider-fixture\t(cached)\n",
+  "file_changed": true
+}

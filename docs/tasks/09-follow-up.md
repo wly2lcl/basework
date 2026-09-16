@@ -26,7 +26,7 @@
 - [x] 更换为未知会话 ID 时验收明确失败且不创建新会话；正常会话切换场景通过。
 - [x] 在临时副本移除 session 绑定接线后，scenario6 负向验收失败；说明接线断开不会被宽松断言掩盖。
 - [x] 外部 module 的嵌入示例编译、运行均通过；无需导入 internal。
-- [ ] CI job 的具体范围、commit 和结果可查，真实模型与脚本化模型证据分开。
+- [x] CI job 的具体范围、commit 和结果可查，真实模型与脚本化模型证据分开。
 
 **验证**：Python 入口在空目录运行；`go test -race -tags "sqlite memory" ./internal/runtime ./internal/jobs ./internal/edits ./internal/tui ./cmd/basework -count=1`；外部 module 与 CLI help 对照；保存 `docs/development/evidence/QA-001.md`。
 

@@ -1,6 +1,6 @@
-# SHIP-001 验证记录：固定编码场景回归集（历史完成记录；当前待验证）
+# SHIP-001 验证记录：固定编码场景回归集（历史记录；当前已完成）
 
-> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。下文早期“完成”只表示当时工作区快照满足当时范围；本轮清洁候选、真实 Provider 和发布门禁结果见文末日期段。
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**完成**。下文早期“完成”只表示当时工作区快照；当前候选真实 Provider 与发布门禁结果见文末日期段。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-001) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -160,3 +160,28 @@ real provider runner requires BASEWORK_REAL_API_KEY, BASEWORK_REAL_BASE_URL, and
 这次 CI 没有注入 `BASEWORK_REAL_API_KEY`，没有发出真实 Provider 请求，也没有把本地脚本化
 Provider 当作真实模型。当前仓库 Actions secret 列表中仍无该 secret，因此 SHIP-001 继续
 保持“待验证”；补齐方式见[真实 Provider 验收夹具](../real-provider-acceptance.md#github-actions-运行方式)。
+
+## 2026-09-16 当前候选真实 Provider 正向验收
+
+候选提交 `2a868864f31c8a66527c1679fd2951a8869c2267` 的 [GitHub Actions run
+35049625067](https://github.com/wly2lcl/basework/actions/runs/35049625067) 已成功完成。
+本次使用 `provider=openai`、端点 `https://newapi.doubb.top/v1`、模型
+`agnes-2.5-flash`；API key 只从仓库 Actions secret 注入，没有写入日志或结果文件。
+
+脱敏结果已随仓库保存为 [`SHIP-001-real-provider-2026-09-16.json`](SHIP-001-real-provider-2026-09-16.json)，
+关键字段如下：
+
+| 检查项 | 结果 |
+|---|---|
+| Agent 回合 | `agent_ok=true`，完成 `calc.go` 修复 |
+| 工具轨迹 | `glob` 2 次、`read` 2 次、`bash` 2 次、`edit` 1 次，均成功 |
+| 独立验证 | `go test ./...`，退出码 `0` |
+| 文件变更 | `file_changed=true`，测试文件未被修改 |
+| 耗时 | `6522 ms` |
+| 最终文本哈希 | `3d52e14193997ac17b70605227eac2de5c038e996952677fe1d1688ed2b6d10c` |
+
+该运行关闭了当前候选的真实 Provider 正向门禁。它只覆盖仓库内固定 `fixbug` 夹具的一次
+当前候选运行，不把一次成功推广成稳定成功率，也不产生费用结论；历史五类真实矩阵和
+离线六场景记录继续作为场景覆盖证据，并与本次当前候选结果分开保存。
+
+**当前结论：SHIP-001 完成。**
