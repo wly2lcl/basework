@@ -74,6 +74,31 @@
 
 **针对性验证**：go test -race -tags "sqlite memory" ./internal/runtime ./pkg/agent ./cmd/basework -count=1。记录在本任务原证据文件的新日期段，保留旧记录；满足全部原有与补充验收后才更新看板。
 
+### 2026-09-16 再复审补充：B01 / P1
+
+依据：[本次复审](../development/evidence/REVIEW-2026-09-16.md) B01；[最小复现](../development/review-reproduction-2026-09-16.md)。原关闭修复有效，但遗漏了第二次 closed 检查到 cancel 登记之间的窗口。
+
+**实施切片**：
+
+1. 将 TestReviewCloseDuringRegistration 转为正式回归；保留 ForRun 通道屏障，先证明原实现失败。
+2. 在统一同步协议内复核 closed 并登记取消函数；Close 清空取消表后不得再登记未取消运行。避免持锁调用用户回调、Agent 或耗时清理。
+3. 覆盖 Close 在登记前/后、队列等待、并发重复 Close、Start 出错和调用方主动取消；确认 Agent.Close 仅在运行退出后调用。
+4. 复核 CLI/TUI 退出、取消和切换路径；保留已有订阅与迟到事件隔离测试。
+
+**新增验收**：
+
+- [x] 复现修复前失败、修复后通过，无需依靠调用方额外取消让 Close 返回。
+- [x] 所有进入 Agent 的 context 已处于 Close 管理下；关闭后新的 Start 被拒绝。
+- [x] 定向测试及 `go test -race -tags "sqlite memory" ./internal/runtime ./cmd/basework ./internal/tui -count=1` 通过。
+
+完成后先恢复 RUN-002，再回验依赖任务。不要用额外 sleep、删除屏障或增加长超时掩盖竞态。
+
+### 2026-09-16 修复结果
+
+将运行级 context 在第二次关闭检查的同一互斥协议中登记，再调用可能阻塞的 `ForRun`；关闭期间会取消已登记运行，放行后再次检查取消/关闭状态，避免 Agent 接收未被 Close 跟踪的 context。新增正式回归 `TestClose_DuringCallbackAdmissionCancelsBeforeAgentEntry`。
+
+验证：`go test -tags "sqlite memory" ./internal/runtime -run 'TestClose_DuringCallbackAdmissionCancelsBeforeAgentEntry|TestClose_DuringRunCancelsRunningAndWakesSubscriber|TestStartQueuedAfterCloseDoesNotInvokeAgent' -count=1`、相关包 race 测试和默认/完整全量测试均通过。此卡恢复完成；下游 RUN-003 仍需依赖回验。
+
 <a id="run-003"></a>
 
 ## RUN-003：CLI/TUI 统一接入服务
@@ -119,3 +144,10 @@
 - [x] 旧运行的迟到消息不污染下一运行；三入口错误类型和退出结果符合相同契约。
 
 **针对性验证**：go test -race -tags "sqlite memory" ./internal/runtime ./internal/tui ./cmd/basework -count=1。记录在本任务原证据文件的新日期段，保留旧记录；满足全部原有与补充验收后才更新看板。
+
+### 2026-09-16 依赖回验
+
+[本次复审](../development/evidence/REVIEW-2026-09-16.md) 确认 RUN-002 的关闭竞态与 QA-001 的验收漏洞。当前任务实现和原通过记录保留；依赖回退后的整体验收不能沿用旧完成结论。
+
+- [ ] 前置任务全部重新完成；只复跑本卡受影响的真实入口/取消/恢复验收，不重写已通过模块。
+- [ ] 证据记录修复后候选 commit 与实际结果；发布任务同时更新 CI/归档/真实 Provider 对应关系。

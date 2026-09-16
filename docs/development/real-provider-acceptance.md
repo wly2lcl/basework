@@ -12,11 +12,19 @@ BASEWORK_REAL_OUTPUT=/tmp/basework-real-provider.json \
 go run ./tests/real_provider
 ```
 
-运行器会把仓库内 `tests/real_provider/fixtures/fixbug` 复制到随机临时目录，在临时
-项目中执行一次真实 Agent 回合，再由夹具独立运行 `go test ./...`。结果文件只保存：
-Provider、模型、脱敏端点 origin、固定输入、耗时、工具名/成功状态、测试退出码和最终
-文本哈希；不保存 API key、完整模型输出或临时工作目录内容。Agent 失败、独立测试
-失败或文件未修改时均返回非零，并且仍写出脱敏结果，便于记录失败样本。
+运行器会把仓库内 `tests/real_provider/fixtures/fixbug` 复制到可信临时目录，再复制一份
+给模型工作；模型工作区之外保留原始测试和 `go.mod`。回合结束后只把允许修改的实现
+文件带入第二个验证目录，拒绝测试/模块配置被改写、删除或新增越界文件，并记录原始测试
+哈希。独立验证命令固定为
+`go test -count=1 -run '^TestAdd$' ./...`：禁用缓存，确认目标测试实际执行，且使用
+单独 60 秒 context、进程树回收和 64 KiB 有界输出。结果文件保存验证状态、测试哈希、
+实现文件哈希、测试退出码和输出尾部；不保存 API key、完整模型输出或临时工作目录内容。
+Agent 失败、验证门禁失败、测试未执行、独立测试失败或文件未修改时均返回非零，并且仍
+写出脱敏结果，便于记录失败样本。
+
+真实 Agent 使用 `builtin.Runtime.Environment` 的去凭证环境运行 Bash；独立测试同样使用
+该环境。runner 会统一清洗已知 Provider key 的工具错误、Agent 错误、验证输出和结果
+JSON。这个过滤保证只属于验收运行器，不把 Bash 权限规则误写成 OS 沙箱。
 
 真实 Provider 结果不能写入默认 CI，也不能把脚本化 TUI 场景当成真实模型结果。每次
 运行应将脱敏 JSON 复制到任务证据目录，并注明日期、候选 commit、Provider/model、
@@ -36,7 +44,8 @@ gh secret set BASEWORK_REAL_API_KEY --repo wly2lcl/basework
 ```
 
 然后按实际端点手动触发工作流；`provider`、`base_url` 和 `model` 必须与这次验收使用的
-协议入口和模型一致：
+协议入口和模型一致。每种协议在同一候选 commit 上至少连续运行 3 次；表格还要标明
+核心 API、CLI 或 TUI 入口，不能把核心 API 结果写成 CLI/TUI 结果：
 
 ```bash
 gh workflow run real-provider.yml --repo wly2lcl/basework \
@@ -47,5 +56,7 @@ gh workflow run real-provider.yml --repo wly2lcl/basework \
 
 触发后可用 `gh run list --repo wly2lcl/basework --workflow real-provider.yml` 找到运行，
 下载其中的 `real-provider-result-<run_id>` artifact，并将脱敏 JSON 与候选 commit、日期、
-协议入口和重试次数一起回填到 SHIP-001/QA-001。若 secret、端点或模型缺失，工作流必须
-保持失败，不能用脚本化 Provider 结果替代真实请求。
+协议入口和重试次数一起回填到 SHIP-001/QA-001。结果中的 `validation_ok=true`、
+`tests_executed=true`、`file_changed=true`、`independent_test_exit_code=0` 和测试哈希
+共同构成可信通过条件；只看 Agent 成功或退出码 0 不足以通过。若 secret、端点或模型
+缺失，工作流必须保持失败，不能用脚本化 Provider 结果替代真实请求。

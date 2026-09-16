@@ -27,6 +27,10 @@ type Runtime struct {
 	Timeout *TimeoutConfig
 	// EventBus 是实例级事件发布器。nil 时回落 globalEventBus。
 	EventBus EventPublisher
+	// Environment 是 BashTool 子进程使用的完整环境。nil 时继承当前进程环境。
+	// 设置后不会自动追加当前环境；调用方应先复制 os.Environ，再移除不应
+	// 暴露给工具的变量。这样 Provider 凭证可以只留在模型客户端内存中。
+	Environment []string
 }
 
 // resolvePathChecker 返回该实例应使用的路径检查器。
@@ -51,6 +55,14 @@ func (r *Runtime) resolveEventBus() EventPublisher {
 		return r.EventBus
 	}
 	return globalEventBus
+}
+
+// resolveEnvironment 返回 BashTool 应传给子进程的环境；nil 表示沿用 exec 默认继承。
+func (r *Runtime) resolveEnvironment() []string {
+	if r != nil && r.Environment != nil {
+		return append([]string(nil), r.Environment...)
+	}
+	return nil
 }
 
 // AllWithRuntime 返回注入了实例运行时的全部内置工具。

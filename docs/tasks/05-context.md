@@ -143,3 +143,10 @@
 - [x] 旧 running job 明确 interrupted 且无自动重跑；两次快照结果和审计可重建。
 
 **针对性验证**：go test -race -tags "sqlite memory" ./pkg/session ./pkg/agent ./internal/compaction ./cmd/basework -count=1。记录在本任务原证据文件的新日期段，保留旧记录；满足全部原有与补充验收后才更新看板。
+
+### 2026-09-16 依赖回验
+
+[本次复审](../development/evidence/REVIEW-2026-09-16.md) 确认 RUN-002 的关闭竞态与 QA-001 的验收漏洞。当前任务实现和原通过记录保留；依赖回退后的整体验收不能沿用旧完成结论。
+
+- [ ] 前置任务全部重新完成；只复跑本卡受影响的真实入口/取消/恢复验收，不重写已通过模块。
+- [ ] 证据记录修复后候选 commit 与实际结果；发布任务同时更新 CI/归档/真实 Provider 对应关系。

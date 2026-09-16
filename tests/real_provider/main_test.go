@@ -1,10 +1,18 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/wly2lcl/basework/pkg/tool/builtin"
 )
 
 func TestRedactURLRemovesCredentialsAndQuery(t *testing.T) {
@@ -36,5 +44,196 @@ func TestCopyDirCopiesFixtureContents(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dst, path)); err != nil {
 			t.Fatalf("复制后缺少 %s: %v", path, err)
 		}
+	}
+}
+
+func TestRunRejectsModifiedTrustedTestsAndRestoresWorkingDirectory(t *testing.T) {
+	fixture := t.TempDir()
+	if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module fixture\n\ngo 1.26\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture, "calc.go"), []byte("package main\n\nfunc Add(a, b int) int { return a - b }\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture, "calc_test.go"), []byte("package main\n\nimport \"testing\"\n\nfunc TestAdd(t *testing.T) { if Add(2, 3) != 5 { t.Fatal(\"bad\") } }\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "text/event-stream")
+		var delta map[string]any
+		finish := "stop"
+		if requests == 1 {
+			args, _ := json.Marshal(map[string]string{"command": "printf 'package main\\n' > calc_test.go"})
+			delta = map[string]any{"tool_calls": []any{map[string]any{
+				"index": 0, "id": "call-review", "type": "function",
+				"function": map[string]any{"name": "bash", "arguments": string(args)},
+			}}}
+			finish = "tool_calls"
+		} else {
+			delta = map[string]any{"content": "done"}
+		}
+		body, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{
+			"index": 0, "delta": delta, "finish_reason": finish,
+		}}})
+		_, _ = fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", body)
+	}))
+	defer server.Close()
+
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BASEWORK_REAL_PROVIDER", "openai")
+	t.Setenv("BASEWORK_REAL_API_KEY", "synthetic-review-key")
+	t.Setenv("BASEWORK_REAL_BASE_URL", server.URL+"/v1")
+	t.Setenv("BASEWORK_REAL_MODEL", "review-model")
+	output := filepath.Join(t.TempDir(), "result.json")
+	if err := run(fixture, output); err == nil {
+		t.Fatal("修改受保护测试后，验收不应成功")
+	}
+	current, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current != original {
+		t.Fatalf("runner 未恢复工作目录: %s", current)
+	}
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result resultFile
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.ValidationOK || !strings.Contains(result.ValidationErr, "protected fixture file changed") {
+		t.Fatalf("验证失败原因未结构化记录: %+v", result)
+	}
+	if strings.Contains(string(data), "synthetic-review-key") {
+		t.Fatal("结果文件泄漏合成密钥")
+	}
+}
+
+func TestRunAcceptsCorrectImplementationWithTrustedTests(t *testing.T) {
+	fixture := t.TempDir()
+	writeReviewFixture(t, fixture, `package main
+
+func Add(a, b int) int { return a - b }
+`, `package main
+
+import "testing"
+
+func TestAdd(t *testing.T) { if Add(2, 3) != 5 { t.Fatal("bad") } }
+`)
+	var requests int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "text/event-stream")
+		var delta map[string]any
+		finish := "stop"
+		if requests == 1 {
+			args, _ := json.Marshal(map[string]string{"command": "printf 'package main\\n\\nfunc Add(a, b int) int { return a + b }\\n' > calc.go"})
+			delta = map[string]any{"tool_calls": []any{map[string]any{
+				"index": 0, "id": "call-fix", "type": "function",
+				"function": map[string]any{"name": "bash", "arguments": string(args)},
+			}}}
+			finish = "tool_calls"
+		} else {
+			delta = map[string]any{"content": "fixed and tested"}
+		}
+		body, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{
+			"index": 0, "delta": delta, "finish_reason": finish,
+		}}})
+		_, _ = fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", body)
+	}))
+	defer server.Close()
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BASEWORK_REAL_PROVIDER", "openai")
+	t.Setenv("BASEWORK_REAL_API_KEY", "synthetic-review-key")
+	t.Setenv("BASEWORK_REAL_BASE_URL", server.URL+"/v1")
+	t.Setenv("BASEWORK_REAL_MODEL", "review-model")
+	output := filepath.Join(t.TempDir(), "result.json")
+	if err := run(fixture, output); err != nil {
+		t.Fatalf("正确实现不应失败: %v", err)
+	}
+	if current, _ := os.Getwd(); current != original {
+		t.Fatalf("runner 未恢复工作目录: %s", current)
+	}
+	var result resultFile
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.ValidationOK || !result.TestsExecuted || result.TestExitCode != 0 {
+		t.Fatalf("可信测试结果不完整: %+v", result)
+	}
+	if result.TestFilesSHA256["calc_test.go"] == "" {
+		t.Fatalf("未记录可信测试哈希: %+v", result.TestFilesSHA256)
+	}
+}
+
+func TestIndependentTestHonorsTimeoutAndBoundsOutput(t *testing.T) {
+	fixture := t.TempDir()
+	writeReviewFixture(t, fixture, `package main
+
+func Add(a, b int) int { return a + b }
+`, `package main
+
+import (
+ "os/exec"
+ "testing"
+ "time"
+)
+
+func TestAdd(t *testing.T) {
+ child := exec.Command("sh", "-c", "sleep 30")
+ if err := child.Start(); err != nil { t.Fatal(err) }
+ time.Sleep(30 * time.Second)
+}
+`)
+	ctx, cancel := context.WithTimeout(t.Context(), 750*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	code, output, executed := independentTest(ctx, fixture)
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("验证超时未及时终止: %s", elapsed)
+	}
+	if code == 0 || executed || !strings.Contains(output, "timed out") {
+		t.Fatalf("超时结果不符: code=%d executed=%v output=%q", code, executed, output)
+	}
+}
+
+func writeReviewFixture(t *testing.T, dir, implementation, tests string) {
+	t.Helper()
+	for name, data := range map[string]string{
+		"go.mod":       "module fixture\n\ngo 1.26\n",
+		"calc.go":      implementation,
+		"calc_test.go": tests,
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRunnerEnvironmentDoesNotExposeProviderKeyToBash(t *testing.T) {
+	const secret = "synthetic-runner-key"
+	t.Setenv("BASEWORK_REAL_API_KEY", secret)
+	tool := &builtin.BashTool{Runtime: &builtin.Runtime{Environment: sanitizedEnvironment()}}
+	result, err := tool.Execute(t.Context(), []byte(`{"command":"printenv BASEWORK_REAL_API_KEY; exit 1"}`))
+	if err != nil || result == nil {
+		t.Fatalf("Bash 环境隔离探针失败: %v", err)
+	}
+	if strings.Contains(result.Content, secret) {
+		t.Fatal("Bash 子进程读取到了 Provider key")
 	}
 }

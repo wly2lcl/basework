@@ -106,6 +106,9 @@ func (b *BashTool) Execute(ctx context.Context, args json.RawMessage) (*tool.Res
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(execCtx, "sh", "-c", params.Command)
+	if env := b.Runtime.resolveEnvironment(); env != nil {
+		cmd.Env = env
+	}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 

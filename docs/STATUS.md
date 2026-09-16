@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-16；当前发布与 CI 门禁代码候选为 `2a86886`，对应全量 CI 的 run `35045978660`，当前真实 Provider 验收为 run `35049625067`。任务状态只在 [TASKS](TASKS.md) 维护，本页只描述当前实现边界。
+核对日期：2026-09-16（完成后再复审）；代码基线 `dc7c518`，上轮发布代码候选 `2a86886`。上轮 CI 与真实 Provider 记录继续保留，不能覆盖本次新增失败复现。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心实现、跨平台 CI、真实 Unix PTY 入口、自动测试和 M8 候选验收均已收口；当前仍保留真人主观 TUI 手感这一独立体验边界。** 缺陷、复现与历史证据的边界见 [复审报告](development/evidence/REVIEW-2026-09-14.md)。任务状态只在 [TASKS](TASKS.md) 维护。
+**结论：核心功能与常规测试基础较完整，但尚未全部验收完成。** 本次确认运行关闭竞态、真实模型验收假阳性和秘密进入结果的路径；还需补验证超时、当前协议样本和默认构建 CI。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是本次回退原因。
 
 ## 当前能力与缺口
 
@@ -14,28 +14,28 @@
 | 后台命令 | owner、状态机、输出配额/溢出、读取、取消、进程树终止、JSONL 历史、尾部修复、CLI/TUI 接线；重启归并 interrupted | 输出文件清理和跨平台 shell 能力仍受目标系统约束 |
 | 编辑预览与提交 | 工作区/软链/权限检查、内容基线、逐文件写入、部分成功清单；撤销重新检查路径与权限 | 跨文件不是事务；撤销遇到用户二次编辑会按文件跳过 |
 | 编辑产品闭环 | edit_files 预览/提交/撤销、真实 plan 路径/diff 审批、file.edited 事件、edits list/show、事实持久化 | 外部 Provider 与发布候选仍单独验收 |
-| 配置与资源管理 | 脱敏 config explain、readonly/coding 预设、自定义 base_url、实例注入、逆序幂等释放；服务关闭会取消并等待在途运行 | 不承诺热重载/插件热卸载；跨平台发布与外部 Provider 仍单独验收 |
+| 配置与资源管理 | 脱敏 config explain、readonly/coding 预设、自定义 base_url、实例注入、逆序幂等释放；服务关闭与运行登记已按 RUN-002 修复并有回归 | 不承诺热重载/插件热卸载；QA/发布候选仍需重新验收 |
 | 工作区事实 | WorkspaceFacts 数据模型、版本信封、工作区归属、运行时编辑事件折叠保存、CLI facts show、重启后读取 | read 事实仍按范围控制；目标平台安装仍按 SHIP-002 单独验收 |
 | 事实摘要 | 按事实生成文本、来源信息、预算裁剪、过期/未读取标识、默认关闭；主 Agent 每轮请求前刷新；拒绝 Windows 盘符/UNC/根相对路径及工作区外符号链接 | Windows runner 已覆盖路径边界；真人/外部 Provider 行为仍单独验收 |
-| 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 语义与自动化入口已收口；真人主观体验仍未评价 |
-| 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由 | 发布平台和真实 Provider 体验仍单独验收 |
-| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 真人手感、Windows PTY 和跨平台安装仍待发布任务 |
+| 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 已有历史自动化入口证据；当前因运行服务依赖回退需复验，真人主观体验仍未评价 |
+| 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖仍需回验入口与迟到事件 |
+| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 当前依赖运行服务回验；Windows PTY/真人手感未评价，五平台归档已有历史运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、恢复场景、当前候选真实 Provider | 真人主观 TUI 手感尚未评价；不影响自动化候选验收 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、历史真实 Provider 记录 | B02/B03/B04/B06 已修复；B05 当前协议/次数/入口矩阵、依赖回验和新候选真实 Provider 仍未完成 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
 推导所有 Windows 安装环境均有 bash/sh 或终端支持。
 
-## 本轮验证
+## 上轮实现验证记录（保留历史）
 
 - 默认与 `sqlite memory` 全量测试通过；完整构建、vet、架构检查和生成物新鲜度通过。
 - CI 原 race 范围及额外 runtime/jobs/edits 检查通过；候选 `1e9c819` 的 run
   `34945363069` 中 Quality、Ubuntu、Windows、macOS、Docker Smoke、Release Dry Run 全部通过。
 - 候选 `6a2cc3e` 的 run `34946819197` 中三平台 Release Artifact Smoke、Docker Smoke 和 Release Dry Run 全部通过；随后文档提交 `90b5a98` 的 run `34948470600` 重新验证了 Quality、三平台测试、三平台归档 Smoke、Docker Smoke 与 Release Dry Run。
 - 真实 PTY 场景 1–8 均已通过仓库内一键编排器在独立临时根、隔离 HOME、当前 checkout 二进制和本地确定性 Provider 下全量复跑，覆盖读改跑/事实重启、后台取消、硬杀恢复、模型能力、外部嵌入、`/session` 切换、审批允许/拒绝和双压缩重启；默认临时根会自动清理。
-- 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已转为后续优化候选。
-- 当前候选真实外部 Provider 已由 run `35049625067` 验证：Agent 回合成功、实现文件发生修改、独立 `go test ./...` 退出码为 0；脱敏结果见 [SHIP-001](development/evidence/SHIP-001.md)。真人主观体验仍单独标记为未评价。
+- 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已拆成 [OPT-003](tasks/09-follow-up.md#opt-003) 优化任务。
+- 上轮候选真实外部 Provider 的旧 runner 已由 run `35049625067` 验证：Agent 回合成功、实现文件发生修改、独立 `go test ./...` 退出码为 0；历史结果见 [SHIP-001](development/evidence/SHIP-001.md)；B02/B03 暴露旧 runner 的校验/脱敏边界，需修复后补证。
 - 五平台发布归档已在对应 GitHub runner 上解包运行并完成 init、v1→v2 迁移、源文件哈希保持、未来版本拒绝 Smoke，候选 CI 与 Docker Smoke 均有可追溯结果。
 
 ## 如何阅读历史证据
@@ -47,11 +47,11 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 ## 当前工程边界
 
 - Bash 在宿主执行，权限规则不构成 OS 沙箱。
-- JSONL 单次会话追加重写全文件，长会话成本需量化；CLI 当前固定 JSONL，SQLite 的库支持不等于已接入产品后端切换。
-- 完整压缩快照与累积 steering 增加存储/请求体积；优化前先补正确性与基准证据。
+- JSONL 单次会话追加重写全文件，长会话成本已有 OPT-002 基线、优化见 OPT-003；CLI 当前固定 JSONL，SQLite 的库支持不等于已接入产品后端切换。
+- 完整压缩快照与累积 steering 增加存储/请求体积；优化前按 OPT-003 补同条件对照、快照体积和 profile。
 - 文档检查只验证布局、链接、任务与证据结构，不能自动证明业务完成。root README 仅导航，正文仍统一在 docs。
 
-## 2026-09-16 M8 当前候选验收收口
+## 2026-09-16 上轮 M8 验收记录（本次复审已回退）
 
 - [全量 CI run 35045978660](https://github.com/wly2lcl/basework/actions/runs/35045978660) 绑定提交
   `2a868864f31c8a66527c1679fd2951a8869c2267`，Quality、五平台测试与发布归档 Smoke、Docker
@@ -60,5 +60,18 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
   使用 `openai`、`https://newapi.doubb.top/v1`、`agnes-2.5-flash`，Agent 修复固定夹具并由
   独立 `go test ./...` 验证通过；脱敏结果保存在
   [SHIP-001-real-provider-2026-09-16.json](development/evidence/SHIP-001-real-provider-2026-09-16.json)。
-- M8 的 SHIP-001、SHIP-002、SHIP-003、QA-001 已在 [TASKS](TASKS.md) 标记为完成。真实模型
+- M8 的 SHIP-001、SHIP-002、SHIP-003、QA-001 曾标记完成；本次按 [TASKS](TASKS.md) 回退。真实模型
   结果、脚本化 PTY 结果和发布包结果分开记录；真人主观 TUI 手感不是本次自动化验收结论。
+
+## 2026-09-16 再复审后的行动
+
+- RUN-002 B01 已修复；QA-001 的 B02/B03/B04/B06 已完成局部修复，需在新候选上完成整体验收。
+- RUN-003、CTX-003 与 UI 依赖链保留实现，修复前置后回验；SHIP-001 补可信协议样本，再重建 SHIP-002/003 的候选证据。
+- OPT-002 保留性能基线完成结论；存储优化单列 OPT-003，有范围和量化目标。
+- 默认/完整构建与定向 race 的本轮结果见 [复审报告](development/evidence/REVIEW-2026-09-16.md)。B01–B03 修复回归、正确实现正向验收和超时测试均通过。
+
+## 2026-09-16 修复进度
+
+- RUN-002 的 B01 关闭登记竞态已修复；新增回归与相关 race 通过。
+- QA-001 的 B02/B03/B04/B06 已修复：验证使用可信测试副本，Bash 子进程使用显式去凭证环境，独立测试有超时/有界输出/进程树终止，CI 已加入无 tags 全量测试。
+- B05 当前候选协议次数/入口矩阵、RUN-003/UI 依赖回验和新的真实 Provider run 仍未完成；OPT-003 未实施。

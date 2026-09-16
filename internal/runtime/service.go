@@ -199,6 +199,26 @@ func (s *LocalService) StartWithCallback(ctx context.Context, input string, cb a
 		return nil, ErrClosed
 	}
 	runID := fmt.Sprintf("run-%06d", s.runSeq.Add(1))
+	runCtx, cancel := context.WithCancel(ctx)
+	// Admission and cancellation registration are one synchronized operation.
+	// Close holds the same mutex while draining cancels, so it cannot finish its
+	// cancellation pass and then have this run enter Agent with an untracked
+	// context.
+	s.mu.Lock()
+	if s.closed.Load() {
+		s.mu.Unlock()
+		cancel()
+		return nil, ErrClosed
+	}
+	s.cancels[runID] = cancel
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.cancels, runID)
+		s.mu.Unlock()
+		cancel()
+	}()
+
 	// 可选的按运行回调工厂让 UI 给每条异步消息附上不可变的 run/session
 	// 标识。旧回调即使在解绑边界附近迟到，也不会被新会话误收。
 	if scoped, ok := cb.(interface {
@@ -206,25 +226,20 @@ func (s *LocalService) StartWithCallback(ctx context.Context, input string, cb a
 	}); ok {
 		cb = scoped.ForRun(runID, s.sessionID)
 	}
+	// ForRun belongs to the UI boundary and may take time. Close can cancel the
+	// registered context while it runs; do not enter Agent after that boundary.
+	if err := runCtx.Err(); err != nil || s.closed.Load() {
+		return &Run{ID: runID, Input: input, Err: context.Canceled}, nil
+	}
 
 	if s.cbSwitch != nil && cb != nil {
 		s.cbSwitch.Bind(cb)
 		defer s.cbSwitch.Unbind(cb)
 	}
 
-	runCtx, cancel := context.WithCancel(ctx)
-	s.mu.Lock()
-	s.cancels[runID] = cancel
-	s.mu.Unlock()
-
 	s.publish(RunEvent{RunID: runID, SessionID: s.sessionID, Kind: EventRunStarted})
 
 	resp, err := s.agent.HandleMessage(runCtx, input)
-
-	s.mu.Lock()
-	delete(s.cancels, runID)
-	s.mu.Unlock()
-	cancel()
 
 	errText := ""
 	if err != nil {

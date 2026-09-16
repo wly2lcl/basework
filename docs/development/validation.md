@@ -13,6 +13,8 @@
 
 2026-09-14 的教训见 [复审报告](evidence/REVIEW-2026-09-14.md)：现有测试全部绿，仍不能证明缺少产品接线的功能完成。测试应观察用户结果，不能只数返回选项、手工注入最终数据或匹配通用提示语。
 
+2026-09-16 的 [新增复审](evidence/REVIEW-2026-09-16.md) 进一步确认：独立进程运行的测试若可被模型修改，仍可假通过；截断错误文本不代表脱敏；race 全绿也不能排除关闭登记的逻辑竞态。修复入口和确定复现见 [一键探针](review-reproduction-2026-09-16.md)。
+
 ## 按变更选择检查
 
 文档整理：`make check-docs`、`make progress`、`git diff --check`。检查器改动时验证成功路径和故意损坏的布局/依赖/链接/证据都会被正确处理。
@@ -35,7 +37,7 @@ make gen
 go test -tags "sqlite memory" -race -timeout=5m -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
 ```
 
-CI 准确范围以 `.github/workflows/build.yml` 为准；当前 quality job 的 race 已覆盖
+CI 准确范围以 `.github/workflows/build.yml` 为准；本次确认尚缺无 tags 默认构建全量测试（QA-001/B06），本地默认测试通过不能替代持续门禁；当前 quality job 的 race 已覆盖
 `internal/runtime`、`internal/jobs`、`internal/edits`，并在 Ubuntu 增加 scenario1 与
 OPT-001 真实 PTY 烟测。scenario2–8 的完整产品验收按 QA-001/SHIP-001 分组执行；scenario8 专门
 验证真实配置触发两次压缩、同 ID 重启与恢复请求历史。本地通过不等于 CI 已通过。
@@ -47,7 +49,9 @@ OPT-001 真实 PTY 烟测。scenario2–8 的完整产品验收按 QA-001/SHIP-0
 在独立测试项目中运行，记录 commit、dirty diff、构建标签、二进制哈希、Provider/model ID、入口、日期、输入、工具轨迹、独立核验的退出码、失败/重试次数和耗时。
 
 - 场景夹具、输入模板与脱敏结果结构应随仓库保留。只给 /private/tmp 的脚本路径，不构成其他 AI 可重复执行的步骤。
-- 凭证经环境注入，脱敏日志不要含秘密；缺凭证时记录缺项，不调用其他模型冒充。
+- 凭证只供 Provider 客户端使用，工具与验证子进程不继承 key；所有结果/错误/日志出口统一清洗，截断不等于脱敏。旧 runner 尚未满足，按 QA-001/B03 修复；缺凭证时记录缺项，不调用其他模型冒充。
+- 独立测试必须使用可信原始测试/模块配置，核验哈希与预期测试确实执行；验证目录不能受模型篡改。删除/跳过测试或只改注释不能验收通过。旧 runner 尚未满足，见 QA-001/B02。
+- Agent 和独立测试分别设置有界预算，输出有界、取消清理子进程，失败也记录阶段/退出码；job 总超时不代替结构化结果（QA-001/B04）。
 - 任务要求连续次数或矩阵时全部满足；一次通过不称稳定成功率，费用未知就标未知。
 - 恢复验收必须核对同一 session ID、旧历史唯一标记、实际发出的请求、job 终态与无自动重跑；手工写事件只证明存储层。
 - 外部嵌入验收使用仓库外 module；内部 examples 编译成功不能证明外部可导入 internal 包。

@@ -504,6 +504,65 @@ func TestSubscribeAfterCloseReturnsClosedChannel(t *testing.T) {
 	}
 }
 
+// TestClose_DuringCallbackAdmissionCancelsBeforeAgentEntry fixes the narrow
+// window between Start's closed check and cancellation registration. A UI
+// callback can take time to create its run-scoped wrapper; Close must still
+// either cancel that run or reject it before Agent is invoked.
+func TestClose_DuringCallbackAdmissionCancelsBeforeAgentEntry(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	agentEntered := make(chan struct{}, 1)
+	agt := &fakeAgent{handle: func(ctx context.Context, _ string) (*agent.Response, error) {
+		agentEntered <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	cb := &admissionBlockingCallback{entered: entered, release: release}
+	svc, err := NewLocal(LocalDeps{Agent: agt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	startDone := make(chan struct{})
+	go func() {
+		_, _ = svc.StartWithCallback(context.Background(), "admission", cb)
+		close(startDone)
+	}()
+	<-entered
+
+	closeDone := make(chan struct{})
+	go func() {
+		_ = svc.Close()
+		close(closeDone)
+	}()
+	<-svc.closedCh
+	close(release)
+
+	select {
+	case <-agentEntered:
+		t.Fatal("Close 之后不应让未受取消跟踪的运行进入 Agent")
+	case <-startDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Start 未在关闭后结束")
+	}
+	select {
+	case <-closeDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close 未在运行登记窗口后结束")
+	}
+}
+
+type admissionBlockingCallback struct {
+	agent.NopCallback
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (c *admissionBlockingCallback) ForRun(string, string) agent.Callback {
+	close(c.entered)
+	<-c.release
+	return c
+}
+
 // TestSubscription_DroppedCount 慢消费者策略：缓冲满后丢弃并计数，不阻塞。
 func TestSubscription_DroppedCount(t *testing.T) {
 	agt := &fakeAgent{}
