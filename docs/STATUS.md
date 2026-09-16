@@ -19,9 +19,9 @@
 | 事实摘要 | 按事实生成文本、来源信息、预算裁剪、过期/未读取标识、默认关闭；主 Agent 每轮请求前刷新；拒绝 Windows 盘符/UNC/根相对路径及工作区外符号链接 | Windows runner 已覆盖路径边界；真人/外部 Provider 行为仍单独验收 |
 | 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 修复候选上的依赖回验和 PTY scenario1–8 已通过；真人主观体验仍未评价 |
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
-| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有当前候选运行证据 |
+| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；依赖回验与当前 CI 已通过，OpenAI-compatible 连续 3 次已通过，B05 仍缺不同协议/入口证据 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；上一候选的依赖回验与 CI 已通过，OpenAI-compatible 连续 3 次也绑定上一候选，当前候选需重新生成证据，B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
