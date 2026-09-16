@@ -58,9 +58,9 @@
 | UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 完成 | UI-001, EDIT-003 | Codex | [记录](development/evidence/UI-002.md) |
 | UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 完成 | UI-002, CTX-003 | `/session`、恢复面板、迟到事件隔离和真实 PTY 流程均通过；真人主观体验按用户指定保留为边界 | [记录](development/evidence/UI-003.md) |
 | SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 待验证 | REL-003, CTX-003 | 清洁候选 checkout、离线/当前 PTY/真实 Provider runner 已在；待注入凭据绑定候选 commit 和当前 Provider 记录 | [记录](development/evidence/SHIP-001.md) |
-| SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | 当前候选五平台源码测试与归档 Smoke、Docker Smoke、Release Dry Run 均通过；平台证据已闭环，待 SHIP-001/QA-001 的真实 Provider 前置门禁收口 | [记录](development/evidence/SHIP-002.md) |
+| SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | 当前候选五平台源码测试、发布包 init/迁移/未来版本拒绝 Smoke、Docker Smoke、Release Dry Run 均通过；平台与发布包升级证据已闭环，待 SHIP-001/QA-001 的真实 Provider 前置门禁收口 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | 清洁候选 PTY 1–8、恢复/审批和本地门禁已通过；待前置任务和发布候选证据收口 | [记录](development/evidence/SHIP-003.md) |
-| QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 待验证 | BASE-001, UI-003 | 清洁候选一键 PTY、外部 module、未知 session 与 mutation 负测、五平台候选 CI、Docker Smoke 与归档证据已在；待当前候选真实 Provider 正向运行 | [记录](development/evidence/QA-001.md) |
+| QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 待验证 | BASE-001, UI-003 | 清洁候选一键 PTY、外部 module、未知 session 与 mutation 负测、五平台候选 CI、Docker Smoke、归档 init/迁移 Smoke 已在；待当前候选真实 Provider 正向运行 | [记录](development/evidence/QA-001.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 

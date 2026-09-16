@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-16；当前发布与 CI 门禁候选为 `3416797`，对应五平台源码测试和归档 Smoke 的 run `35041364486`。文档同步提交可能位于该候选之后；任务状态只在 [TASKS](TASKS.md) 维护，本页只描述当前实现边界。
+核对日期：2026-09-16；当前发布与 CI 门禁候选为 `3787862`，对应五平台源码测试、发布包迁移 Smoke、Docker Smoke 与 Release Dry Run 的 run `35043445341`。任务状态只在 [TASKS](TASKS.md) 维护，本页只描述当前实现边界。
 
 **结论：核心实现、跨平台 CI、真实 Unix PTY 入口和自动测试已具备；CTX-002、CTX-003、UI-003 已收口，M8 发布验收仍保留真实 Provider 与目标安装边界。** 缺陷、复现与历史证据的边界见 [复审报告](development/evidence/REVIEW-2026-09-14.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
@@ -35,7 +35,7 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 - 候选 `6a2cc3e` 的 run `34946819197` 中三平台 Release Artifact Smoke、Docker Smoke 和 Release Dry Run 全部通过；随后文档提交 `90b5a98` 的 run `34948470600` 重新验证了 Quality、三平台测试、三平台归档 Smoke、Docker Smoke 与 Release Dry Run。
 - 真实 PTY 场景 1–8 均已通过仓库内一键编排器在独立临时根、隔离 HOME、当前 checkout 二进制和本地确定性 Provider 下全量复跑，覆盖读改跑/事实重启、后台取消、硬杀恢复、模型能力、外部嵌入、`/session` 切换、审批允许/拒绝和双压缩重启；默认临时根会自动清理。
 - 长会话基准以 `-benchmem -benchtime=1x -count=3` 保存原始结果；JSONL 逐条追加在 10000 事件达到百秒级，已转为后续优化候选。
-- 当前尚未验证真实外部 Provider 和真人主观体验；五平台发布归档已在对应 GitHub runner 上解包运行并记录哈希，候选 CI 与 Docker Smoke 均有可追溯结果。
+- 当前尚未验证真实外部 Provider 和真人主观体验；五平台发布归档已在对应 GitHub runner 上解包运行并完成 init、v1→v2 迁移、源文件哈希保持、未来版本拒绝 Smoke，候选 CI 与 Docker Smoke 均有可追溯结果。
 
 ## 如何阅读历史证据
 

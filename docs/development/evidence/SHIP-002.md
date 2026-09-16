@@ -343,3 +343,25 @@ Docker/Buildx 相关证据，当前没有原生归档安装运行记录；Window
 
 **当前结论：平台源码与基础归档 Smoke 已满足；看板仍保持“待验证”，原因是发布包级
 迁移 Smoke 的新候选证据、SHIP-001 前置任务和 QA-001 的真实 Provider 证据尚未完成。**
+
+## 2026-09-16 当前候选发布包迁移 Smoke
+
+候选提交 `3787862cd076b72d49acfc3c1127efcc807f3539` 的 [GitHub Actions run
+35043445341](https://github.com/wly2lcl/basework/actions/runs/35043445341) 全部通过。
+五个平台的 `Release Artifact Smoke` 均从 GoReleaser 归档解包后运行 `version`、`config
+explain` 和 `init --yes`；随后在隔离 HOME 中执行 v1 JSONL → SQLite 迁移，确认 `upgrade-v1`
+进入 `session status`、源 JSONL SHA-256 保持不变，并确认 v99 未来格式返回非零、报告版本过高
+且不会出现在目标会话列表。日志中的“迁移未全部成功”只属于预期的未来格式拒绝夹具，外层
+脚本已捕获该失败并继续完成负测断言，因此 job 仍为通过。
+
+| Runner / 实际平台 | 归档 | SHA-256 | 运行结果 |
+|---|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `d3d12615bf24093426cd0e490835f9225c816dab063521adda0fb4145573403d` | 解包、`version`、`config explain`、`init`、迁移/未来版本拒绝 Smoke 通过 |
+| `ubuntu-24.04-arm` / linux-arm64 | `basework_Linux_arm64.tar.gz` | `51cab9c4e8256749c458eac99b518d923f0857ca466df65e4a4aa394b0b86fae` | 同上 |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `4f12ce2d0f05257bff08862b70467ab0601d4aeb2e2c818486025d52e508d92b` | 同上 |
+| `macos-15-intel` / darwin-amd64 | `basework_Darwin_x86_64.tar.gz` | `5141af1966b7cbd0e9c908ef3c9fb5e99762f63f28eeea9e9c2c9e1f3ba11f8e` | 同上 |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `ac73a0d77ebf353bd249f879acd64a15005906405e5b72a20339598f71d1236b` | 解包、`version`、`config explain`、`init`、迁移/未来版本拒绝 Smoke 通过 |
+
+这次 run 关闭了 SHIP-002 的发布包级升级 Smoke 与五平台哈希证据缺口。它仍不等价于用户
+个人设备上的安装体验，也不包含真实 Provider 请求；后两项继续由 SHIP-001/QA-001 与
+真人体验边界分别记录。

@@ -262,3 +262,14 @@ Quality、五平台源码测试、五平台归档安装 Smoke、Docker Smoke 和
 
 因此平台发布矩阵已不再是当前缺口。SHIP-003 仍待验证，剩余边界为 SHIP-001/QA-001 要求的
 真实 Provider 正向记录，以及是否需要补充真人主观体验；本段不创建 tag、不执行发布。
+
+## 2026-09-16 当前候选发布包门禁回填
+
+候选提交 `3787862cd076b72d49acfc3c1127efcc807f3539` 的 [CI run
+35043445341](https://github.com/wly2lcl/basework/actions/runs/35043445341) 全绿。该 run 在
+五个平台实际 runner 上解包并运行当前发布归档，完成 `init`、v1→v2 会话迁移、源数据哈希保持
+和未来 v99 拒绝 Smoke；同时 Quality、五平台测试、Docker Smoke、Release Dry Run 均通过。
+平台、归档哈希与命令边界见 [SHIP-002](SHIP-002.md#2026-09-16-当前候选发布包迁移-smoke)。
+
+平台与发布包升级证据已收口。SHIP-003 仍待验证的边界只剩 SHIP-001/QA-001 要求的真实
+Provider 正向记录，以及是否补充真人主观体验；本段不创建 tag、不执行发布。
