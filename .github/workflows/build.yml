@@ -173,6 +173,8 @@ jobs:
           esac
           artifact="dist/basework_${os_name}_${arch_name}.tar.gz"
           test -f "$artifact"
+          echo "runner=$RUNNER_OS goos=$goos goarch=$goarch artifact=$artifact"
+          (command -v sha256sum >/dev/null && sha256sum "$artifact") || shasum -a 256 "$artifact"
           install_root="$RUNNER_TEMP/basework-package"
           home_root="$RUNNER_TEMP/basework-home"
           mkdir -p "$install_root" "$home_root"
@@ -192,6 +194,8 @@ jobs:
           $archName = if ($goarch -eq "amd64") { "x86_64" } elseif ($goarch -eq "arm64") { "arm64" } else { throw "unsupported Windows GOARCH: $goarch" }
           $artifact = "dist/basework_Windows_$archName.zip"
           if (-not (Test-Path $artifact)) { throw "missing artifact: $artifact" }
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $artifact).Hash.ToLowerInvariant()
+          Write-Host "runner=$env:RUNNER_OS goos=$goos goarch=$goarch artifact=$artifact sha256=$hash"
           $installRoot = Join-Path $env:RUNNER_TEMP "basework-package"
           $homeRoot = Join-Path $env:RUNNER_TEMP "basework-home"
           New-Item -ItemType Directory -Force -Path $installRoot, $homeRoot | Out-Null
