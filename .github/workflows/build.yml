@@ -182,6 +182,43 @@ jobs:
           export HOME="$home_root"
           "$install_root/basework" version
           "$install_root/basework" config explain
+          "$install_root/basework" init --yes --provider opencode --model release-smoke --force
+          test -f "$home_root/.config/basework/config.json"
+
+          # 发布包自身执行一次 v1 JSONL -> SQLite 迁移：校验源文件未被改写、
+          # 原会话 ID 可在目标库中看到。详细事件投影仍由同一候选的原生测试覆盖。
+          migration_dir="$home_root/.local/share/basework/sessions"
+          mkdir -p "$migration_dir"
+          cat > "$migration_dir/upgrade-v1.jsonl" <<'EOF'
+          {"_schema":"basework.session","v":1}
+          {"id":"e-upgrade","session_id":"upgrade-v1","type":"prompted","data":{"content":"release package migration"},"seq":1,"created_at":"2026-09-01T00:00:00Z","v":1}
+          EOF
+          source_hash_before="$( (command -v sha256sum >/dev/null && sha256sum "$migration_dir/upgrade-v1.jsonl" || shasum -a 256 "$migration_dir/upgrade-v1.jsonl") | awk '{print $1}' )"
+          "$install_root/basework" migrate sessions
+          source_hash_after="$( (command -v sha256sum >/dev/null && sha256sum "$migration_dir/upgrade-v1.jsonl" || shasum -a 256 "$migration_dir/upgrade-v1.jsonl") | awk '{print $1}' )"
+          test "$source_hash_before" = "$source_hash_after"
+          status_output="$("$install_root/basework" session status)"
+          echo "$status_output"
+          grep -F "upgrade-v1" <<<"$status_output"
+
+          # 未来格式必须由发布包拒绝，且失败不能被脚本误判为成功。
+          future_home="$RUNNER_TEMP/basework-future-home"
+          future_dir="$future_home/.local/share/basework/sessions"
+          mkdir -p "$future_dir"
+          cat > "$future_dir/future-v99.jsonl" <<'EOF'
+          {"_schema":"basework.session","v":99}
+          {"id":"e-future","session_id":"future-v99","type":"prompted","data":{"content":"future format"},"seq":1,"created_at":"2026-09-01T00:00:00Z","v":99}
+          EOF
+          future_log="$RUNNER_TEMP/basework-future.log"
+          if HOME="$future_home" "$install_root/basework" migrate sessions >"$future_log" 2>&1; then
+            cat "$future_log"
+            echo "future schema migration unexpectedly succeeded" >&2
+            exit 1
+          fi
+          cat "$future_log"
+          grep -E "失败|过高|v99" "$future_log"
+          future_status="$(HOME="$future_home" "$install_root/basework" session status)"
+          test -z "$(grep -F "future-v99" <<<"$future_status" || true)"
 
       - name: Run packaged artifact (Windows)
         if: runner.os == 'Windows'
@@ -204,6 +241,49 @@ jobs:
           $env:USERPROFILE = $homeRoot
           & (Join-Path $installRoot "basework.exe") version
           & (Join-Path $installRoot "basework.exe") config explain
+          & (Join-Path $installRoot "basework.exe") init --yes --provider opencode --model release-smoke --force
+          if (-not (Test-Path (Join-Path $homeRoot ".config/basework/config.json"))) { throw "init did not create config" }
+
+          # 发布包自身执行一次 v1 JSONL -> SQLite 迁移，并确认源文件哈希保持不变。
+          $migrationDir = Join-Path $homeRoot ".local/share/basework/sessions"
+          New-Item -ItemType Directory -Force -Path $migrationDir | Out-Null
+          $fixture = Join-Path $migrationDir "upgrade-v1.jsonl"
+          @'
+          {"_schema":"basework.session","v":1}
+          {"id":"e-upgrade","session_id":"upgrade-v1","type":"prompted","data":{"content":"release package migration"},"seq":1,"created_at":"2026-09-01T00:00:00Z","v":1}
+          '@ | Set-Content -Path $fixture -NoNewline -Encoding utf8
+          $sourceHashBefore = (Get-FileHash -Algorithm SHA256 -Path $fixture).Hash
+          & (Join-Path $installRoot "basework.exe") migrate sessions
+          if ($LASTEXITCODE -ne 0) { throw "packaged migration failed with exit code $LASTEXITCODE" }
+          $sourceHashAfter = (Get-FileHash -Algorithm SHA256 -Path $fixture).Hash
+          if ($sourceHashBefore -ne $sourceHashAfter) { throw "migration rewrote source JSONL" }
+          $statusOutput = (& (Join-Path $installRoot "basework.exe") session status | Out-String)
+          Write-Host $statusOutput
+          if ($statusOutput -notmatch "upgrade-v1") { throw "migrated session is missing from SQLite status" }
+
+          # 未来格式必须被发布包拒绝，且不留下该会话。
+          $futureHome = Join-Path $env:RUNNER_TEMP "basework-future-home"
+          $futureDir = Join-Path $futureHome ".local/share/basework/sessions"
+          New-Item -ItemType Directory -Force -Path $futureDir | Out-Null
+          $futureFixture = Join-Path $futureDir "future-v99.jsonl"
+          @'
+          {"_schema":"basework.session","v":99}
+          {"id":"e-future","session_id":"future-v99","type":"prompted","data":{"content":"future format"},"seq":1,"created_at":"2026-09-01T00:00:00Z","v":99}
+          '@ | Set-Content -Path $futureFixture -NoNewline -Encoding utf8
+          $futureLog = Join-Path $env:RUNNER_TEMP "basework-future.log"
+          $oldHome = $env:HOME
+          $oldProfile = $env:USERPROFILE
+          $env:HOME = $futureHome
+          $env:USERPROFILE = $futureHome
+          & (Join-Path $installRoot "basework.exe") migrate sessions *> $futureLog
+          $futureExit = $LASTEXITCODE
+          $env:HOME = $oldHome
+          $env:USERPROFILE = $oldProfile
+          Get-Content $futureLog
+          if ($futureExit -eq 0) { throw "future schema migration unexpectedly succeeded" }
+          if ((Get-Content $futureLog -Raw) -notmatch "失败|过高|v99") { throw "future schema rejection was not reported" }
+          $futureStatus = (& { $env:HOME = $futureHome; $env:USERPROFILE = $futureHome; & (Join-Path $installRoot "basework.exe") session status } | Out-String)
+          if ($futureStatus -match "future-v99") { throw "future schema session was imported" }
 
   release-dry-run:
     name: Release Dry Run

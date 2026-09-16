@@ -126,7 +126,7 @@ if !ok {
 | 打包 dry-run | **通过** | 见 [SHIP-002](SHIP-002.md)：与 CI 逐字一致的 `goreleaser release --snapshot --clean --skip=docker,publish` 退出码 0，产出 5 个包并记录哈希 |
 | 真实模型场景 | **通过** | 见 [SHIP-001](SHIP-001.md)：固定 8 次（小函数修复 3、多文件修改 2、大输出/权限拒绝/断流恢复各 1），8/8 通过 |
 | 人工 TUI 流程 | **以终端级自动化验收替代（用户指定）——通过** | 原计划的"人工走查"按用户指示改为自动化执行。夹具：`tests/tui_pty/`（PTY 驱动真实 `basework tui` 二进制 + 本地脚本化 OpenAI SSE 服务 + VT 解析抓屏），路线图 5 条代表性场景全部通过：①修复缺陷（流式/工具卡片/差异/独立 go test 复核）②耗时检查（任务卡片运行中/输出可读/取消后进程组退出/`jobs list` 可回看 canceled）③中断后继续（SIGKILL 硬杀→重启恢复历史/遗留任务标 interrupted/零模型请求=不自动重跑/会话可继续）④不同模型（`gpt-4o`/`gpt-3.5-turbo` 能力来源可追溯/缺密钥明确告知/工具数 23 不被静默关闭）⑤嵌入 Go 服务（`examples/embed` 公共 API 组装，3 次工具调用+事件流+25 条事件落盘）。另以真实模型（`agnes-2.5-flash`）在真实终端完整走一遍场景 1：14.8s 回合结束，read→glob→read→edit→bash 全链路工具卡片可见，磁盘修复与夹具侧独立 `go test` 通过 |
-| 声明平台的安装/升级结果 | **历史记录为部分** | 该历史快照只有 darwin/arm64 产物真实运行过，Docker 当时只有配置层证据；当前代码候选五平台归档、Darwin arm64、双架构 OCI 及其运行结果见 [SHIP-002](SHIP-002.md) 文末，其他目标平台仍未实机安装 |
+| 声明平台的安装/升级结果 | **历史记录为部分** | 该历史快照只有 darwin/arm64 产物真实运行过；当前候选五平台归档已在对应 runner 解包运行，且归档级 init、v1→SQLite 迁移、源文件哈希和未来版本拒绝 Smoke 见 [SHIP-002](SHIP-002.md) 文末。该证据仍不等同于用户个人设备实机体验 |
 | 已知问题清单 | **已给出** | 见下方「已知问题清单」 |
 
 ### 本地门禁（在修复后的工作区上重跑）
@@ -252,3 +252,13 @@ PTY/race/文档门禁。
 
 SHIP-003 仍保持待验证：真实 Provider、Linux arm64/Darwin amd64 归档安装和真人主观体验
 仍未完成；本段只更新候选证据，不创建 tag 或执行发布。
+
+## 2026-09-16 五平台候选门禁回填
+
+候选提交 `341679791936b9af3657a711b27fa70413498895` 的 [GitHub Actions run
+35041364486](https://github.com/wly2lcl/basework/actions/runs/35041364486) 全绿，完成了
+Quality、五平台源码测试、五平台归档安装 Smoke、Docker Smoke 和 Release Dry Run。五个平台
+的实际 runner、归档文件、SHA-256 与解包运行结果见 [SHIP-002](SHIP-002.md#2026-09-16-完整五平台归档-smoke-与哈希)。
+
+因此平台发布矩阵已不再是当前缺口。SHIP-003 仍待验证，剩余边界为 SHIP-001/QA-001 要求的
+真实 Provider 正向记录，以及是否需要补充真人主观体验；本段不创建 tag、不执行发布。

@@ -258,21 +258,21 @@ Linux arm64/x86_64、Windows x86_64 五个归档。归档 SHA-256 如下：
 
 从 Darwin arm64 归档本身解包，在隔离 HOME 中运行 `basework version` 与
 `basework config explain` 均通过；后者确认默认配置可解析且不发起网络请求。其余四个
-归档目前只有产物与哈希证据，仍未在目标系统实际安装运行；这段结果也尚未进入远端 CI。
+归档在该历史快照中只有产物与哈希证据，仍未在目标系统实际安装运行；后续五平台候选
+runner 结果见文末 2026-09-16 段。
 
 补充状态校正：历史“已知限制”中关于 `basework init` 在保持打开的空管道上阻塞的
 描述已由 OPT-001 修复覆盖。当前 `cmd/basework` 单测与真实 PTY 初始化入口均通过，
-该段只保留为历史问题记录，不再作为当前能力缺口；当前发布缺口仍是目标平台安装、
-候选 CI 和真实 Provider。
+该段只保留为历史问题记录，不再作为当前能力缺口；当前发布缺口由文末最新候选段维护。
 
 ## 结论
 
 - **是否满足任务卡全部验收**：
-  - "不能用本机交叉编译冒充目标系统运行" —— 满足。本文件明确区分了"真正运行过的平台"（仅 darwin/arm64）与"仅交叉编译的平台"，并列出缺失平台。
+  - "不能用本机交叉编译冒充目标系统运行" —— 满足。本文件明确区分了历史快照中"真正运行过的平台"（仅 darwin/arm64）与"仅交叉编译的平台"；后续五平台 runner 的实际归档运行结果见文末最新日期段。
   - "安装说明只包含已接入渠道" —— 满足。逐条核对 `docs/installation.md` / `docs/release.md` 与 `.goreleaser.yml`，且 Homebrew 被显式标注为未接入。
   - "升级不破坏原用户数据且有可执行恢复说明" —— 满足。v1 升级后源 JSONL 逐字节未变、内容完整落库；恢复说明在安装指南的故障排除一节。
 - **建议状态：完成**，且附带"发现并修复 3 个迁移缺陷"。
-- 原因：卡片的四条实施步骤（验证承诺平台产物、验证初次配置与升级/拒绝、执行打包 dry-run 并核对文档、记录系统与产物哈希及缺失平台）均有可复现证据。同时必须连带说明**两项未获得的证据**（目标平台真实运行、Docker 镜像构建），它们不构成本卡的阻塞项——因为卡片要求的正是"记录缺失平台"与"不得冒充"，而不是"必须本机跑通所有平台"；但 SHIP-003 在写发布报告时**不得**把这两项写成已验证。
+- 原因：卡片的四条实施步骤（验证承诺平台产物、验证初次配置与升级/拒绝、执行打包 dry-run 并核对文档、记录系统与产物哈希及缺失平台）均有可复现证据。历史快照中的缺失平台已由 2026-09-16 候选 runner 结果补齐；后续发布报告仍必须区分 runner Smoke、用户个人设备实机和真实 Provider，不把其中一项写成另一项。
 
 ## 2026-09-15 候选 CI 与镜像门禁
 
@@ -319,3 +319,27 @@ Docker/Buildx 相关证据，当前没有原生归档安装运行记录；Window
 **当前结论：SHIP-002 仍待验证。** 代码、镜像、dry-run 和三个原生归档 Smoke 已闭环；
 是否把 Linux arm64/Darwin amd64 继续列为承诺平台，需要补对应运行环境，或由产品明确缩小
 发布矩阵。不要把 QEMU 镜像冒充发布归档安装结果。
+
+## 2026-09-16 完整五平台归档 Smoke 与哈希
+
+候选提交 `341679791936b9af3657a711b27fa70413498895` 的 [GitHub Actions run
+35041364486](https://github.com/wly2lcl/basework/actions/runs/35041364486) 已全绿。
+`test` 与 `release-artifact-smoke` 均在五个对应架构 runner 上执行；每个平台由 GoReleaser
+生成同一候选版本 `0.1.4-SNAPSHOT-3416797`，在隔离目录解包后运行 `version` 与
+`config explain`。归档 SHA-256 来自 runner 日志中的实际文件：
+
+| Runner / 实际平台 | 归档 | SHA-256 | 运行结果 |
+|---|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `373d9fab56b9131f52cb92a8be0c879f56190d84ead799d1a47268ad2a5acc59` | 解包、`version`、`config explain` 通过 |
+| `ubuntu-24.04-arm` / linux-arm64 | `basework_Linux_arm64.tar.gz` | `89cda4c98cdf97749698955e8d1c79c67956e2cc5decff68381a6ee467a20d18` | 解包、`version`、`config explain` 通过 |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `16ce068fe49c7e7f914e97608b6e2488bc04818838b616e416852302118d032a` | 解包、`version`、`config explain` 通过 |
+| `macos-15-intel` / darwin-amd64 | `basework_Darwin_x86_64.tar.gz` | `631861fe7b128debf3ceed53e3547054d9fce9512aef6beb8639291f160e0984` | 解包、`version`、`config explain` 通过 |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `7d5dc978dda6002501e5213b1406f9270039e95b4d1f671dc9a91e842239dca3` | 解包、`version`、`config explain` 通过 |
+
+同一 run 的五个原生测试 job 也全部通过，覆盖当前 Go 代码中的会话 v1→v2 迁移、未来
+版本拒绝、源数据保留等迁移回归。发布包级 init、迁移、源文件哈希与未来版本拒绝 Smoke
+已加入工作流，待该工作流的新候选 run 回填；不能把本地复跑结果绑定到本次旧 run。
+真实 Provider 仍由 SHIP-001/QA-001 单独提供，不能用本地脚本化 Provider 替代。
+
+**当前结论：平台源码与基础归档 Smoke 已满足；看板仍保持“待验证”，原因是发布包级
+迁移 Smoke 的新候选证据、SHIP-001 前置任务和 QA-001 的真实 Provider 证据尚未完成。**
