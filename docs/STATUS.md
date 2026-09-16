@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-16（完成后再复审）；代码基线 `dc7c518`，上轮发布代码候选 `2a86886`。上轮 CI 与真实 Provider 记录继续保留，不能覆盖本次新增失败复现。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-16；当前修复候选 `3ad67a7`，历史发布候选 `2a86886`。历史 CI 与真实 Provider 记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能与常规测试基础较完整，但尚未全部验收完成。** 本次确认运行关闭竞态、真实模型验收假阳性和秘密进入结果的路径；还需补验证超时、当前协议样本和默认构建 CI。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是本次回退原因。
+**结论：核心功能与常规测试基础较完整，当前修复候选已完成本地依赖回验和 CI 质量门禁；OpenAI-compatible 入口已完成连续 3 次真实通过，发布验收仍等待不同协议 Provider 的当前候选证据。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
 ## 当前能力与缺口
 
@@ -17,11 +17,11 @@
 | 配置与资源管理 | 脱敏 config explain、readonly/coding 预设、自定义 base_url、实例注入、逆序幂等释放；服务关闭与运行登记已按 RUN-002 修复并有回归 | 不承诺热重载/插件热卸载；QA/发布候选仍需重新验收 |
 | 工作区事实 | WorkspaceFacts 数据模型、版本信封、工作区归属、运行时编辑事件折叠保存、CLI facts show、重启后读取 | read 事实仍按范围控制；目标平台安装仍按 SHIP-002 单独验收 |
 | 事实摘要 | 按事实生成文本、来源信息、预算裁剪、过期/未读取标识、默认关闭；主 Agent 每轮请求前刷新；拒绝 Windows 盘符/UNC/根相对路径及工作区外符号链接 | Windows runner 已覆盖路径边界；真人/外部 Provider 行为仍单独验收 |
-| 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 已有历史自动化入口证据；当前因运行服务依赖回退需复验，真人主观体验仍未评价 |
-| 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖仍需回验入口与迟到事件 |
-| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 当前依赖运行服务回验；Windows PTY/真人手感未评价，五平台归档已有历史运行证据 |
+| 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 修复候选上的依赖回验和 PTY scenario1–8 已通过；真人主观体验仍未评价 |
+| 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
+| TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有当前候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、历史真实 Provider 记录 | B02/B03/B04/B06 已修复；B05 当前协议/次数/入口矩阵、依赖回验和新候选真实 Provider 仍未完成 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；依赖回验与当前 CI 已通过，OpenAI-compatible 连续 3 次已通过，B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
@@ -66,12 +66,12 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 ## 2026-09-16 再复审后的行动
 
 - RUN-002 B01 已修复；QA-001 的 B02/B03/B04/B06 已完成局部修复，需在新候选上完成整体验收。
-- RUN-003、CTX-003 与 UI 依赖链保留实现，修复前置后回验；SHIP-001 补可信协议样本，再重建 SHIP-002/003 的候选证据。
+- RUN-003、CTX-003 与 UI 依赖链已在修复候选回验；SHIP-001 仍需补可信协议样本，再重建 SHIP-002/003 的候选证据。
 - OPT-002 保留性能基线完成结论；存储优化单列 OPT-003，有范围和量化目标。
-- 默认/完整构建与定向 race 的本轮结果见 [复审报告](development/evidence/REVIEW-2026-09-16.md)。B01–B03 修复回归、正确实现正向验收和超时测试均通过。
+- 默认/完整构建、相关 race、PTY scenario1–8 与默认 CI 的本轮结果见 [复审报告](development/evidence/REVIEW-2026-09-16.md)。B01–B04/B06 修复回归、正确实现正向验收和超时测试均通过。
 
 ## 2026-09-16 修复进度
 
 - RUN-002 的 B01 关闭登记竞态已修复；新增回归与相关 race 通过。
 - QA-001 的 B02/B03/B04/B06 已修复：验证使用可信测试副本，Bash 子进程使用显式去凭证环境，独立测试有超时/有界输出/进程树终止，CI 已加入无 tags 全量测试。
-- B05 当前候选协议次数/入口矩阵、RUN-003/UI 依赖回验和新的真实 Provider run 仍未完成；OPT-003 未实施。
+- B05 当前候选的 OpenAI-compatible 连续 3 次已完成（runs 35071026911、35071530401、35071644174）；不同协议/入口证据仍未完成。RUN-003/UI 依赖回验已通过；OPT-003 未实施。

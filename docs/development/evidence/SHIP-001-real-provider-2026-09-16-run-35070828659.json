@@ -1,0 +1,25 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-2.5-flash",
+  "endpoint_origin": "https://newapi.doubb.top/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-16T07:53:28Z",
+  "elapsed_ms": 61239,
+  "agent_ok": false,
+  "agent_error": "[internal] provider internal error (status=504)",
+  "validation_ok": false,
+  "tool_calls": null,
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": false,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "77a6df4287d28b82e2cff3573a9db1e50b890903cd487113db4feaa55dc71170"
+  },
+  "independent_test_exit_code": 1,
+  "independent_test_output_tail": "--- FAIL: TestAdd (0.00s)\n    calc_test.go:15: Add(2, 3) = -1, want 5\nFAIL\nFAIL\tbasework-real-provider-fixture\t0.002s\nFAIL\n",
+  "file_changed": false
+}

@@ -1,0 +1,73 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-2.5-flash",
+  "endpoint_origin": "https://newapi.doubb.top/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-16T07:55:54Z",
+  "elapsed_ms": 157340,
+  "agent_ok": true,
+  "validation_ok": true,
+  "final_text_sha256": "679a95522d78d082bdf590e3ae84eb55f1f5dc2a47a9b91f3c4d9d7d108bda74",
+  "tool_calls": [
+    {
+      "name": "glob",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": false,
+      "error": "读取文件失败: open /home/user/calc.go: no such file or directory"
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 2):\nls: cannot access '/home/user/': No such file or directory\n"
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 -1):\n/home/runner/work/basework/basework/tests/real_provider/fixtures/fixbug/calc.go\n/home/runner/work/basework/basework/tests/tui_pty/fixtures/fixbug/calc.go\n/tmp/basework-real-provider-2270269108/calc.go\n/tmp…"
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "edit",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    }
+  ],
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": true,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2"
+  },
+  "independent_test_exit_code": 0,
+  "independent_test_output_tail": "ok  \tbasework-real-provider-fixture\t0.002s\n",
+  "file_changed": true
+}

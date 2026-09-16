@@ -20,7 +20,7 @@
 1. **RUN-002 / P1**：修复 Close 与 cancel 登记交错（B01），验证关闭不会漏取消。
 2. **QA-001 / P1、P2**：先做不依赖 UI 的局部修复：凭证隔离/脱敏（B03）→ 可信独立测试（B02）→ 验证超时/清理（B04）→ CI 默认构建（B06）。最终验收仍需前置 UI-003 完成。
 3. **依赖回验**：RUN-003 → CTX-003 → UI-001/002/003。只复测受影响的关闭、取消、恢复和入口，不重写已完成模块。
-4. **重新验收**：QA-001 满足后，SHIP-001 补原任务要求的协议/次数/入口样本（B05），再完成 SHIP-002 → SHIP-003；已有五平台归档证据保留，新代码候选需更新对应记录。
+4. **重新验收**：QA-001 满足后，SHIP-001 补原任务要求的协议/次数/入口样本（当前候选的 OpenAI-compatible 连续 3 次已完成，还需不同协议证据），再完成 SHIP-002 → SHIP-003；已有五平台归档证据保留，新代码候选需更新对应记录。
 5. **OPT-003 / P3**：依据 OPT-002 基线实施长会话存储优化；不是发布前 P1 修复的替代。
 
 “进行中”表示已重开待修复，不表示 AI 在后台运行。“待验证”含依赖回退，保留既有实现和通过记录。每次只领取一个明确切片，卡片中的新补充与原验收必须同时满足。
@@ -48,13 +48,13 @@
 | CFG-004 | M4 | [自定义模型端点配置](tasks/04-composition.md#cfg-004) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/CFG-004.md) |
 | CTX-001 | M5 | [统一工作区事实模型](tasks/05-context.md#ctx-001) | 完成 | JOB-004, EDIT-003 | Codex | [记录](development/evidence/CTX-001.md) |
 | CTX-002 | M5 | [受预算约束的项目摘要](tasks/05-context.md#ctx-002) | 完成 | CTX-001 | Codex | [记录](development/evidence/CTX-002.md) |
-| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 待验证 | CTX-002, REL-004, RUN-003 | Codex / 依赖回验 | [记录](development/evidence/CTX-003.md) |
+| CTX-003 | M5 | [重启与压缩后的项目恢复](tasks/05-context.md#ctx-003) | 完成 | CTX-002, REL-004, RUN-003 | Codex | [记录](development/evidence/CTX-003.md) |
 | RUN-001 | M6 | [抽取运行服务接口与所有权](tasks/06-runtime.md#run-001) | 完成 | CFG-003 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/RUN-001.md) |
 | RUN-002 | M6 | [有序事件与会话取消](tasks/06-runtime.md#run-002) | 完成 | RUN-001, JOB-004 | Codex | [记录](development/evidence/RUN-002.md) |
-| RUN-003 | M6 | [CLI/TUI 统一接入服务](tasks/06-runtime.md#run-003) | 待验证 | RUN-002 | Codex / 依赖回验 | [记录](development/evidence/RUN-003.md) |
-| UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 待验证 | RUN-003 | Codex / 依赖回验 | [记录](development/evidence/UI-001.md) |
-| UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 待验证 | UI-001, EDIT-003 | Codex / 依赖回验 | [记录](development/evidence/UI-002.md) |
-| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 待验证 | UI-002, CTX-003 | Codex / 依赖回验 | [记录](development/evidence/UI-003.md) |
+| RUN-003 | M6 | [CLI/TUI 统一接入服务](tasks/06-runtime.md#run-003) | 完成 | RUN-002 | Codex | [记录](development/evidence/RUN-003.md) |
+| UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 完成 | RUN-003 | Codex | [记录](development/evidence/UI-001.md) |
+| UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 完成 | UI-001, EDIT-003 | Codex | [记录](development/evidence/UI-002.md) |
+| UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 完成 | UI-002, CTX-003 | Codex | [记录](development/evidence/UI-003.md) |
 | SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 进行中 | REL-003, CTX-003, QA-001 | Codex / 复审重开 | [记录](development/evidence/SHIP-001.md) |
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | Codex / 依赖回验 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | Codex / 依赖回验 | [记录](development/evidence/SHIP-003.md) |

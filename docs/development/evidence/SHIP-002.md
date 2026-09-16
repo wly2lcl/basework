@@ -398,3 +398,22 @@ explain` 和 `init --yes`；随后在隔离 HOME 中执行 v1 JSONL → SQLite �
 ## 2026-09-16 依赖回验状态
 
 RUN-002 的关闭登记竞态已修复；QA-001 的 runner 门禁已修复但 SHIP-001 尚未完成当前候选矩阵。因此本文件中的平台归档/镜像证据仍作为历史候选记录，待新候选重新生成并回填对应 commit/hash 后恢复完成。
+
+## 2026-09-16 修复候选 CI 重跑
+
+修复候选 `3ad67a7d30ab5b030bd28fe09504b6134c5a6faf` 的 [CI run
+35055131884](https://github.com/wly2lcl/basework/actions/runs/35055131884) 在重跑 macOS
+测试后全绿：Quality、五平台源码测试、五平台 Release Artifact Smoke、Docker Smoke 和
+Release Dry Run 均通过。首次 macOS runner 因 `pkg/lsp/TestClientConcurrentStart` 10 分钟
+超时而失败；本地同一用例重复 5 次通过，CI 重跑成功，故保留首次失败日志并以重跑结果作为
+当前候选证据。
+
+| Runner / 实际平台 | 归档 | SHA-256 | 运行结果 |
+|---|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `4562f4021984e0fcf38272e7d0156c9d5e5abff17153b6ad13c68dd4b0a897ff` | 解包、version/config/init、迁移/未来版本拒绝通过 |
+| `ubuntu-24.04-arm` / linux-arm64 | `basework_Linux_arm64.tar.gz` | `4900601ed666186e8efb90766f348726ad3cb00633c1f6fd94ec203d14a38bbe` | 同上 |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `72ab3c2bbac5b44f34f0965a19bff2239a0852beba6256f6e8aefd0676d997e7` | 同上 |
+| `macos-15-intel` / darwin-amd64 | `basework_Darwin_x86_64.tar.gz` | `c562f8985ab67d5efc3dc5d976cde4672cc446628009bba8af7a3ec5318d7450` | 同上 |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `f8628ecd4f358003acc4d482e32e63300c00359c530f88690c16d92e0d384a50` | 解包、version/config/init、迁移/未来版本拒绝通过 |
+
+当前候选发布包证据已与修复 commit 绑定；实际用户设备安装与真人主观体验仍是单独边界。

@@ -299,3 +299,11 @@ Provider 正向记录，以及是否补充真人主观体验；本段不创建 t
 ## 2026-09-16 依赖回验状态
 
 候选收口等待 RUN-003/UI 依赖回验、可信 QA-001 完成和 SHIP-001 当前候选协议矩阵；旧候选通过记录保留，不代表当前工作树已可发布。
+
+## 2026-09-16 修复候选依赖回验
+
+修复候选 `3ad67a7d30ab5b030bd28fe09504b6134c5a6faf` 已完成 RUN-003、CTX-003、UI-001/002/003
+依赖回验；PTY scenario1–8、默认/完整 tags 全量测试、相关 race 与 [CI run
+35055131884](https://github.com/wly2lcl/basework/actions/runs/35055131884) 全部通过。CI
+首次 macOS 并发测试超时后重跑成功，五平台归档、Docker Smoke 和 Release Dry Run 均有当前
+候选记录。当前仍不能关闭 SHIP-003：真实 Provider 的协议/次数矩阵尚未完成。

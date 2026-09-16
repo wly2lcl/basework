@@ -37,8 +37,8 @@ make gen
 go test -tags "sqlite memory" -race -timeout=5m -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
 ```
 
-CI 准确范围以 `.github/workflows/build.yml` 为准；本次确认尚缺无 tags 默认构建全量测试（QA-001/B06），本地默认测试通过不能替代持续门禁；当前 quality job 的 race 已覆盖
-`internal/runtime`、`internal/jobs`、`internal/edits`，并在 Ubuntu 增加 scenario1 与
+CI 准确范围以 `.github/workflows/build.yml` 为准；当前 quality job 已加入无 tags 默认构建
+全量测试，保留完整 tags、vet、架构、race，并在 Ubuntu 增加 scenario1 与
 OPT-001 真实 PTY 烟测。scenario2–8 的完整产品验收按 QA-001/SHIP-001 分组执行；scenario8 专门
 验证真实配置触发两次压缩、同 ID 重启与恢复请求历史。本地通过不等于 CI 已通过。
 

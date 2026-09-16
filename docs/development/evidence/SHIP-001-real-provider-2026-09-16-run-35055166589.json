@@ -1,0 +1,55 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-2.5-flash",
+  "endpoint_origin": "https://newapi.doubb.top/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-16T04:20:08Z",
+  "elapsed_ms": 450934,
+  "agent_ok": false,
+  "agent_error": "[network] request failed: Post \"https://newapi.doubb.top/v1/chat/completions\": context deadline exceeded (status=0)",
+  "validation_ok": false,
+  "tool_calls": [
+    {
+      "name": "read",
+      "success": false,
+      "error": "读取文件失败: open /home/user/calc.go: no such file or directory"
+    },
+    {
+      "name": "glob",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 1):\n"
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 2):\nls: cannot access '/home/user/': No such file or directory\n"
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 -1):\n/home/runner/work/basework/basework/tests/real_provider/fixtures/fixbug/calc.go\n/home/runner/work/basework/basework/tests/tui_pty/fixtures/fixbug/calc.go\n/tmp/basework-real-provider-2656073479/calc.go\n/tmp…"
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 -1):\n"
+    }
+  ],
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": false,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "77a6df4287d28b82e2cff3573a9db1e50b890903cd487113db4feaa55dc71170"
+  },
+  "independent_test_exit_code": 1,
+  "independent_test_output_tail": "--- FAIL: TestAdd (0.00s)\n    calc_test.go:15: Add(2, 3) = -1, want 5\nFAIL\nFAIL\tbasework-real-provider-fixture\t0.002s\nFAIL\n",
+  "file_changed": false
+}

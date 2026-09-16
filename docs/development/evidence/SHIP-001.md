@@ -194,3 +194,58 @@ B02 使真实验收可信性不足，B05 的当前候选协议样本亦未满足
 ## 2026-09-16 门禁修复后交接
 
 QA-001 已修复可信验证、凭证环境隔离、验证超时/输出上限和默认 CI 测试门禁，并有本地假 Provider 的正确实现/篡改拒绝回归。旧真实 Provider JSON 仍是修复前 runner 产物；在同一修复候选上补协议 × 次数 × 入口矩阵前，本任务继续进行中。
+
+## 2026-09-16 修复候选真实 Provider 失败样本
+
+候选 `3ad67a7d30ab5b030bd28fe09504b6134c5a6faf` 的第 1 次 OpenAI-compatible 运行
+[35055166589](https://github.com/wly2lcl/basework/actions/runs/35055166589) 使用
+`openai` / `https://newapi.doubb.top/v1` / `agnes-2.5-flash`。Provider 请求在约
+451 秒后以 `context deadline exceeded` 结束，Agent 未完成，模型只读到初始缺陷工作区；
+可信测试未执行，`validation_ok=false`。脱敏 artifact 已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35055166589.json`](SHIP-001-real-provider-2026-09-16-run-35055166589.json)。
+
+该失败样本不计入通过次数，但证明 runner 在 Agent 失败时仍写出阶段、测试哈希和失败
+结果，且结果不含 key。它也提示该第三方端点存在不可复现的长时间停滞；后续通过样本仍须
+按原协议次数要求连续完成，不能用这次失败降低标准。
+
+第 2 次 OpenAI-compatible 重跑 [35055889004](https://github.com/wly2lcl/basework/actions/runs/35055889004)
+仍以 `context deadline exceeded` 失败（约 181 秒），并保存为
+[`SHIP-001-real-provider-2026-09-16-run-35055889004.json`](SHIP-001-real-provider-2026-09-16-run-35055889004.json)。
+两次结果均为 `agent_ok=false`、`validation_ok=false`、`tests_executed=false`，不计入任何
+连续通过次数；失败输出和测试哈希仍可复查，未发现 key 泄漏。
+
+第 3 次 OpenAI-compatible 运行 [35070656461](https://github.com/wly2lcl/basework/actions/runs/35070656461)
+通过，脱敏结果已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35070656461.json`](SHIP-001-real-provider-2026-09-16-run-35070656461.json)。
+本次 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、独立命令退出码为 0，
+测试哈希为 `4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9`，实现哈希为
+`b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2`，耗时 22.7 秒。由于
+前两次失败，这只是 1 次连续通过，不能关闭协议次数门禁。
+
+第 4 次 OpenAI-compatible 运行 [35070828659](https://github.com/wly2lcl/basework/actions/runs/35070828659)
+约 61 秒后返回第三方端点 `504`，脱敏结果已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35070828659.json`](SHIP-001-real-provider-2026-09-16-run-35070828659.json)。
+它不计入通过次数，但验证了 Provider 失败仍写出 `validation_ok=false`、测试哈希和阶段结果。
+
+第 5 次 OpenAI-compatible 运行 [35071026911](https://github.com/wly2lcl/basework/actions/runs/35071026911)
+通过，脱敏结果已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35071026911.json`](SHIP-001-real-provider-2026-09-16-run-35071026911.json)。
+本次 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、独立命令退出码为 0，
+测试哈希为 `4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9`，实现哈希为
+`b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2`，耗时 157.3 秒。
+
+第 6 次 OpenAI-compatible 运行 [35071530401](https://github.com/wly2lcl/basework/actions/runs/35071530401)
+通过，脱敏结果已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35071530401.json`](SHIP-001-real-provider-2026-09-16-run-35071530401.json)。
+本次同样完成可信独立测试并退出码为 0，耗时 13.3 秒；测试/实现哈希与前一成功样本一致。
+
+第 7 次 OpenAI-compatible 运行 [35071644174](https://github.com/wly2lcl/basework/actions/runs/35071644174)
+通过，脱敏结果已保存为
+[`SHIP-001-real-provider-2026-09-16-run-35071644174.json`](SHIP-001-real-provider-2026-09-16-run-35071644174.json)。
+本次 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、独立命令退出码为 0，
+测试哈希为 `4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9`，实现哈希为
+`b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2`，耗时 11.3 秒。
+
+第 5–7 次形成同一候选、同一 OpenAI-compatible 入口的连续 3 次可信通过；截至本段，
+OpenAI-compatible 协议次数门禁已满足。不同协议 Provider 尚未运行，不能把历史 REL-003
+结果替代当前候选证据；待明确协议/端点和授权后再补同样的连续 3 次矩阵。
