@@ -391,6 +391,12 @@ explain` 和 `init --yes`；随后在隔离 HOME 中执行 v1 JSONL → SQLite �
 
 **当前结论：SHIP-002 完成。**
 
+## 2026-09-16 当前远端候选 CI 回验
+
+提交 `4c40e18e2662166902500bf1ba18124efdfc5a9f` 的 [CI run
+35077896624](https://github.com/wly2lcl/basework/actions/runs/35077896624) 已全绿。五个平台发布归档 Smoke、源码测试、Quality、Docker Smoke 与 Release Dry Run 均通过；该 run 证明当前远端候选的发布流程仍可复跑。
+真实 Provider 请求仍由 SHIP-001 单独验收，不能用本次 CI 结果替代协议/次数门禁。
+
 ## 2026-09-16 再复审交接
 
 前置任务回退；本任务既有实现和局部证据保留，等待依赖修复后回验，不要求重写模块。 本次状态调整为待验证，小步骤见原任务卡新增补充。历史成功测试不删除，但不能代替本次缺陷修复后的验证。

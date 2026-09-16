@@ -307,3 +307,10 @@ Provider 正向记录，以及是否补充真人主观体验；本段不创建 t
 35055131884](https://github.com/wly2lcl/basework/actions/runs/35055131884) 全部通过。CI
 首次 macOS 并发测试超时后重跑成功，五平台归档、Docker Smoke 和 Release Dry Run 均有当前
 候选记录。当前仍不能关闭 SHIP-003：真实 Provider 的协议/次数矩阵尚未完成。
+
+## 2026-09-16 当前远端候选 CI 关联
+
+提交 `4c40e18e2662166902500bf1ba18124efdfc5a9f` 的 [CI run
+35077896624](https://github.com/wly2lcl/basework/actions/runs/35077896624) 已全绿，Quality、五平台测试、五平台归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。
+该记录关闭当前候选的远端构建与发布辅助门禁，但 SHIP-001/QA-001 的当前候选真实 Provider
+协议矩阵仍未完成，因此不改变本任务的待验证状态。

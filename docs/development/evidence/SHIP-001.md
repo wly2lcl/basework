@@ -256,3 +256,11 @@ OpenAI-compatible 协议次数门禁已满足。不同协议 Provider 尚未运�
 Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将新候选推送并重新生成
 对应 CI/真实 Provider 记录。不同协议 Provider 仍需明确协议、端点和授权后按连续 3 次
 要求执行。
+
+## 2026-09-16 当前远端候选 CI 关联
+
+提交 `4c40e18e2662166902500bf1ba18124efdfc5a9f` 的 [CI run
+35077896624](https://github.com/wly2lcl/basework/actions/runs/35077896624) 已全绿，Quality、五平台源码测试、发布归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。
+这条 CI 记录只证明候选构建与发布辅助门禁；本文件中第 5–7 次真实 Provider 通过仍绑定
+`3ad67a7`，不能延伸到 `4c40e18`。当前候选需重新运行 OpenAI-compatible 连续 3 次，并补齐
+不同协议连续 3 次，才可更新 SHIP-001 状态。
