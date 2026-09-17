@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-16；当前远端验收候选 `4c40e18`（代码优化基线 `8394227`），上一真实 Provider 候选 `3ad67a7`，历史发布候选 `2a86886`。历史 CI 与真实 Provider 记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；当前远端验收候选 `140eddf`（代码优化基线 `8394227`），上一真实 Provider 候选 `3ad67a7`，历史发布候选 `2a86886`。历史 CI 与真实 Provider 记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能与常规测试基础较完整，当前远端验收候选已通过本地门禁和 GitHub Actions 全量门禁；OpenAI-compatible 的连续 3 次真实通过仍绑定上一候选，当前候选尚未生成真实 Provider 证据，且仍等待不同协议 Provider。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
@@ -88,3 +88,10 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 这条 CI 证据关闭了当前候选的远端构建、测试、发布归档和镜像门禁；SHIP-001/QA-001 仍等待
 当前候选的真实 Provider 运行，且不同协议样本尚未补齐。
+
+## 2026-09-17 当前远端文档候选 CI 回填
+
+提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [GitHub Actions run
+35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿。Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 与 Release Dry Run 全部通过；Quality 同时完成默认全量测试、vet、架构/文档门禁、race、Unix PTY smoke 和 OPT-001 smoke。
+
+该 run 是当前远端文档候选的完整 CI 证据，关闭了构建、测试、发布归档和镜像门禁。它不产生真实 Provider 证据；SHIP-001/QA-001 仍需在当前候选上补 OpenAI-compatible 与不同协议的连续 3 次可信运行。

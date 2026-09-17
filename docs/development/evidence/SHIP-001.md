@@ -264,3 +264,8 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 这条 CI 记录只证明候选构建与发布辅助门禁；本文件中第 5–7 次真实 Provider 通过仍绑定
 `3ad67a7`，不能延伸到 `4c40e18`。当前候选需重新运行 OpenAI-compatible 连续 3 次，并补齐
 不同协议连续 3 次，才可更新 SHIP-001 状态。
+
+## 2026-09-17 当前远端文档候选 CI 关联
+
+提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [CI run
+35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿，Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。该 run 只证明当前候选的自动化构建与发布辅助门禁；上一候选 `3ad67a7` 的真实 Provider 通过记录不能延伸到 `140eddf`，当前候选仍需 OpenAI-compatible 与不同协议各连续 3 次可信结果。

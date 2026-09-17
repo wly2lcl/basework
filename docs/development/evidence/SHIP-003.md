@@ -314,3 +314,8 @@ Provider 正向记录，以及是否补充真人主观体验；本段不创建 t
 35077896624](https://github.com/wly2lcl/basework/actions/runs/35077896624) 已全绿，Quality、五平台测试、五平台归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。
 该记录关闭当前候选的远端构建与发布辅助门禁，但 SHIP-001/QA-001 的当前候选真实 Provider
 协议矩阵仍未完成，因此不改变本任务的待验证状态。
+
+## 2026-09-17 当前远端文档候选 CI 关联
+
+提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [CI run
+35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿，完成当前候选的 Quality、五平台测试、五平台发布归档 Smoke、Docker Smoke 与 Release Dry Run。该记录不改变 SHIP-003 的待验证状态：前置 SHIP-001/QA-001 仍缺当前候选的真实 Provider 协议/次数矩阵。
