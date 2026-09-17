@@ -65,18 +65,30 @@ func (c *Cache) ScopeContext() ScopeContext {
 // 如果键不存在，返回 nil。
 func (c *Cache) Get(key string) *bool {
 	c.mu.RLock()
-	if v, ok := c.store[key]; ok {
-		c.mu.RUnlock()
-		return &v
-	}
 	context := c.context
 	c.mu.RUnlock()
+	return c.getForContext(key, context)
+}
 
-	// 内存 miss，尝试查 store
+// getForContext reads a decision using an explicit context snapshot. This is
+// used by Checker so a context switch cannot make one in-flight check read
+// from one context and persist into another.
+func (c *Cache) getForContext(key string, context ScopeContext) *bool {
+	context = context.normalized()
+	c.mu.RLock()
+	// Entries in the in-memory map belong to the context that was active when
+	// they were written. Do not reuse them after a concurrent context switch.
+	if c.context == context {
+		if v, ok := c.store[key]; ok {
+			c.mu.RUnlock()
+			return &v
+		}
+	}
+	c.mu.RUnlock()
+
+	// 内存 miss，尝试从 store 读取。
 	if c.pers != nil {
-		// 尝试从 store 找匹配的规则
 		// key 格式：toolName:arg1=val1 arg2=val2 ...
-		// 需要解析出 toolName 和 args
 		toolName, args := parseCacheKey(key)
 		rule, err := findStoredRule(c.pers, toolName, args, context)
 		if err == nil && rule != nil {
@@ -85,7 +97,12 @@ func (c *Cache) Get(key string) *bool {
 			}
 			allow := rule.RuleType == "allow"
 			c.mu.Lock()
-			c.store[key] = allow
+			// A context switch may have happened while the persistent lookup
+			// was in flight. Only warm the in-memory cache for the same
+			// context; the persistent result remains correctly scoped.
+			if c.context == context {
+				c.store[key] = allow
+			}
 			c.mu.Unlock()
 			return &allow
 		}
@@ -93,24 +110,34 @@ func (c *Cache) Get(key string) *bool {
 	return nil
 }
 
-// Set 设置指定键的缓存决策。
-// 有 store 时同步写入持久化存储。
-func (c *Cache) Set(key string, allow bool) {
+// setForContext stores a decision using an explicit context snapshot.
+func (c *Cache) setForContext(key string, allow bool, context ScopeContext) {
+	context = context.normalized()
 	c.mu.Lock()
-	c.store[key] = allow
-	context := c.context
+	// Do not put an old-context result into the current in-memory map after a
+	// concurrent switch. It is still safe to persist the result under its
+	// original context below.
+	if c.context == context {
+		c.store[key] = allow
+	}
 	c.mu.Unlock()
 
-	// 同步写入 store
 	if c.pers != nil {
-		toolName, _ := parseCacheKey(key)
+		toolName, args := parseCacheKey(key)
 		ruleType := "deny"
 		if allow {
 			ruleType = "allow"
 		}
+		pattern := toolName
+		if len(args) > 0 {
+			// Cache keys represent one concrete argument set. Escape glob
+			// metacharacters before storing it as a rule so a cached approval
+			// for `path=*.txt` cannot become a wildcard permission.
+			pattern += ":" + escapeGlob(formatArgs(args))
+		}
 		rule := &StoredRule{
 			RuleType: ruleType,
-			Pattern:  toolName,
+			Pattern:  pattern,
 			Source:   "auto",
 		}
 		// A cache decision without a bound context must never become a
@@ -124,11 +151,34 @@ func (c *Cache) Set(key string, allow bool) {
 		} else {
 			return
 		}
-		// 同步写入，不阻塞权限决策
 		if err := c.pers.Create(rule); err != nil {
 			fmt.Fprintf(os.Stderr, "permission: 持久化规则失败: %v\n", err)
 		}
 	}
+}
+
+// escapeGlob quotes path.Match metacharacters so a concrete cache decision
+// remains limited to the exact argument text it represents.
+func escapeGlob(value string) string {
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		switch r {
+		case '\\', '*', '?', '[', ']':
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// Set 设置指定键的缓存决策。
+// 有 store 时同步写入持久化存储。
+func (c *Cache) Set(key string, allow bool) {
+	c.mu.Lock()
+	context := c.context
+	c.mu.Unlock()
+	c.setForContext(key, allow, context)
 }
 
 // Clear 清除所有缓存的决策。

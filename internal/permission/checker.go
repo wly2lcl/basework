@@ -136,7 +136,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 	scope := c.ScopeContext()
 	// 1. 检查缓存
 	cacheKey := CacheKey(toolName, args)
-	if cached := c.Cache.Get(cacheKey); cached != nil {
+	if cached := c.Cache.getForContext(cacheKey, scope); cached != nil {
 		decision := "denied"
 		if *cached {
 			decision = "allowed"
@@ -147,7 +147,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 
 	// 2. 检查内存规则
 	if rule := MatchRules(c.Rules, toolName, args); rule != nil {
-		c.Cache.Set(cacheKey, rule.Allow)
+		c.Cache.setForContext(cacheKey, rule.Allow, scope)
 		decision := "denied"
 		if rule.Allow {
 			decision = "allowed"
@@ -163,7 +163,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 			switch storedRule.RuleType {
 			case "allow", "deny":
 				allow := storedRule.RuleType == "allow"
-				c.Cache.Set(cacheKey, allow)
+				c.Cache.setForContext(cacheKey, allow, scope)
 				decision := "denied"
 				if allow {
 					decision = "allowed"
@@ -187,7 +187,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 	}
 
 	if cacheDecision {
-		c.Cache.Set(cacheKey, allow)
+		c.Cache.setForContext(cacheKey, allow, scope)
 	}
 
 	decision := "denied"

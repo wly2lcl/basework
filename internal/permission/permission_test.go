@@ -413,6 +413,47 @@ func TestCache_ScopeContextDoesNotCrossSession(t *testing.T) {
 	}
 }
 
+func TestCache_PersistedArgumentDecisionRemainsExact(t *testing.T) {
+	store := &fakePermissionStore{}
+	cache := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "s1"})
+	key := CacheKey("write_file", map[string]interface{}{"path": "*.txt"})
+	cache.Set(key, true)
+
+	// The in-memory hit is exact, and the persisted fallback must quote the
+	// wildcard instead of widening the decision to every path.
+	if got := cache.Get(key); got == nil || !*got {
+		t.Fatalf("same argument set should remain allowed, got %v", got)
+	}
+	otherKey := CacheKey("write_file", map[string]interface{}{"path": "secret.key"})
+	if got := cache.Get(otherKey); got != nil {
+		t.Fatalf("different argument set must not reuse cached decision: %v", *got)
+	}
+	if store.rule == nil || store.rule.Pattern != `write_file:path=\*.txt` {
+		t.Fatalf("persisted cache rule should quote glob metacharacters, got %+v", store.rule)
+	}
+}
+
+func TestCache_StaleContextWriteDoesNotWarmCurrentContext(t *testing.T) {
+	store := &fakePermissionStore{}
+	cache := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "s1"})
+	cache.SetContext(ScopeContext{SessionID: "s2"})
+
+	// Simulate an in-flight check that started in s1 and completed after the
+	// checker switched to s2. The result must remain owned by s1 and must not
+	// enter s2's in-memory cache.
+	cache.setForContext("danger_tool:", true, ScopeContext{SessionID: "s1"})
+	if got := cache.Get("danger_tool:"); got != nil {
+		t.Fatalf("stale s1 result must not warm s2 cache: %v", *got)
+	}
+	rules, err := store.List()
+	if err != nil {
+		t.Fatalf("读取持久化规则失败: %v", err)
+	}
+	if len(rules) != 1 || rules[0].SessionID != "s1" {
+		t.Fatalf("stale result must remain scoped to s1, rules=%+v", rules)
+	}
+}
+
 func TestChecker_AuditIncludesScopeContext(t *testing.T) {
 	var got AuditRecord
 	logger := &AuditLogger{recorder: func(record AuditRecord) { got = record }}

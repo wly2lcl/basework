@@ -46,7 +46,7 @@ func MigrateFromMemory(cache *Cache, store Store) (int, error) {
 		pattern := toolName
 		if len(args) > 0 {
 			argsStr := formatArgs(args)
-			pattern = toolName + ":" + argsStr
+			pattern = toolName + ":" + escapeGlob(argsStr)
 		}
 
 		storedRule := &StoredRule{
