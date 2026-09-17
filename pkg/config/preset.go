@@ -100,7 +100,10 @@ func ApplyPreset(cfg *Config, name string) error {
 		// 只读承诺需要权限层兜底：强制开启权限检查。
 		cfg.Permission.Enabled = true
 		if cfg.Permission.Mode == "" {
-			cfg.Permission.Mode = "default"
+			// 与 runtime.newPermissionChecker 的空值回退保持一致。Checker
+			// 没有名为 default 的模式；使用 deny-all 可避免 config explain
+			// 展示一个运行时无法解析的值。
+			cfg.Permission.Mode = "deny-all"
 		}
 		return nil
 	default:

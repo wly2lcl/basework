@@ -1,292 +1,107 @@
 # 安全配置指南
 
-本文档介绍 basework 的安全功能，包括权限持久化、敏感路径保护、审计日志和权限迁移。
+本文集中说明 basework 当前已接入的应用层安全边界。权限规则、路径检查和 Bash 黑名单不会把宿主机变成操作系统沙箱；需要隔离执行时仍要使用外部容器或沙箱。
 
----
+## 权限检查
 
-## 权限系统概述
+启用 `permission.enabled` 后，运行时在工具调用前使用 `permission.mode`：
 
-basework 的权限系统采用三值评估模型，在工具调用前检查权限：
+| 值 | 行为 |
+|---|---|
+| `interactive` | 先匹配缓存/规则，未命中后请求审批；无 prompt 时拒绝 |
+| `yolo` | 工具调用直接允许，不提示、不读规则 |
+| `deny-all` | 所有工具调用拒绝 |
 
-| 模式 | 说明 |
-|------|------|
-| **allow** | 允许执行，不提示 |
-| **deny** | 拒绝执行，返回错误 |
-| **ask** | 交互式提示，等待用户确认 |
+Checker 的内存规则按列表顺序采用第一条匹配项；SQLite 存储查询按 `created_at ASC` 采用最早创建的匹配项。`permission list` 为显示方便按新到旧列出，因此显示顺序不等于实际命中顺序。持久化规则的 `scope`、`session_id`、`project_id` 当前只作为存储字段，匹配接口尚未接收会话/项目上下文，不能当成已实现的隔离边界。
 
-权限规则按顺序匹配，最后匹配的规则生效（`findLast` 语义）。支持通配符匹配：
-- `tool:*` — 匹配所有工具
-- `tool:write:/etc/**` — 匹配写入 /etc/ 目录的操作
-- `tool:bash:*rm*` — 匹配包含 rm 的 bash 命令
-
-### 规则匹配流程
-
-```
-工具调用发起
-    ↓
-路径安全检查（敏感路径保护）
-    ↓
-权限规则匹配（有序规则列表）
-    ├── Allow → 直接执行
-    ├── Deny  → 返回拒绝错误
-    └── Ask  → 交互式提示
-                ├── 一次允许 → 仅本次
-                ├── 永远允许 → 持久化到 SQLite
-                └── 拒绝     → 返回错误
-```
-
----
-
-## 权限持久化
-
-### 存储后端
-
-权限规则支持两种存储后端：
-
-| 后端 | 配置值 | 说明 |
-|------|--------|------|
-| SQLite | `sqlite` | 跨会话持久化，重启后规则不丢失（默认） |
-| 内存 | `memory` | 仅当前会话有效，重启后清空 |
-
-配置方式：
+## 存储和配置
 
 ```json
 {
+  "permission": {
+    "enabled": true,
+    "mode": "interactive",
+    "command_blacklist": {
+      "blocked_commands": ["git\\s+push\\s+--force"]
+    }
+  },
   "security": {
-    "permission_store": "sqlite"
-  }
-}
-```
-
-### SQLite 持久化
-
-当使用 SQLite 后端时，以下数据持久化到 `~/.config/basework/permissions.db`：
-
-- 用户授权的 "always allow" 规则
-- 自定义的黑名单/白名单规则
-- 审计日志记录
-
-### 内存模式
-
-内存模式适用于临时会话或测试场景。规则不会保存到磁盘，Agent 重启后所有授权记录丢失。
-
----
-
-## 审计日志
-
-审计日志记录所有权限决策，便于事后审查和安全分析。
-
-### 记录内容
-
-每次权限检查记录以下信息：
-
-| 字段 | 说明 |
-|------|------|
-| 时间戳 | 权限决策发生时间 |
-| 工具名 | 被检查的工具名称 |
-| 参数 | 工具调用的参数（可配置脱敏） |
-| 路径 | 操作涉及的文件路径 |
-| 决策结果 | allow / deny / ask |
-| 规则来源 | 匹配的规则 ID |
-| 会话 ID | 发起调用的会话 |
-
-### 配置
-
-```json
-{
-  "security": {
+    "permission_store": "sqlite",
+    "protection_level": "strict",
     "audit_retention_days": 30
   }
 }
 ```
 
-`audit_retention_days` 设置审计日志保留天数（默认 30 天），超期日志自动清理。
+`permission_store` 支持 `sqlite` 和 `memory`。SQLite 运行时和权限 CLI 使用 `~/.basework/permissions.db`；会话 JSONL 和配置文件仍使用各自目录。没有 `sqlite` build tag 时，`sqlite`/`memory` 配置仍可加载，但 SQLite 权限持久化和管理命令不编译进二进制。
 
-### 查询审计日志
+当前配置 schema 没有 `permission.rules`、`permission.blocked_commands`、`security.rules` 等字段；规则请使用 `permission add`，黑名单请使用 `permission.command_blacklist.blocked_commands`。
+
+## 敏感路径
+
+`security.protection_level` 的值为 `strict`、`warn` 或 `off`，默认 `strict`。默认保护模式来自代码中的以下模式：
+
+- `.git/`、`.svn/`、`.hg/`
+- `/.ssh/`、`/.aws/`、`/.gnupg/`、`/.config/gcloud/`
+- `/etc/shadow`、`/etc/sudoers`
+
+配置中的 `sensitive_paths.block` 会追加黑名单，`sensitive_paths.allow` 优先覆盖黑名单。路径会展开 `~`、清理 `..` 和相对路径，并检查规范化结果；可使用目录模式和 glob。`~/.config/basework/` 不是内置固定保护项，需要时显式加入 block。
+
+路径检查通过独立的 `PathPermissionAdapter` 接入工具。即使权限模式为 `yolo`，`strict` 路径检查仍会拒绝敏感路径；不要把 yolo 当作绕过路径保护的开关。
+
+## Bash 黑名单
+
+同步和后台 Bash 共用内置危险命令规则，并追加 `permission.command_blacklist.blocked_commands` 中的 Go 正则。规则覆盖设备读写、格式化、删根、fork bomb、下载后交给 shell、关机等。命中后的 Bash 行为由实现模式决定；黑名单和敏感路径是两条独立检查链。
+
+## 审计
+
+SQLite 审计记录包含时间、会话 ID、工具名、规则 ID、决策、上下文和记录 ID。运行时记录异步批量写入，进程关闭时刷新。`permission audit` 的实际参数只有：
 
 ```bash
-# 查看最近 50 条审计记录
 basework permission audit
-
-# 查看特定工具的审计记录
-basework permission audit --tool bash
-
-# 查看拒绝操作的审计记录
-basework permission audit --effect deny
-
-# 指定日志条数
-basework permission audit --limit 100
+basework permission audit --session <session-id> --tool bash --days 7
 ```
 
----
+查询按时间倒序，CLI 固定最多返回 100 条；没有 `--effect` 或 `--limit`。审计组件提供 `Cleanup(retentionDays)`，保留期由 `security.audit_retention_days` 表达；CLI 没有独立的清理命令。
 
-## 敏感路径保护
+## 导入、导出和迁移
 
-敏感路径保护在工具执行前检查文件路径，防止 Agent 意外访问或修改敏感文件。
-
-### 默认保护路径
-
-以下路径默认受保护：
-
-| 路径 | 说明 | 风险 |
-|------|------|------|
-| `.git/` | Git 仓库元数据 | 泄露提交历史、凭证 |
-| `~/.ssh/` | SSH 密钥和配置 | 泄露服务器访问权限 |
-| `~/.aws/` | AWS 凭证 | 泄露云服务访问权限 |
-| `~/.gnupg/` | GPG 密钥 | 泄露签名密钥 |
-| `~/.config/basework/` | Basework 配置 | 泄露 API key 等敏感配置 |
-
-### 保护级别
-
-| 级别 | 配置值 | 行为 |
-|------|--------|------|
-| 严格 | `strict` | 禁止访问敏感路径（默认） |
-| 警告 | `warn` | 记录警告日志但允许访问 |
-| 关闭 | `off` | 不进行路径检查 |
-
-### 自定义路径
-
-```json
-{
-  "security": {
-    "protection_level": "strict",
-    "sensitive_paths": {
-      "block": [
-        "/etc/shadow",
-        "/var/run/secrets/",
-        "/custom/secret/"
-      ],
-      "allow": [
-        "~/.ssh/config",
-        "/etc/hosts"
-      ]
-    }
-  }
-}
-```
-
-- `block` — 额外黑名单，追加到默认保护列表
-- `allow` — 白名单，覆盖黑名单中的路径
-
-白名单优先级高于黑名单，可用于需要访问特定敏感文件的场景。
-
-### 路径匹配规则
-
-- 基于绝对路径或相对路径匹配
-- 支持通配符模式（`/etc/**` 匹配 /etc/ 下所有路径）
-- 符号链接会解析为目标路径再检查
-
----
-
-## 权限迁移
-
-basework 提供权限规则的导入/导出工具，方便批量管理权限规则。
-
-### 导出权限规则
+权限管理命令需要 `sqlite` build tag：
 
 ```bash
-# 导出所有规则到 JSON 文件
+basework permission list
+basework permission add --type deny --pattern 'bash:*rm*' --scope global
+basework permission remove --id <rule-id>
 basework permission export --output rules.json
-
-# 导出特定工具的规则
-basework permission export --tool bash --output bash-rules.json
+basework permission import rules.json
 ```
 
-导出格式：
+`export` 省略 `--output` 时写 stdout，不能按工具筛选。`import` 接收一个 JSON 文件路径位置参数，不支持 `--file`、`--dry-run`；导入会重新生成 ID 并将来源写为 `migration`。当前没有 `permission delete`、`clear`、`reset` 或 mode/blocked 管理子命令。
 
-```json
-[
-  {
-    "action": "tool:bash",
-    "resource": "*rm*",
-    "effect": "deny",
-    "source": "manual",
-    "created_at": "2026-07-06T10:00:00Z"
-  },
-  {
-    "action": "tool:read",
-    "resource": "~/.ssh/config",
-    "effect": "allow",
-    "source": "session_abc123",
-    "created_at": "2026-07-06T11:30:00Z",
-    "expires_at": "2026-08-06T11:30:00Z"
-  }
-]
-```
+SQLite 数据库路径由 CLI 固定为 `~/.basework/permissions.db`，用户目录不可用时回退到系统临时目录中的 `basework_permissions.db`。修改或备份前应先停止使用该数据库的运行实例，避免并发写入造成不一致。
 
-### 导入权限规则
+## 审批安全属性
 
-```bash
-# 从 JSON 文件导入规则
-basework permission import --file rules.json
-
-# 导入前验证（不实际写入）
-basework permission import --file rules.json --dry-run
-```
-
-导入规则：
-- 自动去重（相同 action + resource 覆盖旧规则）
-- 支持 `--dry-run` 预览变更
-- 导入后刷新缓存，立即生效
-
----
-
-## 完整安全配置示例
-
-```json
-{
-  "security": {
-    "protection_level": "strict",
-    "permission_store": "sqlite",
-    "audit_retention_days": 30,
-    "sensitive_paths": {
-      "block": ["/custom/secret/"],
-      "allow": ["~/.ssh/config"]
-    }
-  }
-}
-```
-
----
+交互审批请求有唯一 ID；关闭、取消、超时和无效/过期应答不会放行下一请求。默认超时为 120 秒，超时等价于拒绝。审批卡片展示工具目的、尽力解析的路径、diff 和风险依据；批准后编辑层仍会再次检查内容基线和路径。
 
 ## 常见问题
 
-### 如何临时关闭所有权限检查？
+### 如何启用或关闭权限？
 
-```bash
-# 启动时使用 YOLO 模式
-basework agent --yolo
-```
+在配置文件中设置 `permission.enabled` 和 `permission.mode`，然后用 `basework config explain` 检查脱敏后的生效值。Agent 没有 `--yolo` flag；不要照抄旧文档中的 `basework agent --yolo`。
 
-YOLO 模式下跳过所有权限提示和敏感路径检查。
+### 为什么 yolo 仍拒绝某个路径？
 
-### 持久化规则如何删除？
+yolo 只改变 Checker 的工具决策。`security.protection_level=strict` 的 PathChecker 仍独立拒绝默认或自定义敏感路径；请修改安全配置或显式加入白名单，并评估风险。
 
-```bash
-# 删除特定规则
-basework permission delete --id <rule_id>
+### 为什么规则看起来顺序相反？
 
-# 清空所有持久化规则
-basework permission clear
-
-# 重置为默认配置
-basework permission reset
-```
-
-### 审计日志占用空间大吗？
-
-审计日志存储在 SQLite 数据库中，每条记录约 200-500 字节。
-以每天 1000 条权限决策计算，30 天约占用 6-15MB 空间。
-
-### 敏感路径保护影响性能吗？
-
-路径检查是轻量级字符串匹配操作，单次检查耗时 < 0.1ms。
-即使在大量文件操作场景下，性能影响可忽略不计。
-
----
+`permission list` 以最新创建的规则优先显示，但匹配使用 SQLite 最早创建的命中项。需要改变优先级时，先导出并按明确顺序重建规则，完成后再用实际工具调用和审计记录验证。
 
 ## 相关文档
 
-- [配置参考](configuration.md) — 配置文件完整参考
-- [CLI 使用指南](cli-guide.md) — CLI 命令完整参考
-- [权限系统](permission-guide.md) — 权限规则和交互提示
+- [权限系统使用指南](permission-guide.md)
+- [配置参考](configuration.md)
+- [CLI 使用指南](cli-guide.md)
+- [TUI 使用指南](tui-guide.md)
+- [迁移指南](migration.md)

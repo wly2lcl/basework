@@ -362,10 +362,13 @@ SQLite 日志模式，影响并发读写性能。
 | 路径 | 说明 |
 |------|------|
 | `.git/` | Git 仓库元数据 |
-| `~/.ssh/` | SSH 密钥和配置 |
-| `~/.aws/` | AWS 凭证 |
-| `~/.gnupg/` | GPG 密钥 |
-| `~/.config/basework/` | Basework 自身配置 |
+| `~/.ssh/` | SSH 密钥和配置（由 `/.ssh/` 模式匹配） |
+| `~/.aws/` | AWS 凭证（由 `/.aws/` 模式匹配） |
+| `~/.gnupg/` | GPG 密钥（由 `/.gnupg/` 模式匹配） |
+| `~/.config/gcloud/` | Google Cloud 凭证（由 `/.config/gcloud/` 模式匹配） |
+| `/etc/shadow`、`/etc/sudoers` | 系统凭证和 sudo 策略 |
+
+列表来自 `internal/permission.DefaultSensitivePaths`。`~/.config/basework/` 不是内置固定条目；需要保护 Basework 自身配置或数据时，请在 `security.sensitive_paths.block` 中显式添加。
 
 ---
 

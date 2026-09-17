@@ -36,6 +36,7 @@ func TestApplyPreset_EmptyIsNoOp(t *testing.T) {
 
 func TestApplyPreset_ReadOnlyExpandsWhitelistAndPermission(t *testing.T) {
 	cfg := presetTestConfig()
+	cfg.Permission.Mode = ""
 	if err := ApplyPreset(cfg, PresetReadonly); err != nil {
 		t.Fatalf("展开 readonly: %v", err)
 	}
@@ -49,6 +50,9 @@ func TestApplyPreset_ReadOnlyExpandsWhitelistAndPermission(t *testing.T) {
 	}
 	if !cfg.Permission.Enabled {
 		t.Error("readonly 应强制开启权限检查")
+	}
+	if cfg.Permission.Mode != "deny-all" {
+		t.Fatalf("空权限模式应与 runtime 回退一致为 deny-all，得到 %q", cfg.Permission.Mode)
 	}
 }
 

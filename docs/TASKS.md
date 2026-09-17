@@ -59,6 +59,7 @@
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | Codex / 依赖回验 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | Codex / 依赖回验 | [记录](development/evidence/SHIP-003.md) |
 | QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 进行中 | BASE-001, UI-003 | Codex / 复审重开 | [记录](development/evidence/QA-001.md) |
+| SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 待办 | QA-001 | — | — |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
@@ -78,5 +79,6 @@
 - OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已形成当前候选的连续 3 次可信通过；6 份脱敏 artifact 已纳入 `docs/development/evidence/`。第 3 次失败样本保留并明确不计入连续序列。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
+- 权限规则的 `scope/session_id/project_id` 目前仍是存储元数据，已新增 SEC-001 跟踪上下文过滤；它是后续安全增强，不改变当前发布候选的 Provider/CI 门禁结论。
 
 旧 Phase 对应关系见 [路线图](ROADMAP.md)，历史清单见 [归档](archive/README.md)。

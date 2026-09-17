@@ -55,7 +55,7 @@ basework --config /path/to/config.json agent -m "解释当前项目"
 
 交互 REPL 输入 `exit` 或 EOF 退出。TUI 的按键、审批、任务卡片统一见 [TUI 指南](tui-guide.md)，不在这里重复维护。
 
-取消当前轮与退出应用尚未在三条入口完全对齐；`tui --no-tui` 有把普通错误显示为中断的问题，RUN-003 跟踪。自动脚本优先使用单次 `agent -m`，并核对退出码和实际产物。
+取消当前轮与退出应用在 Agent、TUI 和回退 REPL 的边界仍需以当前测试和实际终端为准；自动脚本优先使用单次 `agent -m`，并核对退出码和实际产物。RUN-003 的依赖回验已通过，剩余真人终端手感不作为自动化结论。
 
 ## 模型与能力
 
@@ -82,7 +82,7 @@ basework facts show --help
 
 `jobs` 查看后台任务历史，`edits` 查看编辑事件，`facts` 做事实聚合。这些查询不重新执行命令或提交编辑。
 
-当前 session 子命令为 list、clear、status、unlock；clear/unlock 会修改本地数据，应先阅读各自 help。TUI 启动时可用 `--session <id>` 绑定历史会话，也可在运行中输入 `/session <id>` 切换；ID 可由 `basework session list` 获取。切换会重建运行服务、任务归属和事件订阅，失败时保留当前会话。尚无独立的 resume/export/search 子命令。
+当前 session 子命令为 list、clear、status、unlock；clear/unlock 会修改本地数据，应先阅读各自 help。`status`/`unlock` 与 `migrate`、`permission`、`version` 一样只在 `sqlite` build tag 的二进制中提供；无 tag 构建请以 `basework session --help` 为准。TUI 启动时可用 `--session <id>` 绑定历史会话，也可在运行中输入 `/session <id>` 切换；ID 可由 `basework session list` 获取。切换会重建运行服务、任务归属和事件订阅，失败时保留当前会话。尚无独立的 resume/export/search 子命令。
 
 会话数据目录默认是 `~/.local/share/basework/sessions/`（遵循 XDG 数据目录）；当前 CLI/TUI 固定使用 JSONL。SQLite 库与迁移功能存在，但配置文件里的 `session.store` 不会自动改变主运行时后端。
 
@@ -101,5 +101,7 @@ basework auth --help
 basework profile --help
 basework --help
 ```
+
+`migrate`、`permission`、`version` 和 `session status/unlock` 依赖 `sqlite` build tag；源码构建可用 `make build`，或执行 `go run -tags 'sqlite memory' ./cmd/basework --help` 查看完整命令树。无 tag 的默认开发二进制不应照抄这些子命令。
 
 执行迁移前先看 [迁移指南](migration.md)，核对源目录、目标与备份。权限不等于操作系统沙箱；profile 是性能分析入口，不是启动预设。其他子命令及参数直接以当前 help 查询，避免照抄历史 Phase 文档。

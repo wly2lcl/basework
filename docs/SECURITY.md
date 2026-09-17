@@ -51,7 +51,7 @@ Basework 作为一个 AI Agent 框架，在设计上存在以下安全考量：
 - **缓解措施**:
   - 建议在沙箱或容器环境中运行
   - 生产环境应限制 Agent 的系统权限
-  - 权限系统已在 Phase 15 实现，支持规则引擎（allow/deny/ask）、交互提示、YOLO 模式。命令黑名单已在 Phase 23 实现，内置 12+ 危险模式拦截。
+  - 当前权限实现支持 `interactive` / `yolo` / `deny-all` 三种 Checker 模式、SQLite 规则与交互审批；Bash 还会执行内置和自定义命令黑名单。详细命令、build tag 和路径边界见[权限指南](guides/permission-guide.md)与[安全配置指南](guides/security.md)。这些检查属于应用层，不是 OS 沙箱。
 
 ### LLM Provider API Key
 
@@ -93,3 +93,5 @@ Basework 作为一个 AI Agent 框架，在设计上存在以下安全考量：
 4. **定期更新**: 始终使用最新版本
 5. **审计日志**: 启用 Session 持久化以保留操作审计轨迹
 6. **API Key 管理**: 使用密钥管理服务 (如 Vault) 而非硬编码
+
+权限、敏感路径和审计的实际字段以[安全配置指南](guides/security.md)为准；不要把历史 Phase 文档中的命令或配置名直接用于当前版本。

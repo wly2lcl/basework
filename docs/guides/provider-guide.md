@@ -24,7 +24,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 |----------|------|------|----------|
 | OpenAI | openai-chat | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
 | Anthropic | anthropic-messages | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
-| Gemini | gemini | `https://generativelanguage.googleapis.com` | `GEMINI_API_KEY` |
+| Gemini | gemini | `https://generativelanguage.googleapis.com` | `GOOGLE_API_KEY` |
 
 ### OpenAI 兼容
 
@@ -32,12 +32,12 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 
 | Provider | 类型值 | 端点 | 环境变量 |
 |----------|--------|------|----------|
-| DeepSeek | `"deepseek"` | `https://api.deepseek.com/v1` | `DEEPSEEK_API_KEY` |
-| Groq | `"groq"` | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` |
-| Together | `"together"` | `https://api.together.xyz/v1` | `TOGETHER_API_KEY` |
-| OpenRouter | `"openrouter"` | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
-| xAI | `"xai"` | `https://api.x.ai/v1` | `XAI_API_KEY` |
-| Mistral | `"mistral"` | `https://api.mistral.ai/v1` | `MISTRAL_API_KEY` |
+| DeepSeek | `"deepseek"` | `https://api.deepseek.com/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
+| Groq | `"groq"` | `https://api.groq.com/openai/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
+| Together | `"together"` | `https://api.together.xyz/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
+| OpenRouter | `"openrouter"` | `https://openrouter.ai/api/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
+| xAI | `"xai"` | `https://api.x.ai/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
+| Mistral | `"mistral"` | `https://api.mistral.ai/v1` | `OPENAI_API_KEY`（未单独映射时回落） |
 
 ### ✅ 已实现
 
@@ -45,7 +45,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 |----------|--------|------|----------|
 | OpenCode Zen | `"opencode"` | `https://opencode.ai/zen/v1` | `OPENCODE_API_KEY`（兼容 `OG_API_KEY`） |
 | Amazon Bedrock | `"bedrock"` | AWS Converse API | AWS 凭证 |
-| Azure OpenAI | `"azure"` | `https://{resource}.openai.azure.com` | `AZURE_OPENAI_API_KEY` |
+| Azure OpenAI | `"azure"` | `https://{resource}.openai.azure.com` | `AZURE_API_KEY` |
 | GitHub Copilot | `"copilot"` | `https://api.githubcopilot.com` | OAuth 认证 |
 | Ollama | `"ollama"` | `http://localhost:11434/v1` | 无（本地） |
 
@@ -53,7 +53,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 
 ## 配置方式
 
-Provider 支持三种配置方式，优先级从高到低为：代码中配置 > 配置文件 > 环境变量。
+嵌入式调用由 `provider.Config` 直接决定；CLI runtime 先读取配置文件，再按实际生效 provider 读取环境变量补足 key，`BASEWORK_PROVIDER` 和 `BASEWORK_BASE_URL` 可覆盖对应配置。
 
 ### 环境变量（推荐）
 
@@ -61,11 +61,10 @@ Provider 支持三种配置方式，优先级从高到低为：代码中配置 >
 # 基础配置
 export ANTHROPIC_API_KEY=sk-ant-...
 export OPENAI_API_KEY=sk-...
+export GOOGLE_API_KEY=...
 
 # OpenAI 兼容 Provider
-export DEEPSEEK_API_KEY=sk-...
-export GROQ_API_KEY=gsk_...
-export TOGETHER_API_KEY=...
+# 未单独映射的兼容类型（包括 DeepSeek、Groq、Together 等）回落到 OPENAI_API_KEY
 ```
 
 环境变量方式适合 CI/CD、容器化部署和多环境管理。配置文件名不会泄露到版本控制中。
@@ -125,8 +124,8 @@ model, err := provider.Create(provider.Config{
 
 注意事项：
 
-- 自定义端点必须包含 `/v1` 后缀（大多数 OpenAI 兼容 API 要求）
-- `base_url` 不以 `/` 结尾
+- 自定义端点必须是绝对的 `http`/`https` URL；是否需要 `/v1` 由目标协议决定
+- CLI 配置中的 `providers.<name>.base_url` 会在加载时校验，错误 URL 不会静默回落默认端点
 - 如果 Provider 有专用类型（如 `"deepseek"`），优先使用专用类型而非 `"openai-compat"`，因为专用类型会自动处理协议差异
 
 ---

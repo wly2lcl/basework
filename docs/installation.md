@@ -2,7 +2,7 @@
 
 ## 验证范围
 
-打包配置覆盖下列五个 OS/架构，但源码 CI 通过不等于对应发布包已完成安装验证。2026-09-14 复审仅保留旧 darwin/arm64 快照的实际运行记录；当前候选包与 Docker 构建/运行待 SHIP-002 补齐。下载时核对 tag、架构与校验和；详细证据见 [复审报告](development/evidence/REVIEW-2026-09-14.md)。
+打包配置覆盖 Linux amd64/arm64、macOS amd64/arm64 和 Windows amd64（Windows arm64 按配置明确排除）。当前候选的五平台发布归档 Smoke、Docker Smoke 和迁移/未来版本拒绝检查已有 CI 记录；本机实际安装能力仍取决于所运行的平台。下载时核对 tag、架构与校验和，完整边界见 [当前状态](STATUS.md) 与 [SHIP-002 证据](development/evidence/SHIP-002.md)。
 
 ## 安装方式
 
@@ -21,7 +21,7 @@
 go install -tags "sqlite memory" github.com/wly2lcl/basework/cmd/basework@latest
 ```
 
-### 方式 3: Docker（发布配置已接入，当前候选尚未验证）
+### 方式 3: Docker
 
 ```bash
 docker pull ghcr.io/wly2lcl/basework:latest
@@ -79,26 +79,28 @@ docker rmi ghcr.io/wly2lcl/basework:latest
 
 ### SQLite 相关错误
 
-确保使用正确的 build tags 编译：
+确保使用正确的 build tags 编译（完整迁移、权限和版本命令需要该构建）：
 ```bash
 go build -tags "sqlite memory" ./cmd/basework
 ```
 
 ### 文件锁问题
 
-如果会话被锁定，使用：
+如果会话被锁定，使用（需要 `sqlite` build tag）：
 ```bash
 basework session unlock <session-id>
 ```
 
 ### 数据库损坏
 
-检查完整性：
+检查 SQLite 会话完整性（需要 `sqlite` build tag）：
 ```bash
 basework session status --check-integrity
 ```
 
-回滚到之前的状态：
+回滚最近一次 WAL 模式迁移：
 ```bash
 basework migrate rollback
+
+该命令恢复 WAL 迁移备份，不会把 SQLite 数据导回 JSONL；当前 Agent/TUI 主运行时仍固定使用 JSONL。
 ```

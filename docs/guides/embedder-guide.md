@@ -73,7 +73,7 @@ model, err := provider.Create(provider.Config{
 ```go
 model, err := provider.Create(provider.Config{
     Type:    "deepseek",       // 或 "groq"、"openai-compat" 等
-    APIKey:  os.Getenv("DEEPSEEK_API_KEY"),
+    APIKey:  os.Getenv("OPENAI_API_KEY"), // 未单独映射的兼容类型回落到 OPENAI_API_KEY
     ModelID: "deepseek-chat",
 })
 ```

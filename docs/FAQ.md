@@ -23,7 +23,6 @@ basework 原生支持 **15+ 个 Provider**，同时兼容所有标准 OpenAI API
 | Anthropic | ✅ |
 | OpenAI | ✅ |
 | Google Gemini | ✅ |
-| Cohere | ✅ |
 | Mistral AI | ✅ |
 | Groq | ✅ |
 | DeepSeek | ✅ |
@@ -56,7 +55,7 @@ make build
 
 basework 支持两种方式配置 API Key，优先级从上到下递减：
 
-1. **环境变量**：`ANTHROPIC_API_KEY`、`OPENAI_API_KEY`、`GEMINI_API_KEY` 等
+1. **环境变量**：`ANTHROPIC_API_KEY`、`OPENAI_API_KEY`、`GOOGLE_API_KEY` 等
 2. **配置文件**：`~/.config/basework/config.json`，通过 `basework init` 交互式生成
 
 ```json
@@ -73,9 +72,7 @@ basework 支持两种方式配置 API Key，优先级从上到下递减：
 
 全局配置文件位置：`~/.config/basework/config.json`
 
-项目级配置（可选）：`.basework/config.json`（当前工作目录）
-
-你可以通过环境变量 `BASEWORK_CONFIG` 或 `--config` 标志指定自定义路径。
+配置发现只认 `config.json`：当前目录或父目录逐级向上，最后回退到 `~/.config/basework/config.json`。也可以用全局 `--config` 标志指定自定义路径；当前没有 `BASEWORK_CONFIG` 环境变量。
 
 ### 如何切换模型？
 
@@ -247,9 +244,9 @@ Skill 是 basework 的扩展机制，以 `SKILL.md` 文件形式存在。在项�
 
 按以下步骤排查：
 
-1. 检查环境变量是否正确设置：`echo $ANTHROPIC_API_KEY`
-2. 检查配置文件：`basework config show`
-3. 运行 `basework config validate` 验证配置
+1. 检查环境变量是否正确设置（不要把真实 key 粘贴到日志或提交中）
+2. 运行 `basework config explain` 查看脱敏后的生效配置和端点来源
+3. 检查 provider 对应的环境变量或配置块
 4. 确认 API Key 未过期，且账户有足够余额
 
 ### 模型不可用怎么办？
@@ -268,16 +265,7 @@ Skill 是 basework 的扩展机制，以 `SKILL.md` 文件形式存在。在项�
 
 ### 如何查看日志？
 
-```bash
-# 查看日志
-basework logs
-
-# 查看最近 50 行
-basework logs --tail 50
-
-# 实时跟踪
-basework logs --follow
-```
+当前没有 `basework logs` 子命令。使用全局 `--verbose` 查看命令输出；运行时结构化日志按 `observability.log_output` 配置写到 stdout、stderr 或指定文件。
 
 ---
 

@@ -78,6 +78,30 @@
 
 **验证**：`go test ./cmd/basework ./pkg/config -count=1`，隔离 HOME 的真实二进制初始化；保存 `docs/development/evidence/OPT-001.md`。
 
+<a id="sec-001"></a>
+
+## SEC-001：权限作用域上下文过滤
+
+**前置任务**：QA-001。优先级 P2；当前规则表接受 `global`、`session`、`project` 字段，但匹配接口尚未接收会话/项目上下文，作用域目前只是存储元数据。
+
+**小步骤**：
+
+1. 扩展规则匹配调用的上下文契约，明确 global/session/project 的优先级、缺少上下文时的安全默认值和旧规则兼容方式。
+2. 在 SQLite 查询、内存缓存和迁移路径统一应用作用域过滤；不能让跨会话缓存复用 session/project 规则。
+3. 为同一工具的 global、session、project 规则补正向、负向、重启和并发测试，并在 `permission list/audit` 中展示足够的关联信息。
+4. 更新权限指南、配置解释和证据，证明规则不会越过所属会话或项目。
+
+**验收条件**：
+
+- [ ] 不同 session/project 的规则不会互相命中；global 规则按明确优先级生效。
+- [ ] 旧数据库规则可读，缺少关联字段时遵循文档化的安全默认值。
+- [ ] 内存、SQLite、迁移和缓存路径的测试均通过，含 race 和重启场景。
+- [ ] CLI、审计和文档能让用户区分规则作用域与实际命中结果。
+
+**验证**：`go test -race -tags 'sqlite memory' ./internal/permission ./cmd/basework -count=1`，配合隔离 HOME 的 CLI 规则场景；保存 `docs/development/evidence/SEC-001.md`。
+
+**范围外**：不把应用层规则包装成 OS 沙箱，不在本任务内实现远程策略服务或全平台权限代理。
+
 <a id="opt-002"></a>
 
 ## OPT-002：长会话与长任务性能基线
@@ -106,7 +130,7 @@
 
 ## OPT-003：降低长会话追加开销
 
-**前置任务**：OPT-002。优先级 P3；依据 [本次复审](../development/evidence/REVIEW-2026-09-16.md) B07。当前瓶颈已测得，优化尚未实施。
+**前置任务**：OPT-002。优先级 P3；依据 [本次复审](../development/evidence/REVIEW-2026-09-16.md) B07。当前瓶颈已测得，JSONL 增量追加优化已实施并完成验收，结果见 [OPT-003 证据](../development/evidence/OPT-003.md)。
 
 **先读 / 主要修改范围**：`pkg/session/jsonl.go`、锁/恢复/压缩测试、`tests/benchmark/long_session_bench_test.go`、[OPT-002 原始基线](../development/evidence/OPT-002.md)。
 
