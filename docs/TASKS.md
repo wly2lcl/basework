@@ -79,6 +79,7 @@
 - 最终远端候选为 `a78efba`：`763a845` 推送后只追加一处 `gofmt` 格式修复，解决 Quality 门禁发现的帮助文本缩进问题。默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs`、`git diff --check` 和 `gofmt` 均通过。
 - 最终候选的 GitHub Actions CI run `35188993611` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
 - 文档/证据提交 `01b6277` 只增加 3 份脱敏 Provider JSON 和验收记录；其 GitHub Actions CI run `35190411247` 也已全绿，不改变 `a78efba` 的代码候选绑定。
+- 文档说明提交 `fb55672` 的 CI run `35191971964` 暴露 Windows `tests/real_provider` 超时夹具的子进程句柄收尾竞态；已在 `tests/real_provider/process_windows.go` 增加整棵进程树快照、终止和等待，并通过本地 runner 回归与 Windows amd64 交叉编译，待远端重跑确认。
 - OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 在最终候选 `a78efba` 连续 3 次可信通过（runs `35189820351`、`35189839503`、`35189879941`）；三份脱敏 artifact 已纳入 `docs/development/evidence/`，每次均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。旧候选失败/重试样本继续保留。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
