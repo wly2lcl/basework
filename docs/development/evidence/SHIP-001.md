@@ -269,3 +269,30 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 
 提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [CI run
 35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿，Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。该 run 只证明当前候选的自动化构建与发布辅助门禁；上一候选 `3ad67a7` 的真实 Provider 通过记录不能延伸到 `140eddf`，当前候选仍需 OpenAI-compatible 与不同协议各连续 3 次可信结果。
+
+## 2026-09-17 当前代码候选真实 Provider 复核
+
+当前代码候选为 `dd08592adce712af73f1b235dfc829352dc31f1d`。6 次 workflow 均使用同一
+`provider=openai`、端点 `https://newapi.doubb.top/v1`、模型 `agnes-2.5-flash`，并将密钥
+仅作为 Actions secret 注入。结果文件是 workflow 上传后下载的脱敏 JSON，已纳入仓库；不保存
+原始响应、密钥或不可复查的临时路径。
+
+| 次序 | Workflow run | Agent | 验证 | 测试实际执行 | 实现已修改 | 独立测试退出码 | 耗时 | 结果文件 |
+|---:|---:|---|---|---|---|---:|---:|---|
+| 1 | [35169409650](https://github.com/wly2lcl/basework/actions/runs/35169409650) | ✅ | ✅ | ✅ | ✅ | 0 | 10.57s | [`json`](SHIP-001-real-provider-2026-09-17-run-35169409650.json) |
+| 2 | [35169557341](https://github.com/wly2lcl/basework/actions/runs/35169557341) | ✅ | ✅ | ✅ | ✅ | 0 | 101.83s | [`json`](SHIP-001-real-provider-2026-09-17-run-35169557341.json) |
+| 3 | [35169796044](https://github.com/wly2lcl/basework/actions/runs/35169796044) | ✅ | ❌ | ✅ | ❌ | 0 | 79.15s | [`json`](SHIP-001-real-provider-2026-09-17-run-35169796044.json) |
+| 4 | [35170019011](https://github.com/wly2lcl/basework/actions/runs/35170019011) | ✅ | ✅ | ✅ | ✅ | 0 | 7.89s | [`json`](SHIP-001-real-provider-2026-09-17-run-35170019011.json) |
+| 5 | [35170100696](https://github.com/wly2lcl/basework/actions/runs/35170100696) | ✅ | ✅ | ✅ | ✅ | 0 | 7.34s | [`json`](SHIP-001-real-provider-2026-09-17-run-35170100696.json) |
+| 6 | [35170184392](https://github.com/wly2lcl/basework/actions/runs/35170184392) | ✅ | ✅ | ✅ | ✅ | 0 | 10.12s | [`json`](SHIP-001-real-provider-2026-09-17-run-35170184392.json) |
+
+第 3 次是可信门禁拒绝样本：虽然 Agent 与独立测试退出码为 0，但 `validation_ok=false`、
+`file_changed=false`，不能算作成功。第 4–6 次在同一候选、同一入口上连续满足全部字段，
+因此当前候选的 OpenAI-compatible 连续 3 次要求已完成。每次 artifact 都包含测试文件和实现
+文件 SHA-256；结果文本只保留摘要和尾部，已检查未出现 API key。
+
+该记录仍不能关闭不同协议要求：历史 REL-003 的多协议结果绑定旧候选/旧 runner，不能替代本次
+候选。补验前需要明确协议、端点、模型和授权；获得后按同一夹具连续运行 3 次，并将失败样本
+与成功样本一并保存。
+
+**当前结论：SHIP-001 的 OpenAI-compatible 子门禁完成；整项继续进行中，等待不同协议连续 3 次当前候选证据。**

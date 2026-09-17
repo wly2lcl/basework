@@ -432,3 +432,15 @@ Release Dry Run 均通过。首次 macOS runner 因 `pkg/lsp/TestClientConcurren
 | `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `f8628ecd4f358003acc4d482e32e63300c00359c530f88690c16d92e0d384a50` | 解包、version/config/init、迁移/未来版本拒绝通过 |
 
 当前候选发布包证据已与修复 commit 绑定；实际用户设备安装与真人主观体验仍是单独边界。
+
+## 2026-09-17 当前代码候选 CI 复核
+
+当前代码候选为 `dd08592adce712af73f1b235dfc829352dc31f1d`。其 [CI run
+35169388623](https://github.com/wly2lcl/basework/actions/runs/35169388623) 的 Ubuntu、ARM、
+Windows、macOS 两个 runner 测试/构建、Docker Smoke 和 Release Dry Run 均通过；Quality 仅
+在生成物新鲜度步骤失败，原因是 `docs/STATS.md` 尚未反映修复新增的 4 行测试代码。已在本地
+运行 `make gen` 刷新 `docs/STATS.md`，提交后需以新 CI run 重新确认。
+
+该失败不表示发布归档或平台运行逻辑失败，但在新 CI 全绿前不能关闭本任务的候选依赖。真实
+Provider 的协议/次数门禁仍由 SHIP-001 单独负责；本次后续提交是证据、文档和生成物刷新，未
+改变 `dd08592` 的可执行代码。

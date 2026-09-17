@@ -319,3 +319,15 @@ Provider 正向记录，以及是否补充真人主观体验；本段不创建 t
 
 提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [CI run
 35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿，完成当前候选的 Quality、五平台测试、五平台发布归档 Smoke、Docker Smoke 与 Release Dry Run。该记录不改变 SHIP-003 的待验证状态：前置 SHIP-001/QA-001 仍缺当前候选的真实 Provider 协议/次数矩阵。
+
+## 2026-09-17 当前候选复核
+
+当前代码候选 `dd08592adce712af73f1b235dfc829352dc31f1d` 已完成本地默认/完整 tags 全量测试、
+jobs/LSP 竞态回归、race 压力和 OpenAI-compatible 真实 Provider 连续 3 次验收。其 [CI run
+35169388623](https://github.com/wly2lcl/basework/actions/runs/35169388623) 的平台测试/构建、
+Docker Smoke 与 Release Dry Run 通过，Quality 因 `docs/STATS.md` 生成物未刷新而失败；已运行
+`make gen`，新提交后的 CI 全绿仍是 SHIP-003 的必要条件。
+
+当前任务继续保持待验证：不同协议 Provider 的当前候选连续 3 次证据尚未获得，SHIP-001 与
+QA-001 的整体状态因此未完成。自动化 PTY 与历史五平台发布证据保留，但不能替代这项协议
+矩阵；本次证据提交只更新文档、脱敏结果和生成物，不改变真实 Provider 所绑定的代码候选。

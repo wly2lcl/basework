@@ -1,0 +1,80 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-2.5-flash",
+  "endpoint_origin": "https://newapi.doubb.top/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-17T01:14:59Z",
+  "elapsed_ms": 79146,
+  "agent_ok": true,
+  "validation_ok": false,
+  "final_text_sha256": "52a21fc5fe10042eb4221bed8198f7628688c4465e5105dda98fbda3ad1b882f",
+  "tool_calls": [
+    {
+      "name": "read",
+      "success": false,
+      "error": "读取文件失败: open /Users/sly/Desktop/go/src/sapiens/calculator/calc.go: no such file or directory"
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 -1):\n/home/runner/work/basework/basework/tests/real_provider/fixtures/fixbug/calc.go\n/home/runner/work/basework/basework/tests/tui_pty/fixtures/fixbug/calc.go\n/tmp/basework-real-provider-trusted-3480960025/calc…"
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "edit",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    }
+  ],
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": true,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "77a6df4287d28b82e2cff3573a9db1e50b890903cd487113db4feaa55dc71170"
+  },
+  "independent_test_exit_code": 0,
+  "independent_test_output_tail": "ok  \tbasework-real-provider-fixture\t0.002s\n",
+  "file_changed": false
+}
