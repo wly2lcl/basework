@@ -13,9 +13,10 @@ import (
 //   - 有 store 时：Set 同步写入 store，Get miss 时查 store
 //   - 无 store 时：纯内存模式（向后兼容）
 type Cache struct {
-	mu    sync.RWMutex
-	store map[string]bool
-	pers  Store // 可选持久化存储
+	mu      sync.RWMutex
+	store   map[string]bool
+	pers    Store // 可选持久化存储
+	context ScopeContext
 }
 
 // NewCache 创建一个新的纯内存权限缓存。
@@ -35,6 +36,30 @@ func NewCacheWithStore(store Store) *Cache {
 	}
 }
 
+// NewCacheWithStoreAndContext creates a persistent cache scoped to one context.
+func NewCacheWithStoreAndContext(store Store, context ScopeContext) *Cache {
+	return &Cache{
+		store:   make(map[string]bool),
+		pers:    store,
+		context: context.normalized(),
+	}
+}
+
+// SetContext switches the cache context and invalidates all in-memory entries.
+func (c *Cache) SetContext(context ScopeContext) {
+	c.mu.Lock()
+	c.context = context.normalized()
+	c.store = make(map[string]bool)
+	c.mu.Unlock()
+}
+
+// ScopeContext returns the context associated with this cache.
+func (c *Cache) ScopeContext() ScopeContext {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.context
+}
+
 // Get 获取指定键的缓存决策。
 // 如果内存中不存在，有 store 时尝试从 store 读取。
 // 如果键不存在，返回 nil。
@@ -44,6 +69,7 @@ func (c *Cache) Get(key string) *bool {
 		c.mu.RUnlock()
 		return &v
 	}
+	context := c.context
 	c.mu.RUnlock()
 
 	// 内存 miss，尝试查 store
@@ -52,7 +78,7 @@ func (c *Cache) Get(key string) *bool {
 		// key 格式：toolName:arg1=val1 arg2=val2 ...
 		// 需要解析出 toolName 和 args
 		toolName, args := parseCacheKey(key)
-		rule, err := c.pers.FindByPattern(toolName, args)
+		rule, err := findStoredRule(c.pers, toolName, args, context)
 		if err == nil && rule != nil {
 			if rule.RuleType == "ask" {
 				return nil
@@ -72,6 +98,7 @@ func (c *Cache) Get(key string) *bool {
 func (c *Cache) Set(key string, allow bool) {
 	c.mu.Lock()
 	c.store[key] = allow
+	context := c.context
 	c.mu.Unlock()
 
 	// 同步写入 store
@@ -84,8 +111,18 @@ func (c *Cache) Set(key string, allow bool) {
 		rule := &StoredRule{
 			RuleType: ruleType,
 			Pattern:  toolName,
-			Scope:    "session",
 			Source:   "auto",
+		}
+		// A cache decision without a bound context must never become a
+		// cross-session persisted rule. It remains in memory for this checker.
+		if context.SessionID != "" {
+			rule.Scope = "session"
+			rule.SessionID = context.SessionID
+		} else if context.ProjectID != "" {
+			rule.Scope = "project"
+			rule.ProjectID = context.ProjectID
+		} else {
+			return
 		}
 		// 同步写入，不阻塞权限决策
 		if err := c.pers.Create(rule); err != nil {

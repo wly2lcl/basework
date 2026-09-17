@@ -219,6 +219,108 @@ func TestStore_FindByPattern(t *testing.T) {
 	}
 }
 
+func TestStore_FindByPattern_ContextIsolationAndPriority(t *testing.T) {
+	store := newTestStore(t)
+	rules := []*StoredRule{
+		{RuleType: "deny", Pattern: "danger_tool", Scope: "global"},
+		{RuleType: "allow", Pattern: "danger_tool", Scope: "project", ProjectID: "project-a"},
+		{RuleType: "deny", Pattern: "danger_tool", Scope: "session", SessionID: "session-a"},
+	}
+	for _, rule := range rules {
+		if err := store.Create(rule); err != nil {
+			t.Fatalf("Create 失败: %v", err)
+		}
+	}
+
+	got, err := store.FindByPatternInContext("danger_tool", nil, ScopeContext{SessionID: "session-a", ProjectID: "project-a"})
+	if err != nil {
+		t.Fatalf("按 session/project 查询失败: %v", err)
+	}
+	if got == nil || got.RuleType != "deny" || got.Scope != "session" {
+		t.Fatalf("session 应优先于 project/global，得到 %+v", got)
+	}
+
+	got, err = store.FindByPatternInContext("danger_tool", nil, ScopeContext{SessionID: "session-b", ProjectID: "project-a"})
+	if err != nil {
+		t.Fatalf("按 project 查询失败: %v", err)
+	}
+	if got == nil || got.RuleType != "allow" || got.Scope != "project" {
+		t.Fatalf("project 应优先于 global，得到 %+v", got)
+	}
+
+	got, err = store.FindByPatternInContext("danger_tool", nil, ScopeContext{SessionID: "session-b", ProjectID: "project-b"})
+	if err != nil {
+		t.Fatalf("按 global 查询失败: %v", err)
+	}
+	if got == nil || got.RuleType != "deny" || got.Scope != "global" {
+		t.Fatalf("不匹配的 scoped 规则应回退 global，得到 %+v", got)
+	}
+
+	// 没有上下文时，只有 global 规则可命中。
+	got, err = store.FindByPatternInContext("danger_tool", nil, ScopeContext{})
+	if err != nil || got == nil || got.Scope != "global" {
+		t.Fatalf("缺少上下文时应安全回退 global，得到 rule=%+v err=%v", got, err)
+	}
+}
+
+func TestStore_FindByPattern_ContextSurvivesRestart(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "restart.db")
+	store, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("创建 store 失败: %v", err)
+	}
+	rule := &StoredRule{RuleType: "allow", Pattern: "read_file", Scope: "session", SessionID: "sess-restart"}
+	if err := store.Create(rule); err != nil {
+		t.Fatalf("创建 session 规则失败: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("关闭 store 失败: %v", err)
+	}
+
+	reopened, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("重启打开 store 失败: %v", err)
+	}
+	defer reopened.Close()
+	got, err := reopened.FindByPatternInContext("read_file", nil, ScopeContext{SessionID: "sess-restart"})
+	if err != nil || got == nil || got.Scope != "session" || got.SessionID != "sess-restart" {
+		t.Fatalf("重启后应保留 session 规则，得到 rule=%+v err=%v", got, err)
+	}
+	if got, err := reopened.FindByPatternInContext("read_file", nil, ScopeContext{SessionID: "other"}); err != nil || got != nil {
+		t.Fatalf("重启后其他 session 不应命中，得到 rule=%+v err=%v", got, err)
+	}
+}
+
+func TestCache_ScopeContextSQLiteIsolation(t *testing.T) {
+	store := newTestStore(t)
+	first := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "sess-a"})
+	first.Set("write_file:", true)
+	second := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "sess-b"})
+	if got := second.Get("write_file:"); got != nil {
+		t.Fatalf("SQLite session cache 不应跨会话复用，得到 %v", *got)
+	}
+	third := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "sess-a"})
+	if got := third.Get("write_file:"); got == nil || !*got {
+		t.Fatalf("SQLite session cache 应在所属会话恢复，得到 %v", got)
+	}
+}
+
+func TestStore_EmptyScopeLegacyDefaultsGlobal(t *testing.T) {
+	store := newTestStore(t)
+	rule := &StoredRule{RuleType: "allow", Pattern: "legacy_tool"}
+	if err := store.Create(rule); err != nil {
+		t.Fatalf("创建旧规则失败: %v", err)
+	}
+	if rule.Scope != "global" {
+		t.Fatalf("空 scope 应归一化为 global，得到 %q", rule.Scope)
+	}
+	got, err := store.FindByPatternInContext("legacy_tool", nil, ScopeContext{})
+	if err != nil || got == nil || got.Scope != "global" {
+		t.Fatalf("旧规则应在无上下文时可读，得到 rule=%+v err=%v", got, err)
+	}
+}
+
 func TestStore_CRUD事务(t *testing.T) {
 	store := newTestStore(t)
 

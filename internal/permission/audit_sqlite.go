@@ -97,8 +97,8 @@ func (a *sqliteAuditLogger) batchInsert(records []AuditRecord) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(
-		`INSERT INTO permission_audit (session_id, tool_name, rule_id, decision, context, timestamp)
-		VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO permission_audit (session_id, project_id, tool_name, rule_id, decision, context, timestamp)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 	)
 	if err != nil {
 		return fmt.Errorf("audit: 准备语句失败: %w", err)
@@ -106,7 +106,7 @@ func (a *sqliteAuditLogger) batchInsert(records []AuditRecord) error {
 	defer stmt.Close()
 
 	for _, r := range records {
-		_, err := stmt.Exec(r.SessionID, r.ToolName, r.RuleID, r.Decision, r.Context, r.Timestamp.Format(time.RFC3339))
+		_, err := stmt.Exec(r.SessionID, r.ProjectID, r.ToolName, r.RuleID, r.Decision, r.Context, r.Timestamp.Format(time.RFC3339))
 		if err != nil {
 			return fmt.Errorf("audit: 插入记录失败: %w", err)
 		}
@@ -117,7 +117,7 @@ func (a *sqliteAuditLogger) batchInsert(records []AuditRecord) error {
 
 // Query 查询审计日志。
 func (a *sqliteAuditLogger) Query(sessionID string, toolName string, start, end time.Time, limit int) ([]AuditRecord, error) {
-	query := `SELECT id, session_id, tool_name, rule_id, decision, context, timestamp FROM permission_audit WHERE 1=1`
+	query := `SELECT id, session_id, project_id, tool_name, rule_id, decision, context, timestamp FROM permission_audit WHERE 1=1`
 	var args []interface{}
 
 	if sessionID != "" {
@@ -154,7 +154,7 @@ func (a *sqliteAuditLogger) Query(sessionID string, toolName string, start, end 
 	for rows.Next() {
 		var r AuditRecord
 		var ts string
-		err := rows.Scan(&r.ID, &r.SessionID, &r.ToolName, &r.RuleID, &r.Decision, &r.Context, &ts)
+		err := rows.Scan(&r.ID, &r.SessionID, &r.ProjectID, &r.ToolName, &r.RuleID, &r.Decision, &r.Context, &ts)
 		if err != nil {
 			continue
 		}

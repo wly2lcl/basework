@@ -71,11 +71,14 @@ type Rule struct {
 |---|---|
 | `rule_type` | `allow`、`deny` 或 `ask` |
 | `pattern` | `tool_pattern`，或 `tool_pattern:arg_pattern` |
-| `scope` | `global`、`session`、`project` 元数据 |
-| `session_id` / `project_id` | 预留的关联字段 |
+| `scope` | `global`、`session`、`project`；匹配优先级为 session > project > global |
+| `session_id` / `project_id` | scoped 规则的关联 ID；缺少对应运行上下文时安全地不命中 |
 | `source`、时间字段 | 创建来源和审计信息 |
 
-内存规则按列表顺序取**第一条**匹配项。SQLite 查询按创建时间升序返回**最早创建**的匹配项；`permission list` 为便于查看按创建时间降序显示。当前 `FindByPattern` 接口只接收工具和参数，`scope`/会话/项目字段还没有在匹配时做上下文过滤，应把它们理解为存储元数据，不能据此宣称已实现作用域隔离。
+内存规则按列表顺序取**第一条**匹配项。SQLite 会先过滤当前上下文可用的规则，再按
+`session > project > global` 选择更具体的作用域；同一作用域按创建时间升序取**最早创建**
+的匹配项。运行时会将当前会话 ID 和工作区 ID 绑定到 Checker；没有会话/项目上下文时，
+session/project 规则不会命中。`permission list` 为便于查看按创建时间降序显示。
 
 参数模式示例（参数串由实现生成，空格分隔）：
 
@@ -120,14 +123,14 @@ TUI/运行时审批请求带唯一请求 ID，并尽力展示工具目的、路�
 
 ```bash
 basework permission list
-basework permission add --type allow|deny|ask --pattern '<glob>' [--scope global|session|project]
+basework permission add --type allow|deny|ask --pattern '<glob>' [--scope global|session|project] [--session <id>] [--project <id>]
 basework permission remove --id <rule-id>
 basework permission audit [--session <id>] [--tool <name>] [--days 7]
 basework permission export [--output <path>]
 basework permission import <json-file>
 ```
 
-`permission audit` 当前最多查询 100 条记录，按时间倒序；没有 `--effect`、`--limit` 参数。`export` 不支持按工具筛选，省略 `--output` 时输出 stdout。`import` 使用唯一的位置参数，不支持 `--file` 或 `--dry-run`；导入会清空输入规则的 ID、标记来源为 `migration` 并创建新记录。当前没有 `mode`、`blocked`、`delete`、`clear`、`reset` 子命令。
+`permission audit` 当前最多查询 100 条记录，按时间倒序，并显示会话/项目上下文；没有 `--effect`、`--limit` 参数。`export` 不支持按工具筛选，省略 `--output` 时输出 stdout。`import` 使用唯一的位置参数，不支持 `--file` 或 `--dry-run`；导入会清空输入规则的 ID、标记来源为 `migration` 并创建新记录。当前没有 `mode`、`blocked`、`delete`、`clear`、`reset` 子命令。session/project 规则新增时必须分别提供 `--session` 或 `--project`。
 
 SQLite 规则导出格式就是 `StoredRule` 数组，例如：
 

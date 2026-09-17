@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -89,6 +90,8 @@ var (
 	permissionType    string
 	permissionPattern string
 	permissionScope   string
+	permissionSession string
+	permissionProject string
 	permissionID      string
 	permissionOutput  string
 	auditSession      string
@@ -110,6 +113,8 @@ func init() {
 	permissionAddCmd.Flags().StringVar(&permissionType, "type", "", "规则类型: allow|deny|ask")
 	permissionAddCmd.Flags().StringVar(&permissionPattern, "pattern", "", "工具名或路径模式（支持 glob）")
 	permissionAddCmd.Flags().StringVar(&permissionScope, "scope", "global", "作用域: global|session|project")
+	permissionAddCmd.Flags().StringVar(&permissionSession, "session", "", "session 作用域关联的会话 ID")
+	permissionAddCmd.Flags().StringVar(&permissionProject, "project", "", "project 作用域关联的工作区/项目 ID")
 	permissionAddCmd.MarkFlagRequired("type")
 	permissionAddCmd.MarkFlagRequired("pattern")
 
@@ -157,18 +162,34 @@ func runPermissionList() error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "ID\t类型\t模式\t作用域\t来源\t创建时间")
-	fmt.Fprintln(w, "--\t----\t----\t------\t----\t--------")
+	fmt.Fprintln(w, "ID\t类型\t模式\t作用域\t会话\t项目\t来源\t创建时间")
+	fmt.Fprintln(w, "--\t----\t----\t------\t----\t----\t----\t--------")
 	for _, r := range rules {
 		shortID := r.ID
 		if len(shortID) > 12 {
 			shortID = shortID[:12]
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		sessionID := r.SessionID
+		projectID := r.ProjectID
+		if len(sessionID) > 12 {
+			sessionID = sessionID[:12]
+		}
+		if len(projectID) > 12 {
+			projectID = projectID[:12]
+		}
+		if sessionID == "" {
+			sessionID = "-"
+		}
+		if projectID == "" {
+			projectID = "-"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			shortID,
 			r.RuleType,
 			r.Pattern,
 			r.Scope,
+			sessionID,
+			projectID,
 			r.Source,
 			r.CreatedAt.Format("2006-01-02 15:04"),
 		)
@@ -183,6 +204,16 @@ func runPermissionAdd() error {
 	if !validTypes[permissionType] {
 		return fmt.Errorf("无效的规则类型: %q (有效: allow, deny, ask)", permissionType)
 	}
+	scope := strings.ToLower(strings.TrimSpace(permissionScope))
+	if scope != "global" && scope != "session" && scope != "project" {
+		return fmt.Errorf("无效的作用域: %q (有效: global, session, project)", permissionScope)
+	}
+	if scope == "session" && strings.TrimSpace(permissionSession) == "" {
+		return fmt.Errorf("session 作用域必须提供 --session")
+	}
+	if scope == "project" && strings.TrimSpace(permissionProject) == "" {
+		return fmt.Errorf("project 作用域必须提供 --project")
+	}
 
 	store, err := openPermissionStore()
 	if err != nil {
@@ -191,10 +222,12 @@ func runPermissionAdd() error {
 	defer store.Close()
 
 	rule := &permission.StoredRule{
-		RuleType: permissionType,
-		Pattern:  permissionPattern,
-		Scope:    permissionScope,
-		Source:   "user",
+		RuleType:  permissionType,
+		Pattern:   permissionPattern,
+		Scope:     scope,
+		SessionID: strings.TrimSpace(permissionSession),
+		ProjectID: strings.TrimSpace(permissionProject),
+		Source:    "user",
 	}
 
 	if err := store.Create(rule); err != nil {
@@ -249,12 +282,22 @@ func runPermissionAudit() error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "时间\t会话\t工具\t决策\t规则ID")
-	fmt.Fprintln(w, "----\t----\t----\t----\t------")
+	fmt.Fprintln(w, "时间\t会话\t项目\t工具\t决策\t规则ID")
+	fmt.Fprintln(w, "----\t----\t----\t----\t----\t------")
 	for _, r := range records {
 		sessionID := r.SessionID
+		projectID := r.ProjectID
 		if len(sessionID) > 12 {
 			sessionID = sessionID[:12]
+		}
+		if len(projectID) > 12 {
+			projectID = projectID[:12]
+		}
+		if sessionID == "" {
+			sessionID = "-"
+		}
+		if projectID == "" {
+			projectID = "-"
 		}
 		ruleID := r.RuleID
 		if len(ruleID) > 12 {
@@ -263,9 +306,10 @@ func runPermissionAudit() error {
 		if ruleID == "" {
 			ruleID = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			r.Timestamp.Format("2006-01-02 15:04:05"),
 			sessionID,
+			projectID,
 			r.ToolName,
 			r.Decision,
 			ruleID,

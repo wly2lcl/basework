@@ -296,3 +296,26 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 与成功样本一并保存。
 
 **当前结论：SHIP-001 的 OpenAI-compatible 子门禁完成；整项继续进行中，等待不同协议连续 3 次当前候选证据。**
+
+## 2026-09-17 最新候选 OpenAI-compatible 连续验收
+
+为重新绑定 `150e77e` 之后的代码候选，使用 `ref=main` 触发 workflow；三次运行的实际
+`headSha` 均为 `66c57fde7f88ccaf5de0669bbd08c488a5686f0e`。该提交相对代码候选只增加
+证据/文档，代码行为包含 `150e77e` 的只读预设安全回退。三次均使用
+`provider=openai`、端点 `https://newapi.doubb.top/v1`、模型 `agnes-2.5-flash`，密钥
+只由 `BASEWORK_REAL_API_KEY` secret 注入。
+
+| 次序 | Workflow run | Agent | 验证 | 测试实际执行 | 实现已修改 | 独立测试退出码 | 耗时 | 结果文件 |
+|---:|---:|---|---|---|---|---:|---:|---|
+| 1 | [35178297077](https://github.com/wly2lcl/basework/actions/runs/35178297077) | ✅ | ✅ | ✅ | ✅ | 0 | 17.18s | [`json`](SHIP-001-real-provider-2026-09-17-run-35178297077.json) |
+| 2 | [35178409921](https://github.com/wly2lcl/basework/actions/runs/35178409921) | ✅ | ✅ | ✅ | ✅ | 0 | 12.75s | [`json`](SHIP-001-real-provider-2026-09-17-run-35178409921.json) |
+| 3 | [35178503811](https://github.com/wly2lcl/basework/actions/runs/35178503811) | ✅ | ✅ | ✅ | ✅ | 0 | 23.46s | [`json`](SHIP-001-real-provider-2026-09-17-run-35178503811.json) |
+
+三份脱敏结果均满足 `validation_ok=true`、`tests_executed=true`、`file_changed=true`、
+`independent_test_exit_code=0`；测试文件 SHA-256 为
+`4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9`，实现文件 SHA-256 为
+`b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2`。结果只保留脱敏摘要、
+工具状态和哈希，未发现 API key。三次构成当前候选同一入口的连续 3 次可信通过；它们覆盖
+真实 Provider 核心 Agent API，不冒充 CLI/TUI 或不同协议结果。
+
+**当前结论：OpenAI-compatible 子门禁已重新绑定最新候选；SHIP-001 仍等待不同协议连续 3 次当前候选证据。**

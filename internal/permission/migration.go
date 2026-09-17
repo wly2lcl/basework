@@ -55,6 +55,15 @@ func MigrateFromMemory(cache *Cache, store Store) (int, error) {
 			Scope:    "session",
 			Source:   "migration",
 		}
+		// Preserve the cache's owner when known. An unbound legacy cache stays
+		// session-scoped without an ID and therefore cannot match by accident.
+		scope := cache.ScopeContext()
+		if scope.SessionID != "" {
+			storedRule.SessionID = scope.SessionID
+		} else if scope.ProjectID != "" {
+			storedRule.Scope = "project"
+			storedRule.ProjectID = scope.ProjectID
+		}
 
 		if err := store.Create(storedRule); err != nil {
 			return migrated, fmt.Errorf("permission: 迁移规则失败: %w", err)

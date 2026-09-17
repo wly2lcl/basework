@@ -79,6 +79,7 @@ func (s *SQLiteStore) initSchema() error {
 	CREATE TABLE IF NOT EXISTS permission_audit (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		session_id TEXT DEFAULT '',
+		project_id TEXT DEFAULT '',
 		tool_name TEXT NOT NULL,
 		rule_id TEXT DEFAULT '',
 		decision TEXT NOT NULL,
@@ -90,7 +91,45 @@ func (s *SQLiteStore) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_audit_tool ON permission_audit(tool_name);
 	CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON permission_audit(timestamp);
 	`
-	_, err := s.db.Exec(schema)
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+	// Older databases predate project_id on audit rows. Add it before creating
+	// the index; existing rows safely read as the empty, unbound project.
+	if err := ensureColumn(s.db, "permission_audit", "project_id", "TEXT DEFAULT ''"); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_audit_project ON permission_audit(project_id)`)
+	return err
+}
+
+func ensureColumn(db *sql.DB, table, column, definition string) error {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var found bool
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var defaultValue interface{}
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		if name == column {
+			found = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+	_, err = db.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition)
 	return err
 }
 
@@ -224,6 +263,12 @@ func (s *SQLiteStore) List() ([]StoredRule, error) {
 // FindByPattern 按模式查找匹配的权限规则。
 // 使用 path.Match 匹配工具名称。
 func (s *SQLiteStore) FindByPattern(toolName string, args map[string]interface{}) (*StoredRule, error) {
+	return s.FindByPatternInContext(toolName, args, ScopeContext{})
+}
+
+// FindByPatternInContext finds the highest-specificity rule that matches both
+// the tool/arguments and the current session/project context.
+func (s *SQLiteStore) FindByPatternInContext(toolName string, args map[string]interface{}, context ScopeContext) (*StoredRule, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -236,10 +281,16 @@ func (s *SQLiteStore) FindByPattern(toolName string, args map[string]interface{}
 	}
 	defer rows.Close()
 
+	context = context.normalized()
 	argsStr := formatArgs(args)
+	var best *StoredRule
+	bestRank := int(^uint(0) >> 1)
 	for rows.Next() {
 		rule, err := scanRule(rows)
 		if err != nil {
+			continue
+		}
+		if !RuleApplies(*rule, context) {
 			continue
 		}
 		// 使用 path.Match 匹配 pattern
@@ -260,9 +311,13 @@ func (s *SQLiteStore) FindByPattern(toolName string, args map[string]interface{}
 			}
 		}
 
-		return rule, nil
+		rank := ScopeRank(rule.Scope)
+		if best == nil || rank < bestRank || (rank == bestRank && rule.CreatedAt.Before(best.CreatedAt)) {
+			best = rule
+			bestRank = rank
+		}
 	}
-	return nil, nil
+	return best, nil
 }
 
 // scanRule 从 Scanner 扫描一行数据到 StoredRule。
@@ -280,6 +335,7 @@ func scanRule(row interface {
 	}
 	rule.CreatedAt = parseTime(createdAt)
 	rule.UpdatedAt = parseTime(updatedAt)
+	rule.Scope = RuleScope(rule)
 	return &rule, nil
 }
 

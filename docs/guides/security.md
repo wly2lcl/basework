@@ -12,7 +12,10 @@
 | `yolo` | 工具调用直接允许，不提示、不读规则 |
 | `deny-all` | 所有工具调用拒绝 |
 
-Checker 的内存规则按列表顺序采用第一条匹配项；SQLite 存储查询按 `created_at ASC` 采用最早创建的匹配项。`permission list` 为显示方便按新到旧列出，因此显示顺序不等于实际命中顺序。持久化规则的 `scope`、`session_id`、`project_id` 当前只作为存储字段，匹配接口尚未接收会话/项目上下文，不能当成已实现的隔离边界。
+Checker 的内存规则按列表顺序采用第一条匹配项；SQLite 先按当前上下文过滤，再按
+`session > project > global` 选择作用域，最后在同一作用域按 `created_at ASC` 采用最早创建的
+匹配项。运行时会绑定会话 ID 和工作区 ID；缺少对应上下文时 scoped 规则安全地不命中。
+`permission list` 为显示方便按新到旧列出，因此显示顺序不等于实际命中顺序。
 
 ## 存储和配置
 
@@ -33,7 +36,7 @@ Checker 的内存规则按列表顺序采用第一条匹配项；SQLite 存储�
 }
 ```
 
-`permission_store` 支持 `sqlite` 和 `memory`。SQLite 运行时和权限 CLI 使用 `~/.basework/permissions.db`；会话 JSONL 和配置文件仍使用各自目录。没有 `sqlite` build tag 时，`sqlite`/`memory` 配置仍可加载，但 SQLite 权限持久化和管理命令不编译进二进制。
+`permission_store` 支持 `sqlite` 和 `memory`。SQLite 运行时和权限 CLI 使用 `~/.basework/permissions.db`；会话 JSONL 和配置文件仍使用各自目录。没有 `sqlite` build tag 时，`sqlite`/`memory` 配置仍可加载，但 SQLite 权限持久化和管理命令不编译进二进制。旧规则的空 scope 按 global 读取；session/project 规则缺少对应 ID 或运行上下文时不命中。
 
 当前配置 schema 没有 `permission.rules`、`permission.blocked_commands`、`security.rules` 等字段；规则请使用 `permission add`，黑名单请使用 `permission.command_blacklist.blocked_commands`。
 
@@ -55,7 +58,7 @@ Checker 的内存规则按列表顺序采用第一条匹配项；SQLite 存储�
 
 ## 审计
 
-SQLite 审计记录包含时间、会话 ID、工具名、规则 ID、决策、上下文和记录 ID。运行时记录异步批量写入，进程关闭时刷新。`permission audit` 的实际参数只有：
+SQLite 审计记录包含时间、会话 ID、项目 ID、工具名、规则 ID、决策、上下文和记录 ID。运行时记录异步批量写入，进程关闭时刷新。`permission audit` 的实际参数只有：
 
 ```bash
 basework permission audit

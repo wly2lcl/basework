@@ -79,6 +79,29 @@ func TestPermissionMigration_空缓存(t *testing.T) {
 }
 
 // TestPermissionMigration_Store非空 测试 store 非空时迁移应失败。
+func TestPermissionMigration_PreservesCacheScope(t *testing.T) {
+	cache := permission.NewCache()
+	cache.SetContext(permission.ScopeContext{SessionID: "sess-migrated"})
+	cache.Set("read_file:", true)
+
+	dir := t.TempDir()
+	store, err := permission.NewSQLiteStore(filepath.Join(dir, "scope.db"))
+	if err != nil {
+		t.Fatalf("创建 SQLiteStore 失败: %v", err)
+	}
+	defer store.Close()
+
+	if _, err := permission.MigrateFromMemory(cache, store); err != nil {
+		t.Fatalf("迁移失败: %v", err)
+	}
+	if got, err := store.FindByPatternInContext("read_file", nil, permission.ScopeContext{SessionID: "sess-migrated"}); err != nil || got == nil || got.SessionID != "sess-migrated" {
+		t.Fatalf("迁移应保留 session 归属，rule=%+v err=%v", got, err)
+	}
+	if got, err := store.FindByPatternInContext("read_file", nil, permission.ScopeContext{SessionID: "other"}); err != nil || got != nil {
+		t.Fatalf("迁移规则不应跨会话命中，rule=%+v err=%v", got, err)
+	}
+}
+
 func TestPermissionMigration_Store非空(t *testing.T) {
 	cache := permission.NewCache()
 	cache.Set("tool:", true)

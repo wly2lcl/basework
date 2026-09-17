@@ -59,7 +59,7 @@
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | Codex / 依赖回验 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | Codex / 依赖回验 | [记录](development/evidence/SHIP-003.md) |
 | QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 进行中 | BASE-001, UI-003 | Codex / 复审重开 | [记录](development/evidence/QA-001.md) |
-| SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 待办 | QA-001 | — | — |
+| SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 待验证 | QA-001 | Codex / 当前会话 | [记录](development/evidence/SEC-001.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
@@ -77,9 +77,9 @@
 - `150e77e` 是当前代码审查候选；在 `dd08592` 修复 macOS Intel 进程树测试的 pid 文件等待竞态和 LSP 并发启动握手互等竞态的基础上，补齐 readonly 预设空权限模式的安全回退，并完成运行时文档收口。
 - 本地默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs` 和 `git diff --check` 已通过。
 - 推送后的远端提交 `8280bda` CI run `35176770398` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过；代码行为仍以 `150e77e` 为当前审查候选，该 run 不产生真实 Provider 证据。
-- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已在上一代码候选 `dd08592` 形成连续 3 次可信通过；6 份脱敏 artifact 已纳入 `docs/development/evidence/`。第 3 次失败样本保留并明确不计入连续序列；当前 `150e77e` 尚需重新绑定。
+- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已在最新远端候选 `66c57fd` 连续 3 次可信通过（runs `35178297077`、`35178409921`、`35178503811`）；3 份最新脱敏 artifact 已纳入 `docs/development/evidence/`，旧候选失败/重试样本继续保留。该候选代码行为包含 `150e77e`，入口为真实核心 Agent API。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
-- 权限规则的 `scope/session_id/project_id` 目前仍是存储元数据，已新增 SEC-001 跟踪上下文过滤；它是后续安全增强，不改变当前发布候选的 Provider/CI 门禁结论。
+- SEC-001 已接入 Checker、SQLite、缓存、迁移、运行时会话/工作区上下文和审计项目字段；实现验证见 [SEC-001](development/evidence/SEC-001.md)，因 QA-001 前置依赖未收口而保持待验证，不改变当前发布候选的 Provider/CI 门禁结论。
 
 旧 Phase 对应关系见 [路线图](ROADMAP.md)，历史清单见 [归档](archive/README.md)。

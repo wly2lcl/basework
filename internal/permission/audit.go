@@ -9,6 +9,7 @@ import (
 type AuditRecord struct {
 	ID        int64     `json:"id,omitempty"`
 	SessionID string    `json:"session_id"`
+	ProjectID string    `json:"project_id,omitempty"`
 	ToolName  string    `json:"tool_name"`
 	RuleID    string    `json:"rule_id"`
 	Decision  string    `json:"decision"` // "allowed" | "denied" | "asked"

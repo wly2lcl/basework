@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-17；当前代码审查候选 `150e77e`（包含只读预设空权限模式修复和本轮文档收口）。最近一次真实 Provider 结果绑定上一代码候选 `dd08592`，不能直接覆盖 `150e77e` 的新增代码变化；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；当前代码审查候选 `150e77e`（包含只读预设空权限模式修复和本轮文档收口）。最新真实 Provider 结果已绑定远端候选 `66c57fd`（其后仅有文档提交，代码行为与 `150e77e` 一致）；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能与常规测试基础较完整，当前代码审查候选的本地测试已通过；OpenAI-compatible 真实 Provider 连续 3 次和推送后的 GitHub Actions 全量门禁已在上一代码候选上通过，但尚未重新绑定到 `150e77e`。不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
+**结论：核心功能与常规测试基础较完整，当前代码审查候选的本地测试已通过；OpenAI-compatible 真实 Provider 已在最新远端候选连续 3 次通过，推送后的 GitHub Actions 全量门禁也已通过。不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
 ## 当前能力与缺口
 
@@ -15,14 +15,14 @@
 | 编辑预览与提交 | 工作区/软链/权限检查、内容基线、逐文件写入、部分成功清单；撤销重新检查路径与权限 | 跨文件不是事务；撤销遇到用户二次编辑会按文件跳过 |
 | 编辑产品闭环 | edit_files 预览/提交/撤销、真实 plan 路径/diff 审批、file.edited 事件、edits list/show、事实持久化 | 外部 Provider 与发布候选仍单独验收 |
 | 配置与资源管理 | 脱敏 config explain、readonly/coding 预设、自定义 base_url、实例注入、逆序幂等释放；服务关闭与运行登记已按 RUN-002 修复并有回归 | 不承诺热重载/插件热卸载；QA/发布候选仍需重新验收 |
-| 权限与安全边界 | Checker 的 interactive/yolo/deny-all、Bash 黑名单、strict/warn/off 敏感路径、SQLite 审计和审批 broker；权限与安全指南已按当前 runtime 对齐 | SQLite 规则的 scope/session_id/project_id 目前只是存储元数据，尚未按上下文过滤，见 SEC-001；权限规则不是 OS 沙箱 |
+| 权限与安全边界 | Checker 的 interactive/yolo/deny-all、Bash 黑名单、strict/warn/off 敏感路径、SQLite 审计和审批 broker；规则作用域已接入会话/工作区上下文过滤并记录项目 ID，见 SEC-001 证据 | SEC-001 因 QA-001 前置依赖未收口仍为待验证；权限规则不是 OS 沙箱 |
 | 工作区事实 | WorkspaceFacts 数据模型、版本信封、工作区归属、运行时编辑事件折叠保存、CLI facts show、重启后读取 | read 事实仍按范围控制；目标平台安装仍按 SHIP-002 单独验收 |
 | 事实摘要 | 按事实生成文本、来源信息、预算裁剪、过期/未读取标识、默认关闭；主 Agent 每轮请求前刷新；拒绝 Windows 盘符/UNC/根相对路径及工作区外符号链接 | Windows runner 已覆盖路径边界；真人/外部 Provider 行为仍单独验收 |
 | 历史与重启继续 | `--session` 绑定旧 ID、TUI `/session <id>` 切换、历史投影、压缩快照与 steering、旧 job interrupted、真实双压缩重启、恢复面板 PTY | 修复候选上的依赖回验和 PTY scenario1–8 已通过；真人主观体验仍未评价 |
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、上一候选真实 Provider 记录 | B02/B03/B04/B06 已修复；上一候选 `dd08592` 有 OpenAI-compatible 连续 3 次真实通过和本地全量回归，但 `150e77e` 新增了只读预设运行时修复，真实 Provider 与发布证据需要重新绑定；B05 仍缺不同协议/入口证据 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、最新候选真实 Provider 记录 | B02/B03/B04/B06 已修复；最新远端候选 `66c57fd` 已重新完成 OpenAI-compatible 连续 3 次真实通过和全量 CI，但 B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此

@@ -262,6 +262,12 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 	// interrupted。归并失败只告警：它不该拦住启动，但也不能沉默——日志里若还留着
 	// running，用户会以为那个任务仍在跑。
 	bindRuntimeJobOwner(agt, jobOwner, jobManager)
+	if permissionChecker != nil {
+		permissionChecker.Core.SetScopeContext(permission.ScopeContext{
+			SessionID: jobOwner.Get(),
+			ProjectID: runtimeWorkspaceID(),
+		})
+	}
 
 	rt := &runtimeAgent{
 		Agent:               agt,

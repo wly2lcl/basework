@@ -3,11 +3,51 @@
 package permission
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestSQLiteStore_MigratesLegacyAuditProjectColumn(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "legacy-audit.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("打开旧数据库失败: %v", err)
+	}
+	_, err = db.Exec(`CREATE TABLE permission_audit (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		session_id TEXT DEFAULT '',
+		tool_name TEXT NOT NULL,
+		rule_id TEXT DEFAULT '',
+		decision TEXT NOT NULL,
+		context TEXT DEFAULT '{}',
+		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		db.Close()
+		t.Fatalf("创建旧审计表失败: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("关闭旧数据库失败: %v", err)
+	}
+
+	store, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("打开并迁移旧数据库失败: %v", err)
+	}
+	defer store.Close()
+	logger := NewAuditLoggerWithDB(store.GetDB())
+	defer logger.Close()
+	logger.Record(AuditRecord{SessionID: "s1", ProjectID: "p1", ToolName: "tool", Decision: "allowed"})
+	logger.Flush()
+	rows, err := logger.Query("s1", "", time.Time{}, time.Time{}, 10)
+	if err != nil || len(rows) != 1 || rows[0].ProjectID != "p1" {
+		t.Fatalf("迁移后应保存 project_id，rows=%+v err=%v", rows, err)
+	}
+}
 
 // newTestAuditLogger 创建一个测试用的审计日志记录器。
 func newTestAuditLogger(t *testing.T) (*AuditLogger, *SQLiteStore) {
@@ -37,6 +77,7 @@ func TestAuditLogger_Record(t *testing.T) {
 
 	record := AuditRecord{
 		SessionID: "sess-1",
+		ProjectID: "project-1",
 		ToolName:  "read_file",
 		RuleID:    "rule-1",
 		Decision:  "allowed",
@@ -65,6 +106,9 @@ func TestAuditLogger_Record(t *testing.T) {
 	}
 	if results[0].SessionID != "sess-1" {
 		t.Errorf("SessionID 期望 %q, 得到 %q", "sess-1", results[0].SessionID)
+	}
+	if results[0].ProjectID != "project-1" {
+		t.Errorf("ProjectID 期望 %q, 得到 %q", "project-1", results[0].ProjectID)
 	}
 }
 

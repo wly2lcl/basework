@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
 )
 
 // Config 是权限系统的配置。
@@ -29,6 +31,8 @@ type Checker struct {
 	Cache       *Cache
 	Store       Store        // 可选持久化存储
 	AuditLogger *AuditLogger // 可选审计日志记录器
+	scopeMu     sync.RWMutex
+	scope       ScopeContext
 }
 
 // NewChecker 创建一个新的权限检查器。
@@ -51,6 +55,26 @@ func NewCheckerWithStore(mode Mode, store Store, promptFunc PromptFunc) *Checker
 		Cache:      NewCacheWithStore(store),
 		Store:      store,
 	}
+}
+
+// SetScopeContext binds the checker to one session and project. Changing the
+// context clears in-memory decisions so a scoped approval cannot cross a
+// session or project boundary.
+func (c *Checker) SetScopeContext(scope ScopeContext) {
+	scope = scope.normalized()
+	c.scopeMu.Lock()
+	c.scope = scope
+	if c.Cache != nil {
+		c.Cache.SetContext(scope)
+	}
+	c.scopeMu.Unlock()
+}
+
+// ScopeContext returns the checker execution context.
+func (c *Checker) ScopeContext() ScopeContext {
+	c.scopeMu.RLock()
+	defer c.scopeMu.RUnlock()
+	return c.scope
 }
 
 // NewCheckerFromConfig 根据配置创建权限检查器。
@@ -76,6 +100,7 @@ func (c *Checker) WithAudit(logger *AuditLogger) *Checker {
 		Cache:       c.Cache,
 		Store:       c.Store,
 		AuditLogger: logger,
+		scope:       c.ScopeContext(),
 	}
 }
 
@@ -108,6 +133,7 @@ func (c *Checker) Check(ctx context.Context, toolName string, args map[string]in
 
 // checkInteractive 在交互模式下检查权限。
 func (c *Checker) checkInteractive(ctx context.Context, toolName string, args map[string]interface{}) (bool, error) {
+	scope := c.ScopeContext()
 	// 1. 检查缓存
 	cacheKey := CacheKey(toolName, args)
 	if cached := c.Cache.Get(cacheKey); cached != nil {
@@ -132,7 +158,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 
 	// 3. 检查 store 中的规则
 	if c.Store != nil {
-		storedRule, err := c.Store.FindByPattern(toolName, args)
+		storedRule, err := findStoredRule(c.Store, toolName, args, scope)
 		if err == nil && storedRule != nil {
 			switch storedRule.RuleType {
 			case "allow", "deny":
@@ -178,6 +204,7 @@ func (c *Checker) recordAudit(toolName, ruleID, decision string, args map[string
 	if c.AuditLogger == nil {
 		return
 	}
+	scope := c.ScopeContext()
 
 	contextJSON := "{}"
 	if args != nil {
@@ -188,10 +215,12 @@ func (c *Checker) recordAudit(toolName, ruleID, decision string, args map[string
 	}
 
 	c.AuditLogger.Record(AuditRecord{
-		ToolName: toolName,
-		RuleID:   ruleID,
-		Decision: decision,
-		Context:  contextJSON,
+		SessionID: scope.SessionID,
+		ProjectID: scope.ProjectID,
+		ToolName:  toolName,
+		RuleID:    ruleID,
+		Decision:  decision,
+		Context:   contextJSON,
 	})
 }
 
@@ -204,7 +233,43 @@ func (c *Checker) WithMode(mode Mode) *Checker {
 		Cache:       c.Cache,
 		Store:       c.Store,
 		AuditLogger: c.AuditLogger,
+		scope:       c.ScopeContext(),
 	}
+}
+
+func findStoredRule(store Store, toolName string, args map[string]interface{}, scope ScopeContext) (*StoredRule, error) {
+	if contextual, ok := store.(ContextualStore); ok {
+		return contextual.FindByPatternInContext(toolName, args, scope)
+	}
+	// External Store implementations may not know about contexts. Enumerate
+	// their rules so a mismatched scoped row cannot hide a matching global row.
+	rules, err := store.List()
+	if err != nil {
+		return nil, err
+	}
+	var best *StoredRule
+	bestRank := int(^uint(0) >> 1)
+	for i := range rules {
+		rule := rules[i]
+		if !RuleApplies(rule, scope) || !storedRuleMatches(rule, toolName, args) {
+			continue
+		}
+		rank := ScopeRank(rule.Scope)
+		if best == nil || rank < bestRank || (rank == bestRank && rule.CreatedAt.Before(best.CreatedAt)) {
+			best = &rule
+			bestRank = rank
+		}
+	}
+	return best, nil
+}
+
+func storedRuleMatches(rule StoredRule, toolName string, args map[string]interface{}) bool {
+	parts := strings.SplitN(rule.Pattern, ":", 2)
+	configRule := Rule{ToolPattern: parts[0]}
+	if len(parts) > 1 {
+		configRule.ArgPattern = parts[1]
+	}
+	return MatchRule(configRule, toolName, args)
 }
 
 // MarshalJSON 实现 json.Marshaler，将 args 序列化为 JSON。

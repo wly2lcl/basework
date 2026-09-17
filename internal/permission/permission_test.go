@@ -351,6 +351,82 @@ func TestChecker_Check_交互模式_StoreAsk规则会提示(t *testing.T) {
 	}
 }
 
+func TestRuleApplies_ScopedMissingContextFailsClosed(t *testing.T) {
+	rules := []struct {
+		name string
+		rule StoredRule
+		ctx  ScopeContext
+		want bool
+	}{
+		{"global always applies", StoredRule{Scope: "global"}, ScopeContext{}, true},
+		{"empty scope is legacy global", StoredRule{}, ScopeContext{}, true},
+		{"matching session", StoredRule{Scope: "session", SessionID: "s1"}, ScopeContext{SessionID: "s1"}, true},
+		{"different session", StoredRule{Scope: "session", SessionID: "s1"}, ScopeContext{SessionID: "s2"}, false},
+		{"missing session", StoredRule{Scope: "session", SessionID: "s1"}, ScopeContext{}, false},
+		{"matching project", StoredRule{Scope: "project", ProjectID: "p1"}, ScopeContext{ProjectID: "p1"}, true},
+		{"different project", StoredRule{Scope: "project", ProjectID: "p1"}, ScopeContext{ProjectID: "p2"}, false},
+		{"unknown scope", StoredRule{Scope: "tenant", ProjectID: "p1"}, ScopeContext{ProjectID: "p1"}, false},
+	}
+	for _, tt := range rules {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RuleApplies(tt.rule, tt.ctx); got != tt.want {
+				t.Fatalf("RuleApplies(%+v, %+v) = %v, want %v", tt.rule, tt.ctx, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestChecker_ScopeContextDoesNotCrossSession(t *testing.T) {
+	promptCalls := 0
+	store := &fakePermissionStore{rule: &StoredRule{
+		ID: "session-rule", RuleType: "allow", Pattern: "danger_tool", Scope: "session", SessionID: "s1",
+	}}
+	checker := NewCheckerWithStore(ModeInteractive, store, func(context.Context, string, map[string]interface{}) (bool, bool, error) {
+		promptCalls++
+		return false, false, nil
+	})
+	checker.SetScopeContext(ScopeContext{SessionID: "s1"})
+	allowed, err := checker.Check(context.Background(), "danger_tool", nil)
+	if err != nil || !allowed {
+		t.Fatalf("matching session rule should allow, allowed=%v err=%v", allowed, err)
+	}
+	checker.SetScopeContext(ScopeContext{SessionID: "s2"})
+	allowed, err = checker.Check(context.Background(), "danger_tool", nil)
+	if err != nil {
+		t.Fatalf("different session should prompt without error: %v", err)
+	}
+	if allowed || promptCalls != 1 {
+		t.Fatalf("different session must not reuse rule: allowed=%v promptCalls=%d", allowed, promptCalls)
+	}
+}
+
+func TestCache_ScopeContextDoesNotCrossSession(t *testing.T) {
+	store := &fakePermissionStore{}
+	cache := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "s1"})
+	cache.Set("danger_tool:", true)
+	if got := cache.Get("danger_tool:"); got == nil || !*got {
+		t.Fatal("same session should read its persisted decision")
+	}
+	cache.SetContext(ScopeContext{SessionID: "s2"})
+	if got := cache.Get("danger_tool:"); got != nil {
+		t.Fatalf("different session must not reuse persisted decision: %v", *got)
+	}
+}
+
+func TestChecker_AuditIncludesScopeContext(t *testing.T) {
+	var got AuditRecord
+	logger := &AuditLogger{recorder: func(record AuditRecord) { got = record }}
+	checker := NewChecker(ModeYolo, nil, nil).WithAudit(logger)
+	checker.SetScopeContext(ScopeContext{SessionID: "session-a", ProjectID: "project-a"})
+	allowed, err := checker.Check(context.Background(), "read_file", nil)
+	if err != nil || !allowed {
+		t.Fatalf("yolo check failed: allowed=%v err=%v", allowed, err)
+	}
+	if got.SessionID != "session-a" || got.ProjectID != "project-a" {
+		t.Fatalf("审计应记录上下文，得到 %+v", got)
+	}
+}
+
 func TestChecker_Check_交互模式_无PromptFunc(t *testing.T) {
 	c := NewChecker(ModeInteractive, nil, nil)
 	_, err := c.Check(context.Background(), "tool", nil)

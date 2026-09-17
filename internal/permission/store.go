@@ -20,6 +20,14 @@ type Store interface {
 	Close() error
 }
 
+// ContextualStore optionally filters persisted rules by execution scope.
+// Store remains intentionally backward-compatible for external implementations;
+// callers use this interface when it is available and fail closed otherwise.
+type ContextualStore interface {
+	Store
+	FindByPatternInContext(toolName string, args map[string]interface{}, context ScopeContext) (*StoredRule, error)
+}
+
 // StoredRule 是持久化的权限规则。
 type StoredRule struct {
 	ID        string    `json:"id"`
