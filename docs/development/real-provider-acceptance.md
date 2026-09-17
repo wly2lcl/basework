@@ -22,9 +22,11 @@ go run ./tests/real_provider
 Agent 失败、验证门禁失败、测试未执行、独立测试失败或文件未修改时均返回非零，并且仍
 写出脱敏结果，便于记录失败样本。
 
-真实 Agent 使用 `builtin.Runtime.Environment` 的去凭证环境运行 Bash；独立测试同样使用
-该环境。runner 会统一清洗已知 Provider key 的工具错误、Agent 错误、验证输出和结果
-JSON。这个过滤保证只属于验收运行器，不把 Bash 权限规则误写成 OS 沙箱。
+真实 Agent 使用 `builtin.Runtime.Environment` 的显式安全白名单和临时 HOME/TMP 运行 Bash；
+独立测试同样使用隔离环境。白名单保留运行 shell/Go 所需的路径、缓存、系统变量和去掉
+userinfo 的代理地址，拒绝宿主机 `GOFLAGS`、任意 Provider key 及其他未声明变量。runner
+会统一清洗已知 Provider key 的工具错误、Agent 错误、验证输出和结果 JSON。这个过滤保证只
+属于验收运行器，不把 Bash 权限规则误写成 OS 沙箱。
 
 真实 Provider 结果不能写入默认 CI，也不能把脚本化 TUI 场景当成真实模型结果。每次
 运行应将脱敏 JSON 复制到任务证据目录，并注明日期、候选 commit、Provider/model、

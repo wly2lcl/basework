@@ -339,3 +339,11 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 
 这组结果仍不覆盖不同协议、CLI/TUI 入口或真人 TUI 手感；任务状态继续由 [TASKS](../../TASKS.md)
 维护，SHIP-001 仍等待不同协议 Provider 连续 3 次当前候选证据。
+
+## 2026-09-17 验收 runner 环境白名单加固
+
+提交 `09fd055` 将真实 Provider runner 的模型 Bash 与独立验证子进程改为显式安全环境白名单，
+移除宿主机 `GOFLAGS`/其他 Provider key，代理 URL 去除 userinfo，并设置临时 HOME/TMP；新增
+回归与默认/SQLite 全量、相关 race、Windows amd64 交叉编译均通过。由于验收 runner 本身
+发生变化，之前绑定 `a78efba` 的 OpenAI-compatible artifact 只能作为历史证据；需在当前
+runner 候选重新执行三次后才能更新当前候选矩阵。不同协议仍需连续 3 次真实结果。

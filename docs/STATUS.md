@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-17；最终可执行代码候选 `a78efba`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归、作用域 ID help，以及 `gofmt` 修复）。远端 `main` 当前为文档/证据提交 `01b6277`，该提交未改变可执行代码；真实 Provider 与代码 CI 仍绑定 `a78efba`。历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；产品可执行代码候选仍为 `a78efba`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归、作用域 ID help，以及 `gofmt` 修复）。真实 Provider 验收 runner 随 `71b4bba` 修复 Windows 进程树收尾，并在 `09fd055` 改为显式安全环境白名单、临时 HOME/TMP；远端 `main` 当前为 runner 修复后的提交。之前三次真实 Provider 结果仍绑定 `a78efba`，需要在 runner 修复后重新绑定。历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能、常规测试、最终候选 CI 和 OpenAI-compatible 真实 Provider 连续 3 次均已通过；不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
@@ -22,7 +22,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、最终候选真实 Provider 记录 | B02/B03/B04/B06 已修复；最终候选 `a78efba` 的 CI run `35188993611` 与 OpenAI-compatible 连续 3 次真实 Provider runs `35189820351`/`35189839503`/`35189879941` 均通过，B05 仍缺不同协议/入口证据 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、最终候选真实 Provider 记录 | B02/B03/B04/B06 已修复；runner 修复后的 CI run `35193874248` 全绿；OpenAI-compatible 旧候选连续 3 次结果仍待在当前 runner 候选重绑，B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
@@ -194,3 +194,10 @@ amd64 交叉编译和全仓 `-race` 均通过；修复后的 [CI run 35192734568
 验证进程树已在临时目录清理前收尾；Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke
 与 Release Dry Run 也全部通过。该回验关闭了本次 Windows runner 竞态缺口，不改变不同协议 Provider
 仍需当前候选连续 3 次真实结果的外部验收要求。
+
+## 2026-09-17 验收 runner 环境白名单加固
+
+提交 `09fd055` 将 `tests/real_provider` 的模型 Bash 与独立测试环境改为显式白名单，移除宿主机
+`GOFLAGS`/其他 Provider key 等未声明变量，代理 URL 去除 userinfo，并为两类子进程设置临时
+HOME/TMP。runner 定向、默认/SQLite 全量、相关 race 和 Windows amd64 交叉编译均通过；该
+runner 变化使既有真实 Provider artifact 需重新绑定后才能作为当前候选证据。
