@@ -80,11 +80,16 @@ type Rule struct {
 的匹配项。运行时会将当前会话 ID 和工作区 ID 绑定到 Checker；没有会话/项目上下文时，
 session/project 规则不会命中。`permission list` 为便于查看按创建时间降序显示。
 
+project 作用域使用运行时打印的工作区 ID。先在目标工作区执行 `basework facts show`，首行
+`工作区 <id> (<path>)` 中的 `<id>` 就是 `--project` 所需值；同一目录经过软链接访问时仍
+使用同一 ID。session 作用域的 ID 则来自启动时指定的 `--session` 或 `basework session list`。
+
 参数模式示例（参数串由实现生成，空格分隔）：
 
 ```bash
 # 允许 read_file 工具
 basework permission add --type allow --pattern 'read_file' --scope global
+basework permission add --type allow --pattern 'write_file' --scope project --project '<workspace-id>'
 
 # 拒绝所有 bash 调用
 basework permission add --type deny --pattern 'bash:*' --scope global

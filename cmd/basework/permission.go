@@ -36,10 +36,11 @@ var permissionListCmd = &cobra.Command{
 var permissionAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "添加权限规则",
-	Long: `添加一条新的权限规则。
+Long: `添加一条新的权限规则。
 示例:
   basework permission add --type allow --pattern "read_*" --scope global
-  basework permission add --type deny --pattern "write_file" --scope session`,
+  basework permission add --type deny --pattern "write_file" --scope session --session <session-id>
+  basework permission add --type deny --pattern "write_file" --scope project --project <project-id>`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runPermissionAdd()
 	},
