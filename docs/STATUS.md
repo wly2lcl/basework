@@ -135,3 +135,14 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 因此候选 CI/发布辅助门禁已完成；首次网络型失败与重跑结果均保留在 workflow 历史中。该 run
 的代码内容与 Provider 运行绑定的 `dd08592` 一致，`ea8a53c` 只是证据提交头，不应被写成新的
 可执行代码候选。
+
+## 2026-09-17 当前代码候选 CI 回填
+
+提交 `28df499d793c6fa4b17d9a5809df88c64b98547a` 的 [GitHub Actions run
+35175075477](https://github.com/wly2lcl/basework/actions/runs/35175075477) 已全绿。Quality
+完成格式、默认全量测试、vet、架构/文档门禁、生成物新鲜度、race、Unix PTY 和 OPT-001 PTY；
+五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke（amd64/arm64）与 Release Dry Run
+也全部通过。
+
+该 run 证明 `150e77e` 代码与本轮文档收口在远端可构建、可测试并可打包；它不产生真实 Provider
+证据。OpenAI-compatible 与不同协议的连续 3 次真实运行仍需在当前候选上重新绑定和补齐。
