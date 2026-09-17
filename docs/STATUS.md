@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-17；当前远端代码验收候选 `dd08592`（代码修复基线 `66b7cc0`），真实 Provider 结果均绑定该候选；历史发布候选 `2a86886` 及更早记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；当前代码审查候选 `150e77e`（包含只读预设空权限模式修复和本轮文档收口）。最近一次真实 Provider 结果绑定上一代码候选 `dd08592`，不能直接覆盖 `150e77e` 的新增代码变化；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能与常规测试基础较完整，当前候选的本地测试、OpenAI-compatible 真实 Provider 连续 3 次门禁和推送后的 GitHub Actions 全量门禁均已通过；不同协议 Provider 的连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
+**结论：核心功能与常规测试基础较完整，当前代码审查候选的本地测试已通过；OpenAI-compatible 真实 Provider 连续 3 次和推送后的 GitHub Actions 全量门禁已在上一代码候选上通过，但尚未重新绑定到 `150e77e`。不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
 ## 当前能力与缺口
 
@@ -22,7 +22,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；`dd08592` 已有 OpenAI-compatible 连续 3 次真实通过和本地全量回归，证据提交后的 CI attempt 2 已全绿，B05 仍缺不同协议/入口证据 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、上一候选真实 Provider 记录 | B02/B03/B04/B06 已修复；上一候选 `dd08592` 有 OpenAI-compatible 连续 3 次真实通过和本地全量回归，但 `150e77e` 新增了只读预设运行时修复，真实 Provider 与发布证据需要重新绑定；B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
@@ -103,9 +103,9 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 提交 `66b7cc0` 已修复两处边界：进程树测试等待 pid 内容可解析后再断言；LSP 初始化握手全程使用本次调用的局部连接，并为并发测试提供 5 秒上下文。修复后 jobs/LSP 定向测试、race 压力、默认全量和 sqlite/memory 全量均通过；推送证据提交后的 CI attempt 2 已在 run `35170954145` 全绿回验。
 
-## 2026-09-17 当前候选真实 Provider 与 CI 复核
+## 2026-09-17 上一候选真实 Provider 与 CI 复核
 
-当前远端候选为 `dd08592adce712af73f1b235dfc829352dc31f1d`，真实 Provider workflow 使用
+上一代码候选为 `dd08592adce712af73f1b235dfc829352dc31f1d`，真实 Provider workflow 使用
 `provider=openai`、端点 `https://newapi.doubb.top/v1`、模型 `agnes-2.5-flash`。6 次运行的
 脱敏 JSON 已随仓库保存；第 3 次 `35169796044` 明确因 `validation_ok=false`、
 `file_changed=false` 被门禁拒绝，第 4–6 次 `35170019011`、`35170100696`、`35170184392`
@@ -119,9 +119,10 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 刷新生成物。Provider workflow 绑定的是
 `dd08592` 代码候选；本次后续提交只包含证据/文档/生成物，不改变该代码候选的真实模型结论。
 
-当前收口状态：OpenAI-compatible 当前候选门禁完成；不同协议 Provider 仍需明确协议、端点、
-模型和授权后，按相同夹具连续运行 3 次。未获得该输入前不擅自发送其他协议请求，也不把历史
-REL-003 多协议记录冒充当前候选证据。
+当前收口状态：OpenAI-compatible 在上一代码候选上的门禁完成；`150e77e` 的只读预设修复尚未
+重新绑定真实 Provider 证据。不同协议 Provider 仍需明确协议、端点、模型和授权后，按相同夹具
+在当前候选连续运行 3 次。未获得该输入前不擅自发送其他协议请求，也不把历史 REL-003 多协议
+记录冒充当前候选证据。
 
 ## 2026-09-17 推送候选 CI 最终结果
 
