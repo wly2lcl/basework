@@ -26,8 +26,9 @@ Agent 失败、验证门禁失败、测试未执行、独立测试失败或文�
 独立测试同样使用隔离环境。白名单保留运行 shell/Go 所需的路径、缓存、系统变量和去掉
 userinfo 的代理地址，拒绝宿主机 `GOFLAGS`、任意 Provider key 及其他未声明变量；并将
 `GOCACHE`、`GOMODCACHE`、`GOPATH` 固定在隔离 HOME 下，避免 Windows 因隔离 HOME 缺少
-`LocalAppData` 而无法定位 Go build cache。runner
-会统一清洗已知 Provider key 的工具错误、Agent 错误、验证输出和结果 JSON。这个过滤保证只
+`LocalAppData` 而无法定位 Go build cache。代理地址同时去掉 userinfo、query 和 fragment；
+runner 会统一清洗已知 Provider key 的工具错误、Agent 错误、验证输出、结果 JSON 和最终
+stderr。这个过滤保证只
 属于验收运行器，不把 Bash 权限规则误写成 OS 沙箱。
 
 真实 Provider 结果不能写入默认 CI，也不能把脚本化 TUI 场景当成真实模型结果。每次
