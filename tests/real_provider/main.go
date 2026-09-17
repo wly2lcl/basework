@@ -522,12 +522,20 @@ func sanitizedEnvironmentForHome(home string) []string {
 		filtered = setEnvironmentValue(filtered, seen, "TMPDIR", tmp)
 		filtered = setEnvironmentValue(filtered, seen, "TMP", tmp)
 		filtered = setEnvironmentValue(filtered, seen, "TEMP", tmp)
+		filtered = setEnvironmentValue(filtered, seen, "GOCACHE", filepath.Join(home, "go-cache"))
+		filtered = setEnvironmentValue(filtered, seen, "GOMODCACHE", filepath.Join(home, "go-mod-cache"))
+		filtered = setEnvironmentValue(filtered, seen, "GOPATH", filepath.Join(home, "go-path"))
 	}
 	return filtered
 }
 
 func prepareSandboxHome(home string) error {
-	return os.MkdirAll(filepath.Join(home, "tmp"), 0o700)
+	for _, dir := range []string{"tmp", "go-cache", "go-mod-cache", "go-path"} {
+		if err := os.MkdirAll(filepath.Join(home, dir), 0o700); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func setEnvironmentValue(values []string, seen map[string]bool, name, value string) []string {

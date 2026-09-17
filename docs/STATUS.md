@@ -199,5 +199,6 @@ amd64 交叉编译和全仓 `-race` 均通过；修复后的 [CI run 35192734568
 
 提交 `09fd055` 将 `tests/real_provider` 的模型 Bash 与独立测试环境改为显式白名单，移除宿主机
 `GOFLAGS`/其他 Provider key 等未声明变量，代理 URL 去除 userinfo，并为两类子进程设置临时
-HOME/TMP。runner 定向、默认/SQLite 全量、相关 race 和 Windows amd64 交叉编译均通过；该
-runner 变化使既有真实 Provider artifact 需重新绑定后才能作为当前候选证据。
+HOME/TMP。随后修复 Windows 白名单缺失 `GOCACHE` 的回归，当前始终使用隔离 HOME 下的
+`GOCACHE`/`GOMODCACHE`/`GOPATH`；runner 定向、默认/SQLite 全量、相关 race 和 Windows amd64
+交叉编译均通过。该 runner 变化使既有真实 Provider artifact 需重新绑定后才能作为当前候选证据。

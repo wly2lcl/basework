@@ -264,6 +264,9 @@ func TestSanitizedEnvironmentUsesSandboxHomeAndRedactsProxyCredentials(t *testin
 	if values["TMPDIR"] != filepath.Join(home, "tmp") {
 		t.Fatalf("未设置隔离临时目录: %#v", values)
 	}
+	if values["GOCACHE"] != filepath.Join(home, "go-cache") || values["GOMODCACHE"] != filepath.Join(home, "go-mod-cache") || values["GOPATH"] != filepath.Join(home, "go-path") {
+		t.Fatalf("未设置隔离 Go 缓存/路径: %#v", values)
+	}
 	if strings.Contains(values["HTTPS_PROXY"], "proxy-pass") || strings.Contains(values["HTTPS_PROXY"], "proxy-user") {
 		t.Fatalf("代理凭据未脱敏: %q", values["HTTPS_PROXY"])
 	}
