@@ -293,6 +293,12 @@ func (s *SQLiteStore) FindByPatternInContext(toolName string, args map[string]in
 		if !RuleApplies(*rule, context) {
 			continue
 		}
+		// Ignore legacy tool-only auto cache rows for calls carrying
+		// arguments. They were written before argument-specific cache
+		// patterns were escaped and would otherwise widen permissions.
+		if rule.Source == "auto" && len(args) > 0 && !strings.Contains(rule.Pattern, ":") {
+			continue
+		}
 		// 使用 path.Match 匹配 pattern
 		// pattern 格式：tool_pattern 或 tool_pattern:arg_pattern
 		parts := strings.SplitN(rule.Pattern, ":", 2)

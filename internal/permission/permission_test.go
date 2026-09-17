@@ -433,6 +433,19 @@ func TestCache_PersistedArgumentDecisionRemainsExact(t *testing.T) {
 	}
 }
 
+func TestCache_LegacyBroadAutoRuleDoesNotApplyToArguments(t *testing.T) {
+	store := &fakePermissionStore{rule: &StoredRule{
+		RuleType: "allow", Pattern: "write_file", Scope: "session", SessionID: "s1", Source: "auto",
+	}}
+	cache := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "s1"})
+	if got := cache.Get(CacheKey("write_file", map[string]interface{}{"path": "secret.key"})); got != nil {
+		t.Fatalf("legacy broad auto rule must not match argumentful call: %v", *got)
+	}
+	if got := cache.Get("write_file:"); got == nil || !*got {
+		t.Fatalf("legacy broad auto rule should remain valid for argument-less call: %v", got)
+	}
+}
+
 func TestCache_StaleContextWriteDoesNotWarmCurrentContext(t *testing.T) {
 	store := &fakePermissionStore{}
 	cache := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "s1"})

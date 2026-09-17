@@ -268,6 +268,13 @@ func findStoredRule(store Store, toolName string, args map[string]interface{}, s
 }
 
 func storedRuleMatches(rule StoredRule, toolName string, args map[string]interface{}) bool {
+	// Older versions persisted every cache decision as a tool-only auto rule,
+	// even when the original call had arguments. Treat those legacy rows as
+	// valid only for argument-less calls; otherwise they would widen a single
+	// approval to every argument combination.
+	if rule.Source == "auto" && len(args) > 0 && !strings.Contains(rule.Pattern, ":") {
+		return false
+	}
 	parts := strings.SplitN(rule.Pattern, ":", 2)
 	configRule := Rule{ToolPattern: parts[0]}
 	if len(parts) > 1 {

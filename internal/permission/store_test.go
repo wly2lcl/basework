@@ -324,6 +324,20 @@ func TestCache_PersistedArgumentDecisionSQLiteRemainsExact(t *testing.T) {
 	}
 }
 
+func TestStore_LegacyBroadAutoRuleDoesNotApplyToArguments(t *testing.T) {
+	store := newTestStore(t)
+	rule := &StoredRule{RuleType: "allow", Pattern: "write_file", Scope: "session", SessionID: "sess-legacy", Source: "auto"}
+	if err := store.Create(rule); err != nil {
+		t.Fatalf("创建旧自动规则失败: %v", err)
+	}
+	if got, err := store.FindByPatternInContext("write_file", map[string]interface{}{"path": "secret.key"}, ScopeContext{SessionID: "sess-legacy"}); err != nil || got != nil {
+		t.Fatalf("旧宽自动规则不应匹配带参数调用，got=%+v err=%v", got, err)
+	}
+	if got, err := store.FindByPatternInContext("write_file", nil, ScopeContext{SessionID: "sess-legacy"}); err != nil || got == nil {
+		t.Fatalf("旧宽自动规则应保留无参数匹配，got=%+v err=%v", got, err)
+	}
+}
+
 func TestStore_EmptyScopeLegacyDefaultsGlobal(t *testing.T) {
 	store := newTestStore(t)
 	rule := &StoredRule{RuleType: "allow", Pattern: "legacy_tool"}
