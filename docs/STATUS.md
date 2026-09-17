@@ -184,4 +184,13 @@ SHIP-003；不能用 OpenAI-compatible 结果替代不同协议证据。
 
 已在 `tests/real_provider/process_windows.go` 将取消路径改为 PowerShell 快照、逆序终止并等待
 整棵验证进程树退出，PowerShell 不可用时保留 `taskkill /T /F` 回退。本地 runner 测试、Windows
-amd64 交叉编译和全仓 `-race` 均通过；修复后的远端 CI 结果待下一次运行确认。
+amd64 交叉编译和全仓 `-race` 均通过；修复后的 [CI run 35192734568](https://github.com/wly2lcl/basework/actions/runs/35192734568)
+已全绿，Windows runner、五平台发布归档 Smoke、Docker Smoke 与 Release Dry Run 均通过。
+
+## 2026-09-17 Windows runner 修复回验
+
+修复提交 `71b4bba768d63591720a9201ebb9eccfe81db508` 的 [CI run 35192734568](https://github.com/wly2lcl/basework/actions/runs/35192734568)
+已完成且全绿。`windows-latest` 的 `TestIndependentTestHonorsTimeoutAndBoundsOutput` 通过，说明超时后
+验证进程树已在临时目录清理前收尾；Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke
+与 Release Dry Run 也全部通过。该回验关闭了本次 Windows runner 竞态缺口，不改变不同协议 Provider
+仍需当前候选连续 3 次真实结果的外部验收要求。
