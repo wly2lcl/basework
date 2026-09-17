@@ -20,13 +20,19 @@ func pidAlive(pid int) bool {
 	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
-// waitForFile 等待文件出现（子进程写出的 pid 文件）。
+// waitForFile 等待文件写完（子进程写出的 pid 文件）。
+//
+// shell 的重定向会先创建空文件，再写入内容；只用 os.Stat 会在这两个
+// 操作之间返回，导致低速 runner 偶发读到空 pid。这里等到内容可解析后
+// 再继续，避免把文件写入竞态误报为进程树终止回归。
 func waitForFile(t *testing.T, path string) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); err == nil {
-			return
+		if b, err := os.ReadFile(path); err == nil {
+			if _, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				return
+			}
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

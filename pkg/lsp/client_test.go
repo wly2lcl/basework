@@ -181,6 +181,8 @@ func TestClientConcurrentStart(t *testing.T) {
 	// 并发启动
 	var wg sync.WaitGroup
 	errs := make([]error, 10)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -192,7 +194,7 @@ func TestClientConcurrentStart(t *testing.T) {
 			c2 := NewConn(sw, or)
 			s2 := newMockLSPServer(t, sr, ow)
 			s2.start()
-			errs[idx] = client.startWithConn(context.Background(), c2, ".")
+			errs[idx] = client.startWithConn(ctx, c2, ".")
 			s2.close()
 		}(i)
 	}

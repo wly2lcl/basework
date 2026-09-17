@@ -250,13 +250,16 @@ func (c *Client) Start(ctx context.Context, workspacePath string) error {
 // startWithConn 使用已建立的连接执行 LSP 初始化握手。
 // 不负责状态转换——由调用方管理。
 func (c *Client) startWithConn(ctx context.Context, conn *Conn, workspacePath string) error {
+	// c.conn 是当前客户端的可见连接，但并发测试/内部调用可能在握手期间
+	// 交换它。握手必须始终使用本次调用传入的 conn，否则请求可能写到另一
+	// 个连接，造成双方互等；公共 Start 仍由 startMu 串行化。
 	c.conn.Store(conn)
 
 	// 注册诊断通知处理器
-	c.conn.Load().OnNotification("textDocument/publishDiagnostics", c.handlePublishDiagnostics)
+	conn.OnNotification("textDocument/publishDiagnostics", c.handlePublishDiagnostics)
 
 	// 启动连接的读取循环
-	c.conn.Load().Start()
+	conn.Start()
 
 	// 发送 initialize 请求
 	trueVal := true
@@ -277,14 +280,14 @@ func (c *Client) startWithConn(ctx context.Context, conn *Conn, workspacePath st
 		},
 	}
 
-	if _, err := c.conn.Load().Send(ctx, "initialize", initParams); err != nil {
-		c.conn.Load().Close()
+	if _, err := conn.Send(ctx, "initialize", initParams); err != nil {
+		conn.Close()
 		return fmt.Errorf("initialize request failed: %w", err)
 	}
 
 	// 发送 initialized 通知
-	if err := c.conn.Load().Notify("initialized", struct{}{}); err != nil {
-		c.conn.Load().Close()
+	if err := conn.Notify("initialized", struct{}{}); err != nil {
+		conn.Close()
 		return fmt.Errorf("initialized notification failed: %w", err)
 	}
 
