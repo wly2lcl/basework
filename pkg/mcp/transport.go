@@ -175,6 +175,14 @@ func (t *StdioTransport) Connect(ctx context.Context) error {
 
 // Call 发送 JSON-RPC 请求并等待响应。
 func (t *StdioTransport) Call(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+	// Do not enqueue a request for a context that is already cancelled. Apart
+	// from avoiding needless writes, this makes cancellation deterministic when
+	// the server can answer immediately (both select cases would otherwise be
+	// ready and select may choose the successful response).
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	id := int(t.nextID.Add(1))
 
 	ch := make(chan pendingResponse, 1)
@@ -188,6 +196,9 @@ func (t *StdioTransport) Call(ctx context.Context, method string, params json.Ra
 		delete(t.pending, id)
 		t.pendingMu.Unlock()
 	}()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	req := rpcRequest{
 		JSONRPC: "2.0",
@@ -196,6 +207,9 @@ func (t *StdioTransport) Call(ctx context.Context, method string, params json.Ra
 		Params:  params,
 	}
 	if err := t.write(req); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, fmt.Errorf("write request: %w", err)
 	}
 
@@ -203,6 +217,11 @@ func (t *StdioTransport) Call(ctx context.Context, method string, params json.Ra
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case resp := <-ch:
+		// If cancellation raced with a ready response, cancellation wins. This
+		// is the contract callers need for timeouts and shutdown propagation.
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		return resp.result, resp.err
 	}
 }
