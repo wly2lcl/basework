@@ -74,10 +74,10 @@
 
 ## 2026-09-17 当前候选进度
 
-- `150e77e` 是当前代码审查候选；在 `dd08592` 修复 macOS Intel 进程树测试的 pid 文件等待竞态和 LSP 并发启动握手互等竞态的基础上，补齐 readonly 预设空权限模式的安全回退，并完成运行时文档收口。
+- `683780c` 是当前代码审查候选；在 `150e77e` 补齐 readonly 预设空权限模式安全回退的基础上，新增 SEC-001 权限作用域上下文过滤、SQLite 审计项目归属和 CLI 作用域关联校验，并完成运行时文档收口。
 - 本地默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs` 和 `git diff --check` 已通过。
-- 推送后的远端提交 `8280bda` CI run `35176770398` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过；代码行为仍以 `150e77e` 为当前审查候选，该 run 不产生真实 Provider 证据。
-- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已在最新远端候选 `66c57fd` 连续 3 次可信通过（runs `35178297077`、`35178409921`、`35178503811`）；3 份最新脱敏 artifact 已纳入 `docs/development/evidence/`，旧候选失败/重试样本继续保留。该候选代码行为包含 `150e77e`，入口为真实核心 Agent API。
+- 推送后的远端提交 `8280bda` CI run `35176770398` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过；代码行为以 `150e77e` 为候选，该 run 不产生真实 Provider 证据。
+- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已在前一远端候选 `66c57fd` 连续 3 次可信通过（runs `35178297077`、`35178409921`、`35178503811`）；3 份最新脱敏 artifact 已纳入 `docs/development/evidence/`，旧候选失败/重试样本继续保留。`683780c` 新增 SEC-001 后需重新绑定，入口为真实核心 Agent API。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
 - SEC-001 已接入 Checker、SQLite、缓存、迁移、运行时会话/工作区上下文和审计项目字段；实现验证见 [SEC-001](development/evidence/SEC-001.md)，因 QA-001 前置依赖未收口而保持待验证，不改变当前发布候选的 Provider/CI 门禁结论。

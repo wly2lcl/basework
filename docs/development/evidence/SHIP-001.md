@@ -297,7 +297,7 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 
 **当前结论：SHIP-001 的 OpenAI-compatible 子门禁完成；整项继续进行中，等待不同协议连续 3 次当前候选证据。**
 
-## 2026-09-17 最新候选 OpenAI-compatible 连续验收
+## 2026-09-17 SEC-001 前候选 OpenAI-compatible 连续验收
 
 为重新绑定 `150e77e` 之后的代码候选，使用 `ref=main` 触发 workflow；三次运行的实际
 `headSha` 均为 `66c57fde7f88ccaf5de0669bbd08c488a5686f0e`。该提交相对代码候选只增加
@@ -318,4 +318,4 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 工具状态和哈希，未发现 API key。三次构成当前候选同一入口的连续 3 次可信通过；它们覆盖
 真实 Provider 核心 Agent API，不冒充 CLI/TUI 或不同协议结果。
 
-**当前结论：OpenAI-compatible 子门禁已重新绑定最新候选；SHIP-001 仍等待不同协议连续 3 次当前候选证据。**
+**当前结论：OpenAI-compatible 子门禁已绑定 SEC-001 前候选；`683780c` 新增权限作用域代码后需重新绑定，SHIP-001 仍等待不同协议连续 3 次当前候选证据。**
