@@ -114,17 +114,18 @@ func (c *Checker) WithAudit(logger *AuditLogger) *Checker {
 //     b. 检查规则（匹配则使用规则决策，不提示）
 //     c. 通过 PromptFunc 提示用户
 func (c *Checker) Check(ctx context.Context, toolName string, args map[string]interface{}) (bool, error) {
+	scope := c.ScopeContext()
 	switch c.Mode {
 	case ModeYolo:
-		c.recordAudit(toolName, "", "allowed", args)
+		c.recordAuditWithScope(toolName, "", "allowed", args, scope)
 		return true, nil
 
 	case ModeDenyAll:
-		c.recordAudit(toolName, "", "denied", args)
+		c.recordAuditWithScope(toolName, "", "denied", args, scope)
 		return false, nil
 
 	case ModeInteractive:
-		return c.checkInteractive(ctx, toolName, args)
+		return c.checkInteractive(ctx, toolName, args, scope)
 
 	default:
 		return false, fmt.Errorf("unknown permission mode: %q", c.Mode)
@@ -132,8 +133,7 @@ func (c *Checker) Check(ctx context.Context, toolName string, args map[string]in
 }
 
 // checkInteractive 在交互模式下检查权限。
-func (c *Checker) checkInteractive(ctx context.Context, toolName string, args map[string]interface{}) (bool, error) {
-	scope := c.ScopeContext()
+func (c *Checker) checkInteractive(ctx context.Context, toolName string, args map[string]interface{}, scope ScopeContext) (bool, error) {
 	// 1. 检查缓存
 	cacheKey := CacheKey(toolName, args)
 	if cached := c.Cache.getForContext(cacheKey, scope); cached != nil {
@@ -141,7 +141,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 		if *cached {
 			decision = "allowed"
 		}
-		c.recordAudit(toolName, "", decision, args)
+		c.recordAuditWithScope(toolName, "", decision, args, scope)
 		return *cached, nil
 	}
 
@@ -152,7 +152,7 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 		if rule.Allow {
 			decision = "allowed"
 		}
-		c.recordAudit(toolName, "", decision, args)
+		c.recordAuditWithScope(toolName, "", decision, args, scope)
 		return rule.Allow, nil
 	}
 
@@ -168,10 +168,10 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 				if allow {
 					decision = "allowed"
 				}
-				c.recordAudit(toolName, storedRule.ID, decision, args)
+				c.recordAuditWithScope(toolName, storedRule.ID, decision, args, scope)
 				return allow, nil
 			case "ask":
-				c.recordAudit(toolName, storedRule.ID, "asked", args)
+				c.recordAuditWithScope(toolName, storedRule.ID, "asked", args, scope)
 			}
 		}
 	}
@@ -194,17 +194,21 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 	if allow {
 		decision = "allowed"
 	}
-	c.recordAudit(toolName, "", decision, args)
+	c.recordAuditWithScope(toolName, "", decision, args, scope)
 
 	return allow, nil
 }
 
 // recordAudit 记录审计事件（如果配置了 AuditLogger）。
 func (c *Checker) recordAudit(toolName, ruleID, decision string, args map[string]interface{}) {
+	c.recordAuditWithScope(toolName, ruleID, decision, args, c.ScopeContext())
+}
+
+func (c *Checker) recordAuditWithScope(toolName, ruleID, decision string, args map[string]interface{}, scope ScopeContext) {
 	if c.AuditLogger == nil {
 		return
 	}
-	scope := c.ScopeContext()
+	scope = scope.normalized()
 
 	contextJSON := "{}"
 	if args != nil {

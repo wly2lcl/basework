@@ -468,6 +468,35 @@ func TestChecker_AuditIncludesScopeContext(t *testing.T) {
 	}
 }
 
+func TestChecker_AuditKeepsCheckStartContextAcrossPrompt(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var checker *Checker
+	var got AuditRecord
+	logger := &AuditLogger{recorder: func(record AuditRecord) { got = record }}
+	checker = NewChecker(ModeInteractive, nil, func(context.Context, string, map[string]interface{}) (bool, bool, error) {
+		close(started)
+		<-release
+		return true, false, nil
+	}).WithAudit(logger)
+	checker.SetScopeContext(ScopeContext{SessionID: "session-before", ProjectID: "project-before"})
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := checker.Check(context.Background(), "read_file", nil)
+		done <- err
+	}()
+	<-started
+	checker.SetScopeContext(ScopeContext{SessionID: "session-after", ProjectID: "project-after"})
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("检查失败: %v", err)
+	}
+	if got.SessionID != "session-before" || got.ProjectID != "project-before" {
+		t.Fatalf("审计应使用检查开始时的上下文，得到 %+v", got)
+	}
+}
+
 func TestChecker_Check_交互模式_无PromptFunc(t *testing.T) {
 	c := NewChecker(ModeInteractive, nil, nil)
 	_, err := c.Check(context.Background(), "tool", nil)
