@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-17；当前远端验收候选 `140eddf`（代码优化基线 `8394227`），上一真实 Provider 候选 `3ad67a7`，历史发布候选 `2a86886`。历史 CI 与真实 Provider 记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；当前远端验收候选 `66b7cc0`（代码优化基线 `8394227`），上一真实 Provider 候选 `3ad67a7`，历史发布候选 `2a86886`。历史 CI 与真实 Provider 记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能与常规测试基础较完整，当前远端验收候选已通过本地门禁和 GitHub Actions 全量门禁；OpenAI-compatible 的连续 3 次真实通过仍绑定上一候选，当前候选尚未生成真实 Provider 证据，且仍等待不同协议 Provider。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
@@ -95,3 +95,9 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿。Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 与 Release Dry Run 全部通过；Quality 同时完成默认全量测试、vet、架构/文档门禁、race、Unix PTY smoke 和 OPT-001 smoke。
 
 该 run 是当前远端文档候选的完整 CI 证据，关闭了构建、测试、发布归档和镜像门禁。它不产生真实 Provider 证据；SHIP-001/QA-001 仍需在当前候选上补 OpenAI-compatible 与不同协议的连续 3 次可信运行。
+
+## 2026-09-17 CI 竞态修复
+
+文档候选 `612f670` 的 [CI run 35168351723](https://github.com/wly2lcl/basework/actions/runs/35168351723) 暴露了 macOS Intel `internal/jobs` 测试的真实竞态：shell 重定向先创建空 pid 文件，测试只检查文件存在便读取，偶发得到空内容；本地 goroutine 栈同时确认 LSP 并发启动夹具在共享 `c.conn` 被覆盖时会互相等待。
+
+提交 `66b7cc0` 已修复两处边界：进程树测试等待 pid 内容可解析后再断言；LSP 初始化握手全程使用本次调用的局部连接，并为并发测试提供 5 秒上下文。修复后 jobs/LSP 定向测试、race 压力、默认全量和 sqlite/memory 全量均通过，待该候选远端 CI 回验。

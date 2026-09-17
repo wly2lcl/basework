@@ -402,6 +402,10 @@ explain` 和 `init --yes`；随后在隔离 HOME 中执行 v1 JSONL → SQLite �
 提交 `140eddf4cfd0ba457d7b82623c5e83d1b3c46574` 的 [CI run
 35079524005](https://github.com/wly2lcl/basework/actions/runs/35079524005) 已全绿。五个平台源码测试与发布归档 Smoke、Quality、Docker Smoke 和 Release Dry Run 均成功，证明当前远端文档候选的发布辅助流程可复跑；真实 Provider 仍由 SHIP-001 单独验收。
 
+## 2026-09-17 候选 CI 失败与修复
+
+随后文档候选 `612f670` 的 [CI run 35168351723](https://github.com/wly2lcl/basework/actions/runs/35168351723) 在 macOS Intel 的 `TestTerminateCommand_KillsGrandchildren` 失败，原因是测试在 pid 文件刚创建但尚未写入时读取。提交 `66b7cc0` 已修复该测试等待竞态，并同步修复 LSP 并发握手的共享连接竞态；该候选需等待新的远端 CI 全绿后再更新发布证据。
+
 ## 2026-09-16 再复审交接
 
 前置任务回退；本任务既有实现和局部证据保留，等待依赖修复后回验，不要求重写模块。 本次状态调整为待验证，小步骤见原任务卡新增补充。历史成功测试不删除，但不能代替本次缺陷修复后的验证。
