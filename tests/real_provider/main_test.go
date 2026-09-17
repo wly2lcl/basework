@@ -25,6 +25,16 @@ func TestRedactURLRemovesCredentialsAndQuery(t *testing.T) {
 	}
 }
 
+func TestRedactProxyURLRemovesCredentialsQueryAndFragment(t *testing.T) {
+	got := redactProxyURL("https://user:secret@example.test:8443/proxy?token=do-not-save#fragment")
+	if got != "https://example.test:8443/proxy" {
+		t.Fatalf("redactProxyURL() = %q", got)
+	}
+	if strings.Contains(got, "secret") || strings.Contains(got, "do-not-save") || strings.Contains(got, "fragment") {
+		t.Fatalf("代理脱敏结果泄漏凭据: %q", got)
+	}
+}
+
 func TestCopyDirCopiesFixtureContents(t *testing.T) {
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "copy")
@@ -248,7 +258,7 @@ func TestRunnerEnvironmentDoesNotExposeProviderKeyToBash(t *testing.T) {
 }
 
 func TestSanitizedEnvironmentUsesSandboxHomeAndRedactsProxyCredentials(t *testing.T) {
-	t.Setenv("HTTPS_PROXY", "https://proxy-user:proxy-pass@example.test:8443")
+	t.Setenv("HTTPS_PROXY", "https://proxy-user:proxy-pass@example.test:8443?token=proxy-token#fragment")
 	home := filepath.Join(t.TempDir(), "home")
 	env := sanitizedEnvironmentForHome(home)
 	values := make(map[string]string)
@@ -267,7 +277,7 @@ func TestSanitizedEnvironmentUsesSandboxHomeAndRedactsProxyCredentials(t *testin
 	if values["GOCACHE"] != filepath.Join(home, "go-cache") || values["GOMODCACHE"] != filepath.Join(home, "go-mod-cache") || values["GOPATH"] != filepath.Join(home, "go-path") {
 		t.Fatalf("未设置隔离 Go 缓存/路径: %#v", values)
 	}
-	if strings.Contains(values["HTTPS_PROXY"], "proxy-pass") || strings.Contains(values["HTTPS_PROXY"], "proxy-user") {
+	if strings.Contains(values["HTTPS_PROXY"], "proxy-pass") || strings.Contains(values["HTTPS_PROXY"], "proxy-user") || strings.Contains(values["HTTPS_PROXY"], "proxy-token") || strings.Contains(values["HTTPS_PROXY"], "fragment") {
 		t.Fatalf("代理凭据未脱敏: %q", values["HTTPS_PROXY"])
 	}
 }

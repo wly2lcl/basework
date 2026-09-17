@@ -104,7 +104,10 @@ func main() {
 		output = "real-provider-result.json"
 	}
 	if err := run(fixture, output); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		// The runner's final stderr line is also an artifact/logging boundary.
+		// Keep the Provider key out even when setup fails before a result file
+		// can be written.
+		fmt.Fprintln(os.Stderr, redactSecret(err.Error(), os.Getenv("BASEWORK_REAL_API_KEY")))
 		os.Exit(1)
 	}
 }
@@ -270,6 +273,10 @@ func independentTest(ctx context.Context, dir string) (int, string, bool) {
 	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-run", "^TestAdd$", "./...")
 	cmd.Dir = dir
 	cmd.Env = sanitizedEnvironmentForHome(home)
+	// Bound os/exec's pipe-drain wait as a second line of defense if a
+	// misbehaving test escapes the process-tree snapshot and keeps stdout or
+	// stderr open after cancellation.
+	cmd.WaitDelay = 2 * time.Second
 	configureTestProcess(cmd)
 	out := &cappedBuffer{limit: 64 * 1024}
 	cmd.Stdout = out
@@ -558,6 +565,11 @@ func redactProxyURL(raw string) string {
 		return ""
 	}
 	u.User = nil
+	// Proxy credentials are sometimes carried as query parameters (for
+	// example, a signed proxy URL). They are not needed by the child process
+	// and must not cross the runner's environment boundary.
+	u.RawQuery = ""
+	u.Fragment = ""
 	return u.String()
 }
 
