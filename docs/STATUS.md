@@ -221,3 +221,14 @@ fragment 回归测试。定向、默认/SQLite 全量与相关 race 已通过；
 写入竞态返回 context 错误，并在响应与取消同时就绪时让取消优先。该测试重复 100 次及 MCP 全包
 均通过；修复后的主 CI [35200027697](https://github.com/wly2lcl/basework/actions/runs/35200027697)
 已全绿，五平台源码测试、发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
+
+## 2026-09-17 独立验证 HOME 清理竞态
+
+文档提交 `69b9c34` 的 [CI run 35201403018](https://github.com/wly2lcl/basework/actions/runs/35201403018)
+在 `macos-latest` 暴露 `TestIndependentTestHonorsTimeoutAndBoundsOutput` 的清理竞态：超时验证本身
+已按预期结束，但 `t.TempDir` 清理夹具目录时，夹具内 `.basework-home` 仍有取消子进程的短暂残留；其余
+五平台测试和 Quality 均通过。该失败不是文档生成问题，不能以“单平台偶发”略过。
+
+当前工作树已修复：独立 `go test` 使用仓库外的临时 HOME，避免 Go 缓存与夹具目录共用生命周期；临时
+HOME 清理由 20 次、每次 25ms 的有界重试完成。超时回归重复 50 次、real_provider/builtin 定向
+测试、默认与 `sqlite memory` 全量及关键 race 均通过；修复提交后的主 CI 仍待回验。

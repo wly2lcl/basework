@@ -266,7 +266,11 @@ func run(fixture, output string) error {
 }
 
 func independentTest(ctx context.Context, dir string) (int, string, bool) {
-	home := filepath.Join(dir, ".basework-home")
+	home, err := os.MkdirTemp("", "basework-real-provider-verify-home-")
+	if err != nil {
+		return -1, "verification home setup failed: " + err.Error(), false
+	}
+	defer removeAllWithRetry(home)
 	if err := prepareSandboxHome(home); err != nil {
 		return -1, "verification home setup failed: " + err.Error(), false
 	}
@@ -281,7 +285,7 @@ func independentTest(ctx context.Context, dir string) (int, string, bool) {
 	out := &cappedBuffer{limit: 64 * 1024}
 	cmd.Stdout = out
 	cmd.Stderr = out
-	err := cmd.Run()
+	err = cmd.Run()
 	if ctx.Err() != nil {
 		return -1, "verification timed out", false
 	}
@@ -296,6 +300,20 @@ func independentTest(ctx context.Context, dir string) (int, string, bool) {
 		return exitErr.ExitCode(), out.String(), false
 	}
 	return -1, err.Error() + "\n" + out.String(), false
+}
+
+// removeAllWithRetry tolerates a short filesystem race while a canceled child
+// finishes closing files under its isolated HOME. The retry is bounded so a
+// genuinely stuck process cannot make the runner hang indefinitely.
+func removeAllWithRetry(path string) {
+	const attempts = 20
+	for i := 0; i < attempts; i++ {
+		if err := os.RemoveAll(path); err == nil {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	_ = os.RemoveAll(path)
 }
 
 type cappedBuffer struct {
