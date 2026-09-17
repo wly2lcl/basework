@@ -306,6 +306,24 @@ func TestCache_ScopeContextSQLiteIsolation(t *testing.T) {
 	}
 }
 
+func TestCache_PersistedArgumentDecisionSQLiteRemainsExact(t *testing.T) {
+	store := newTestStore(t)
+	first := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "sess-exact"})
+	key := CacheKey("write_file", map[string]interface{}{"path": "*.txt"})
+	first.Set(key, true)
+
+	// Reopen through a second cache instance so this exercises SQLite lookup,
+	// not only the first cache's in-memory map.
+	second := NewCacheWithStoreAndContext(store, ScopeContext{SessionID: "sess-exact"})
+	if got := second.Get(key); got == nil || !*got {
+		t.Fatalf("same persisted argument set should be allowed, got %v", got)
+	}
+	otherKey := CacheKey("write_file", map[string]interface{}{"path": "secret.key"})
+	if got := second.Get(otherKey); got != nil {
+		t.Fatalf("different persisted argument set must not be allowed: %v", *got)
+	}
+}
+
 func TestStore_EmptyScopeLegacyDefaultsGlobal(t *testing.T) {
 	store := newTestStore(t)
 	rule := &StoredRule{RuleType: "allow", Pattern: "legacy_tool"}
