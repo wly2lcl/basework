@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-17；产品可执行代码候选仍为 `a78efba`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归、作用域 ID help，以及 `gofmt` 修复）。真实 Provider 验收 runner 随 `71b4bba` 修复 Windows 进程树收尾，并在 `09fd055`/`765ddc0`/`0b8fe97` 改为显式安全环境白名单、临时 HOME/TMP、隔离 Go 缓存、代理 query/fragment 清理、stderr 密钥清洗和独立验证 WaitDelay；远端 `main` 当前为 `765ddc0`，本轮 runner 修复待 CI 回验。之前三次真实 Provider 结果仍绑定 `a78efba`，需要在 runner 修复后重新绑定。历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；产品可执行代码候选仍为 `a78efba`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归、作用域 ID help，以及 `gofmt` 修复）。真实 Provider 验收 runner 随 `71b4bba` 修复 Windows 进程树收尾，并在 `09fd055`/`765ddc0`/`0b8fe97` 改为显式安全环境白名单、临时 HOME/TMP、隔离 Go 缓存、代理 query/fragment 清理、stderr 密钥清洗和独立验证 WaitDelay；MCP stdio 取消竞态已在 `ceed232` 修复，远端 `main` 当前为 `765ddc0`，本轮修复待 CI 回验。之前三次真实 Provider 结果仍绑定 `a78efba`，需要在 runner 修复后重新绑定。历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能、常规测试和当前 runner 的最终 CI 均已通过；OpenAI-compatible 真实 Provider 连续 3 次结果仍绑定旧产品候选，尚未在当前 runner 重绑；不同协议 Provider 的当前候选连续 3 次证据也仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
@@ -211,3 +211,11 @@ HOME/TMP。随后修复 Windows 白名单缺失 `GOCACHE` 的回归，当前始�
 runner 主进程最终 stderr 经过 API key 替换，避免初始化失败时绕过结果文件脱敏。独立验证命令增加
 `os/exec.Cmd.WaitDelay=2s`，即使派生进程逃过快照仍不会无限等待管道关闭；新增代理 token 和
 fragment 回归测试。定向、默认/SQLite 全量与相关 race 已通过，待提交后的主 CI 回验。
+
+## 2026-09-17 MCP stdio 取消竞态修复
+
+提交 `ceed232` 修复 [CI run 35199220417](https://github.com/wly2lcl/basework/actions/runs/35199220417)
+在 macOS Intel 暴露的 `pkg/mcp/TestStdioCallWithContextCancel` 竞态：已取消的 context 仍可能
+写入请求，立即响应时 `select` 随机返回成功。`StdioTransport.Call` 现在在登记/写入前检查取消，
+写入竞态返回 context 错误，并在响应与取消同时就绪时让取消优先。该测试重复 100 次及 MCP 全包
+均通过；原 CI 其余平台通过，修复后的主 CI 待回验。
