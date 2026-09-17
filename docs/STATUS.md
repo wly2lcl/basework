@@ -99,8 +99,8 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 ## 2026-09-17 最新远端提交 CI 回填
 
-远端提交 `40c0d971b9bd4ec5347df219ba42d5f4242ed27e` 的 [GitHub Actions run
-35175948423](https://github.com/wly2lcl/basework/actions/runs/35175948423) 已全绿。Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 全部通过；代码行为与当前审查候选 `150e77e` 一致，仅包含文档证据回填。
+远端提交 `8280bda95fe15f21bf8a6bee4c354f2fff4cf277` 的 [GitHub Actions run
+35176770398](https://github.com/wly2lcl/basework/actions/runs/35176770398) 已全绿。Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 全部通过；代码行为与当前审查候选 `150e77e` 一致，仅包含文档证据回填。
 
 该 run 关闭了当前远端提交的构建、测试、发布归档和镜像门禁，但不产生真实 Provider 证据。OpenAI-compatible 结果仍需重新绑定当前代码候选，不同协议 Provider 仍需补齐连续 3 次可信运行。
 
