@@ -74,10 +74,11 @@
 
 ## 2026-09-17 当前候选进度
 
-- `be737c0` 是最近的代码审查候选；在 `150e77e` 补齐 readonly 预设空权限模式安全回退的基础上，新增 SEC-001 权限作用域上下文过滤、SQLite 审计项目归属、CLI 作用域关联校验，以及在途检查的上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容和作用域 ID help，并完成 SQLite 参数缓存回归与运行时文档收口。
+- `be737c0` 是本轮 SEC-001 业务修复候选；在 `150e77e` 补齐 readonly 预设空权限模式安全回退的基础上，新增权限作用域上下文过滤、SQLite 审计项目归属、CLI 作用域关联校验，以及在途检查的上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容和作用域 ID help，并完成 SQLite 参数缓存回归与运行时文档收口。最终可执行代码候选为 `a78efba`，远端最新文档/证据提交为 `01b6277`。
 - 本地默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs` 和 `git diff --check` 已通过。
 - 最终远端候选为 `a78efba`：`763a845` 推送后只追加一处 `gofmt` 格式修复，解决 Quality 门禁发现的帮助文本缩进问题。默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs`、`git diff --check` 和 `gofmt` 均通过。
 - 最终候选的 GitHub Actions CI run `35188993611` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
+- 文档/证据提交 `01b6277` 只增加 3 份脱敏 Provider JSON 和验收记录；其 GitHub Actions CI run `35190411247` 也已全绿，不改变 `a78efba` 的代码候选绑定。
 - OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 在最终候选 `a78efba` 连续 3 次可信通过（runs `35189820351`、`35189839503`、`35189879941`）；三份脱敏 artifact 已纳入 `docs/development/evidence/`，每次均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。旧候选失败/重试样本继续保留。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
