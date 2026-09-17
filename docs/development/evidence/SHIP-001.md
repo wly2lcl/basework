@@ -346,5 +346,7 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 移除宿主机 `GOFLAGS`/其他 Provider key，代理 URL 去除 userinfo，并设置临时 HOME/TMP；新增
 回归与默认/SQLite 全量、相关 race、Windows amd64 交叉编译均通过。随后发现 Windows 隔离
 HOME 缺少 Go build cache，已改为显式使用隔离 HOME 下的 GOCACHE/GOMODCACHE/GOPATH。由于验收 runner 本身
-发生变化，之前绑定 `a78efba` 的 OpenAI-compatible artifact 只能作为历史证据；需在当前
+发生变化，之前绑定 `a78efba` 的 OpenAI-compatible artifact 只能作为历史证据。修复后的
+[CI run 35196510402](https://github.com/wly2lcl/basework/actions/runs/35196510402) 已全绿，
+覆盖 Windows 源码测试、五平台发布归档 Smoke、Docker Smoke 和 Release Dry Run；需在当前
 runner 候选重新执行三次后才能更新当前候选矩阵。不同协议仍需连续 3 次真实结果。
