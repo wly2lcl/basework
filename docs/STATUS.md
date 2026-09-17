@@ -97,6 +97,13 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 该 run 是当前远端文档候选的完整 CI 证据，关闭了构建、测试、发布归档和镜像门禁。它不产生真实 Provider 证据；SHIP-001/QA-001 仍需在当前候选上补 OpenAI-compatible 与不同协议的连续 3 次可信运行。
 
+## 2026-09-17 最新远端提交 CI 回填
+
+远端提交 `40c0d971b9bd4ec5347df219ba42d5f4242ed27e` 的 [GitHub Actions run
+35175948423](https://github.com/wly2lcl/basework/actions/runs/35175948423) 已全绿。Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 全部通过；代码行为与当前审查候选 `150e77e` 一致，仅包含文档证据回填。
+
+该 run 关闭了当前远端提交的构建、测试、发布归档和镜像门禁，但不产生真实 Provider 证据。OpenAI-compatible 结果仍需重新绑定当前代码候选，不同协议 Provider 仍需补齐连续 3 次可信运行。
+
 ## 2026-09-17 CI 竞态修复
 
 文档候选 `612f670` 的 [CI run 35168351723](https://github.com/wly2lcl/basework/actions/runs/35168351723) 暴露了 macOS Intel `internal/jobs` 测试的真实竞态：shell 重定向先创建空 pid 文件，测试只检查文件存在便读取，偶发得到空内容；本地 goroutine 栈同时确认 LSP 并发启动夹具在共享 `c.conn` 被覆盖时会互相等待。
