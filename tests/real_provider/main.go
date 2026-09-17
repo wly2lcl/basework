@@ -165,7 +165,11 @@ func run(fixture, output string) error {
 		return fmt.Errorf("create provider: %w", err)
 	}
 	store := session.NewMemoryStore()
-	tools := builtin.AllWithRuntime(&builtin.Runtime{Environment: sanitizedEnvironment()})
+	agentHome := filepath.Join(work, ".basework-home")
+	if err := prepareSandboxHome(agentHome); err != nil {
+		return fmt.Errorf("create agent home: %w", err)
+	}
+	tools := builtin.AllWithRuntime(&builtin.Runtime{Environment: sanitizedEnvironmentForHome(agentHome)})
 	prompt := "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。"
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
@@ -259,9 +263,13 @@ func run(fixture, output string) error {
 }
 
 func independentTest(ctx context.Context, dir string) (int, string, bool) {
+	home := filepath.Join(dir, ".basework-home")
+	if err := prepareSandboxHome(home); err != nil {
+		return -1, "verification home setup failed: " + err.Error(), false
+	}
 	cmd := exec.CommandContext(ctx, "go", "test", "-count=1", "-run", "^TestAdd$", "./...")
 	cmd.Dir = dir
-	cmd.Env = sanitizedEnvironment()
+	cmd.Env = sanitizedEnvironmentForHome(home)
 	configureTestProcess(cmd)
 	out := &cappedBuffer{limit: 64 * 1024}
 	cmd.Stdout = out
@@ -473,25 +481,76 @@ func prepareVerification(trusted, work string, trustedFiles map[string]fileSnaps
 	return result, nil
 }
 
-func sanitizedEnvironment() []string {
-	blocked := map[string]bool{
-		"BASEWORK_REAL_API_KEY": true,
-		"OPENAI_API_KEY":        true,
-		"ANTHROPIC_API_KEY":     true,
-		"GOOGLE_API_KEY":        true,
-		"OPENCODE_API_KEY":      true,
-		"OG_API_KEY":            true,
+func sanitizedEnvironment() []string { return sanitizedEnvironmentForHome("") }
+
+// sanitizedEnvironmentForHome returns the small, explicit environment needed
+// by the model's shell and the independent Go test. The runner must not expose
+// arbitrary host variables: an untrusted model can run `env`, and variables
+// such as GOFLAGS can also silently change the trusted test command.
+func sanitizedEnvironmentForHome(home string) []string {
+	allowed := map[string]bool{
+		"PATH": true, "LANG": true, "LC_ALL": true, "TERM": true, "CI": true,
+		"GOCACHE": true, "GOMODCACHE": true, "GOPATH": true, "GOROOT": true,
+		"NO_PROXY": true, "HTTP_PROXY": true, "HTTPS_PROXY": true, "ALL_PROXY": true,
+		"SYSTEMROOT": true, "WINDIR": true, "PATHEXT": true, "COMSPEC": true,
 	}
 	values := os.Environ()
-	filtered := make([]string, 0, len(values))
+	filtered := make([]string, 0, len(values)+6)
+	seen := make(map[string]bool)
 	for _, value := range values {
-		name, _, ok := strings.Cut(value, "=")
-		if ok && blocked[name] {
+		name, raw, ok := strings.Cut(value, "=")
+		if !ok {
 			continue
 		}
-		filtered = append(filtered, value)
+		canonical := strings.ToUpper(name)
+		if !allowed[canonical] || seen[canonical] {
+			continue
+		}
+		if canonical == "HTTP_PROXY" || canonical == "HTTPS_PROXY" || canonical == "ALL_PROXY" {
+			raw = redactProxyURL(raw)
+			if raw == "" {
+				continue
+			}
+		}
+		filtered = append(filtered, canonical+"="+raw)
+		seen[canonical] = true
+	}
+	if home != "" {
+		filtered = setEnvironmentValue(filtered, seen, "HOME", home)
+		filtered = setEnvironmentValue(filtered, seen, "USERPROFILE", home)
+		tmp := filepath.Join(home, "tmp")
+		filtered = setEnvironmentValue(filtered, seen, "TMPDIR", tmp)
+		filtered = setEnvironmentValue(filtered, seen, "TMP", tmp)
+		filtered = setEnvironmentValue(filtered, seen, "TEMP", tmp)
 	}
 	return filtered
+}
+
+func prepareSandboxHome(home string) error {
+	return os.MkdirAll(filepath.Join(home, "tmp"), 0o700)
+}
+
+func setEnvironmentValue(values []string, seen map[string]bool, name, value string) []string {
+	for i, current := range values {
+		currentName, _, ok := strings.Cut(current, "=")
+		if ok && strings.EqualFold(currentName, name) {
+			values[i] = name + "=" + value
+			seen[name] = true
+			return values
+		}
+	}
+	values = append(values, name+"="+value)
+	seen[name] = true
+	return values
+}
+
+func redactProxyURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	u.User = nil
+	return u.String()
 }
 
 func redactSecret(text string, secrets ...string) string {
