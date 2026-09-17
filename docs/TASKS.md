@@ -76,7 +76,7 @@
 - `dd08592` 是当前代码验收候选；修复了 macOS Intel 进程树测试的 pid 文件等待竞态，以及 LSP 并发启动握手使用共享连接造成的互等竞态。
 - 本地默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs` 和 `git diff --check` 已通过。
 - OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已形成当前候选的连续 3 次可信通过；6 份脱敏 artifact 已纳入 `docs/development/evidence/`。第 3 次失败样本保留并明确不计入连续序列。
-- GitHub Actions run `35169388623` 的五平台测试/构建、Docker Smoke、Release Dry Run 通过，Quality 因 `docs/STATS.md` 未刷新而失败；已运行 `make gen`，提交后必须等待新 run 全绿。
+- 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
 
 旧 Phase 对应关系见 [路线图](ROADMAP.md)，历史清单见 [归档](archive/README.md)。

@@ -441,6 +441,11 @@ Windows、macOS 两个 runner 测试/构建、Docker Smoke 和 Release Dry Run �
 在生成物新鲜度步骤失败，原因是 `docs/STATS.md` 尚未反映修复新增的 4 行测试代码。已在本地
 运行 `make gen` 刷新 `docs/STATS.md`，提交后需以新 CI run 重新确认。
 
-该失败不表示发布归档或平台运行逻辑失败，但在新 CI 全绿前不能关闭本任务的候选依赖。真实
-Provider 的协议/次数门禁仍由 SHIP-001 单独负责；本次后续提交是证据、文档和生成物刷新，未
-改变 `dd08592` 的可执行代码。
+该失败不表示发布归档或平台运行逻辑失败；真实 Provider 的协议/次数门禁仍由 SHIP-001 单独
+负责；本次后续提交是证据、文档和生成物刷新，未改变 `dd08592` 的可执行代码。随后推送提交
+`ea8a53c` 的 [CI run 35170954145](https://github.com/wly2lcl/basework/actions/runs/35170954145)
+attempt 1 因 macOS Intel runner 的 `proxy.golang.org` DNS 超时失败，重跑失败 job 后 attempt 2
+全绿，Quality、五平台源码测试、五平台归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
+
+**当前候选 CI/发布辅助门禁：通过。** 该结果绑定证据提交 `ea8a53c`，其可执行代码与真实
+Provider 运行绑定的 `dd08592` 相同；不同协议 Provider 仍是上游 SHIP-001 缺口。

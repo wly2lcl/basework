@@ -323,10 +323,10 @@ Provider 正向记录，以及是否补充真人主观体验；本段不创建 t
 ## 2026-09-17 当前候选复核
 
 当前代码候选 `dd08592adce712af73f1b235dfc829352dc31f1d` 已完成本地默认/完整 tags 全量测试、
-jobs/LSP 竞态回归、race 压力和 OpenAI-compatible 真实 Provider 连续 3 次验收。其 [CI run
-35169388623](https://github.com/wly2lcl/basework/actions/runs/35169388623) 的平台测试/构建、
-Docker Smoke 与 Release Dry Run 通过，Quality 因 `docs/STATS.md` 生成物未刷新而失败；已运行
-`make gen`，新提交后的 CI 全绿仍是 SHIP-003 的必要条件。
+jobs/LSP 竞态回归、race 压力和 OpenAI-compatible 真实 Provider 连续 3 次验收。证据提交
+`ea8a53c` 的 [CI run 35170954145](https://github.com/wly2lcl/basework/actions/runs/35170954145)
+attempt 2 全绿；attempt 1 仅因 macOS Intel runner 下载 Go 模块时 DNS 超时失败。Quality、五
+平台测试与发布归档 Smoke、Docker Smoke、Release Dry Run 全部通过。
 
 当前任务继续保持待验证：不同协议 Provider 的当前候选连续 3 次证据尚未获得，SHIP-001 与
 QA-001 的整体状态因此未完成。自动化 PTY 与历史五平台发布证据保留，但不能替代这项协议

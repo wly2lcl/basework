@@ -2,7 +2,7 @@
 
 核对日期：2026-09-17；当前远端代码验收候选 `dd08592`（代码修复基线 `66b7cc0`），真实 Provider 结果均绑定该候选；历史发布候选 `2a86886` 及更早记录继续保留，但不能覆盖当前候选的新增失败/通过复现。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能与常规测试基础较完整，当前候选的本地测试与 OpenAI-compatible 真实 Provider 连续 3 次门禁已通过；GitHub Actions 的构建门禁曾因生成统计未随代码修复刷新而失败，待本次文档/生成物提交后的新 run 回验。不同协议 Provider 的连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
+**结论：核心功能与常规测试基础较完整，当前候选的本地测试、OpenAI-compatible 真实 Provider 连续 3 次门禁和推送后的 GitHub Actions 全量门禁均已通过；不同协议 Provider 的连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
 ## 当前能力与缺口
 
@@ -21,7 +21,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；`dd08592` 已有 OpenAI-compatible 连续 3 次真实通过和本地全量回归，CI 需在生成统计刷新后重跑，B05 仍缺不同协议/入口证据 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、当前候选真实 Provider 记录 | B02/B03/B04/B06 已修复；`dd08592` 已有 OpenAI-compatible 连续 3 次真实通过和本地全量回归，证据提交后的 CI attempt 2 已全绿，B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
@@ -100,7 +100,7 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 文档候选 `612f670` 的 [CI run 35168351723](https://github.com/wly2lcl/basework/actions/runs/35168351723) 暴露了 macOS Intel `internal/jobs` 测试的真实竞态：shell 重定向先创建空 pid 文件，测试只检查文件存在便读取，偶发得到空内容；本地 goroutine 栈同时确认 LSP 并发启动夹具在共享 `c.conn` 被覆盖时会互相等待。
 
-提交 `66b7cc0` 已修复两处边界：进程树测试等待 pid 内容可解析后再断言；LSP 初始化握手全程使用本次调用的局部连接，并为并发测试提供 5 秒上下文。修复后 jobs/LSP 定向测试、race 压力、默认全量和 sqlite/memory 全量均通过，待该候选远端 CI 回验。
+提交 `66b7cc0` 已修复两处边界：进程树测试等待 pid 内容可解析后再断言；LSP 初始化握手全程使用本次调用的局部连接，并为并发测试提供 5 秒上下文。修复后 jobs/LSP 定向测试、race 压力、默认全量和 sqlite/memory 全量均通过；推送证据提交后的 CI attempt 2 已在 run `35170954145` 全绿回验。
 
 ## 2026-09-17 当前候选真实 Provider 与 CI 复核
 
@@ -115,9 +115,21 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 该候选的 [CI run 35169388623](https://github.com/wly2lcl/basework/actions/runs/35169388623)
 中五个平台测试、构建、Docker Smoke 和 Release Dry Run 均通过，Quality 仅在“生成物新鲜度”
 步骤失败；日志显示 `docs/STATS.md` 少了修复新增的 4 行测试代码。当前提交已运行 `make gen`
-刷新生成物，后续新 CI run 必须全绿后才关闭候选 CI 门禁。Provider workflow 绑定的是
+刷新生成物。Provider workflow 绑定的是
 `dd08592` 代码候选；本次后续提交只包含证据/文档/生成物，不改变该代码候选的真实模型结论。
 
 当前收口状态：OpenAI-compatible 当前候选门禁完成；不同协议 Provider 仍需明确协议、端点、
 模型和授权后，按相同夹具连续运行 3 次。未获得该输入前不擅自发送其他协议请求，也不把历史
 REL-003 多协议记录冒充当前候选证据。
+
+## 2026-09-17 推送候选 CI 最终结果
+
+提交 `ea8a53c5969cf7b3e07779f6e61405703ad8cd69`（仅包含证据、文档和生成统计）的 [CI run
+35170954145](https://github.com/wly2lcl/basework/actions/runs/35170954145) 首次 attempt 1
+因 macOS Intel runner 在 GoReleaser 的 `go mod tidy` 阶段解析 `proxy.golang.org` 超时而失败，
+日志未出现代码或测试断言失败。随后只重跑失败 job，attempt 2 全绿：Quality、五个平台源码
+测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 全部通过。
+
+因此候选 CI/发布辅助门禁已完成；首次网络型失败与重跑结果均保留在 workflow 历史中。该 run
+的代码内容与 Provider 运行绑定的 `dd08592` 一致，`ea8a53c` 只是证据提交头，不应被写成新的
+可执行代码候选。
