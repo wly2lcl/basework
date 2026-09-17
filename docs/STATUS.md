@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-17；当前代码审查候选 `be737c0`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归和作用域 ID help）。最新真实 Provider 结果绑定前一代码候选 `66c57fd`；`be737c0` 新增权限缓存/审计边界、旧规则兼容和 help 后尚未重新绑定，历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-17；最终远端候选 `a78efba`（包含只读预设空权限模式修复、SEC-001 作用域过滤、在途检查上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容、SQLite 参数缓存回归、作用域 ID help，以及 `gofmt` 修复）。真实 Provider 与 CI 已绑定该提交；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能与常规测试基础较完整，当前代码审查候选的本地测试已通过；OpenAI-compatible 真实 Provider 连续 3 次已在前一候选通过，但尚未重新绑定新增 SEC-001 代码。推送后的 GitHub Actions 全量门禁已通过前一候选；不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
+**结论：核心功能、常规测试、最终候选 CI 和 OpenAI-compatible 真实 Provider 连续 3 次均已通过；不同协议 Provider 的当前候选连续 3 次证据仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
 ## 当前能力与缺口
 
@@ -22,7 +22,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、前一候选真实 Provider 记录 | B02/B03/B04/B06 已修复；`66c57fd` 已完成 OpenAI-compatible 连续 3 次真实通过和全量 CI，当前 `be737c0` 因新增权限缓存/审计边界、旧规则兼容和 help 需重新绑定，B05 仍缺不同协议/入口证据；该候选尚未推送 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、最终候选真实 Provider 记录 | B02/B03/B04/B06 已修复；最终候选 `a78efba` 的 CI run `35188993611` 与 OpenAI-compatible 连续 3 次真实 Provider runs `35189820351`/`35189839503`/`35189879941` 均通过，B05 仍缺不同协议/入口证据 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此
@@ -153,3 +153,20 @@ Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 
 
 该 run 证明 `150e77e` 代码与本轮文档收口在远端可构建、可测试并可打包；它不产生真实 Provider
 证据。OpenAI-compatible 与不同协议的连续 3 次真实运行仍需在当前候选上重新绑定和补齐。
+
+## 2026-09-17 最终候选 CI 与真实 Provider 回填
+
+推送后的最终候选为 `a78efba5eabbc9a7391986c86e8b234593bf862c`。该提交只在
+`763a845` 基础上修复 `cmd/basework/permission.go` 的 `gofmt` 缩进；首个 CI run
+`35188263404` 因该格式问题失败，其他平台测试已通过。修复后 [CI run
+35188993611](https://github.com/wly2lcl/basework/actions/runs/35188993611) 全绿，Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
+
+在同一最终候选上使用 `provider=openai`、端点 `https://newapi.doubb.top/v1`、模型
+`agnes-2.5-flash` 连续运行 3 次：[35189820351](https://github.com/wly2lcl/basework/actions/runs/35189820351)、
+[35189839503](https://github.com/wly2lcl/basework/actions/runs/35189839503)、
+[35189879941](https://github.com/wly2lcl/basework/actions/runs/35189879941)。三次均成功，
+`agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立
+`go test -count=1 -run ^TestAdd$ ./...` 退出码为 0；脱敏 JSON 已保存到 SHIP-001 证据目录。
+
+当前仍未完成的是不同协议 Provider 的当前候选连续 3 次验证，以及依赖其完成的 SHIP-002、
+SHIP-003；不能用 OpenAI-compatible 结果替代不同协议证据。

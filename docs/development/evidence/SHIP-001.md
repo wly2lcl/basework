@@ -319,3 +319,23 @@ Provider 结果均绑定 `3ad67a7`，不能自动延伸到 `8394227`；需先将
 真实 Provider 核心 Agent API，不冒充 CLI/TUI 或不同协议结果。
 
 **当前结论：OpenAI-compatible 子门禁已绑定 SEC-001 前候选；`be737c0` 新增权限缓存/审计边界、旧规则兼容和 help 后需重新绑定，SHIP-001 仍等待不同协议连续 3 次当前候选证据。**
+
+## 2026-09-17 最终候选 OpenAI-compatible 连续验收
+
+最终候选为 `a78efba5eabbc9a7391986c86e8b234593bf862c`，相对 `763a845` 仅增加 `gofmt`
+格式修复。使用 `provider=openai`、端点 `https://newapi.doubb.top/v1`、模型
+`agnes-2.5-flash`，密钥只由 `BASEWORK_REAL_API_KEY` secret 注入。
+
+| 次序 | Workflow run | Agent | 验证 | 测试实际执行 | 实现已修改 | 独立测试退出码 | 结果文件 |
+|---:|---:|---|---|---|---|---:|---|
+| 1 | [35189820351](https://github.com/wly2lcl/basework/actions/runs/35189820351) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-17-run-35189820351.json) |
+| 2 | [35189839503](https://github.com/wly2lcl/basework/actions/runs/35189839503) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-17-run-35189839503.json) |
+| 3 | [35189879941](https://github.com/wly2lcl/basework/actions/runs/35189879941) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-17-run-35189879941.json) |
+
+三次 artifact 均为 `basework.real-provider.v1`，`agent_ok=true`、`validation_ok=true`、
+`tests_executed=true`、`file_changed=true`，独立 `go test -count=1 -run ^TestAdd$ ./...`
+退出码为 0；只保存脱敏摘要、工具状态和哈希，未发现 API key。三次构成最终候选同一入口
+的连续可信通过，覆盖真实 Provider 核心 Agent API。
+
+这组结果仍不覆盖不同协议、CLI/TUI 入口或真人 TUI 手感；任务状态继续由 [TASKS](../../TASKS.md)
+维护，SHIP-001 仍等待不同协议 Provider 连续 3 次当前候选证据。

@@ -74,11 +74,11 @@
 
 ## 2026-09-17 当前候选进度
 
-- `be737c0` 是当前代码审查候选；在 `150e77e` 补齐 readonly 预设空权限模式安全回退的基础上，新增 SEC-001 权限作用域上下文过滤、SQLite 审计项目归属、CLI 作用域关联校验，以及在途检查的上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容和作用域 ID help，并完成 SQLite 参数缓存回归与运行时文档收口。
+- `be737c0` 是最近的代码审查候选；在 `150e77e` 补齐 readonly 预设空权限模式安全回退的基础上，新增 SEC-001 权限作用域上下文过滤、SQLite 审计项目归属、CLI 作用域关联校验，以及在途检查的上下文快照、精确参数缓存匹配、审计归属、旧自动规则兼容和作用域 ID help，并完成 SQLite 参数缓存回归与运行时文档收口。
 - 本地默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs` 和 `git diff --check` 已通过。
-- `be737c0` 尚未推送，因此没有把前一候选的 CI 或真实 Provider 结果延伸到本地新候选；推送后必须重新生成对应 CI 和 Provider 证据。
-- 推送后的远端提交 `8280bda` CI run `35176770398` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过；代码行为以 `150e77e` 为候选，该 run 不产生真实 Provider 证据。
-- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 已在前一远端候选 `66c57fd` 连续 3 次可信通过（runs `35178297077`、`35178409921`、`35178503811`）；3 份最新脱敏 artifact 已纳入 `docs/development/evidence/`，旧候选失败/重试样本继续保留。`be737c0` 新增权限缓存、审计边界、旧自动规则兼容和 help 后需重新绑定，入口为真实核心 Agent API。
+- 最终远端候选为 `a78efba`：`763a845` 推送后只追加一处 `gofmt` 格式修复，解决 Quality 门禁发现的帮助文本缩进问题。默认与 `sqlite memory` 全量测试、jobs/LSP 定向回归、race 压力、`make check-docs`、`git diff --check` 和 `gofmt` 均通过。
+- 最终候选的 GitHub Actions CI run `35188993611` 已全绿：Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均通过。
+- OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 在最终候选 `a78efba` 连续 3 次可信通过（runs `35189820351`、`35189839503`、`35189879941`）；三份脱敏 artifact 已纳入 `docs/development/evidence/`，每次均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。旧候选失败/重试样本继续保留。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 当前任务表仍保持 `SHIP-001=进行中`、`QA-001=进行中`、`SHIP-002/SHIP-003=待验证`。唯一明确的外部验收缺口是不同协议 Provider 的当前候选连续 3 次结果；需要用户提供协议、端点、模型并授权后执行。
 - SEC-001 已接入 Checker、SQLite、缓存、迁移、运行时会话/工作区上下文和审计项目字段；实现验证见 [SEC-001](development/evidence/SEC-001.md)，因 QA-001 前置依赖未收口而保持待验证，不改变当前发布候选的 Provider/CI 门禁结论。
