@@ -49,19 +49,23 @@ gh secret set BASEWORK_REAL_API_KEY --repo wly2lcl/basework
 ```
 
 然后按实际端点手动触发工作流；`provider`、`base_url` 和 `model` 必须与这次验收使用的
-协议入口和模型一致。每种协议在同一候选 commit 上至少连续运行 3 次；表格还要标明
+协议入口和模型一致。`repetitions=3` 会在同一 workflow、同一候选 commit 和同一组参数下
+顺序运行三次，并为每次运行保存独立脱敏 JSON；`repetitions=1` 只适合单次探针。每种协议
+在同一候选 commit 上至少连续运行 3 次；表格还要标明
 核心 API、CLI 或 TUI 入口，不能把核心 API 结果写成 CLI/TUI 结果：
 
 ```bash
 gh workflow run real-provider.yml --repo wly2lcl/basework \
   -f provider=openai \
   -f base_url=https://gateway.example.com/v1 \
-  -f model=gpt-4o
+  -f model=gpt-4o \
+  -f repetitions=3
 ```
 
 触发后可用 `gh run list --repo wly2lcl/basework --workflow real-provider.yml` 找到运行，
-下载其中的 `real-provider-result-<run_id>` artifact，并将脱敏 JSON 与候选 commit、日期、
-协议入口和重试次数一起回填到 SHIP-001/QA-001。结果中的 `validation_ok=true`、
+下载其中的 `real-provider-result-<run_id>` artifact，其中包含每次重复的独立 JSON；并将脱敏
+JSON 与候选 commit、日期、协议入口和重复次数一起回填到 SHIP-001/QA-001。结果中的
+`validation_ok=true`、
 `tests_executed=true`、`file_changed=true`、`independent_test_exit_code=0` 和测试哈希
 共同构成可信通过条件；只看 Agent 成功或退出码 0 不足以通过。若 secret、端点或模型
 缺失，工作流必须保持失败，不能用脚本化 Provider 结果替代真实请求。
