@@ -1,6 +1,6 @@
 # 当前实现状态
 
-核对日期：2026-09-18；当前 `main` 头为文档提交 `0ab9700`，当前可执行候选（含 MCP 修复与真实 Provider runner 修复）为 `a5126c8`，其主 CI 回验见 [35202387330](https://github.com/wly2lcl/basework/actions/runs/35202387330)，已全绿；`0ddb0ac` 和 `0ab9700` 只回填/澄清文档，最新文档 CI [35205194272](https://github.com/wly2lcl/basework/actions/runs/35205194272) 也已全绿。`a78efba` 是此前生产行为候选，三份真实 Provider 结果仍绑定该旧候选，不能延伸到 `a5126c8`；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-18；当前 `main` 头为文档提交 `0fd6101`，当前可执行候选（含 MCP 修复与真实 Provider runner 修复）为 `a5126c8`，其主 CI 回验见 [35202387330](https://github.com/wly2lcl/basework/actions/runs/35202387330)，已全绿；`0ddb0ac`、`0ab9700` 和 `0fd6101` 只回填/澄清文档，最新文档 CI [35294261264](https://github.com/wly2lcl/basework/actions/runs/35294261264) 也已全绿。`a78efba` 是此前生产行为候选，三份真实 Provider 结果仍绑定该旧候选，不能延伸到 `a5126c8`；历史发布候选 `2a86886` 及更早记录继续保留。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能、常规测试和当前 runner 的最终 CI 均已通过；OpenAI-compatible 真实 Provider 连续 3 次结果仍绑定旧产品候选，尚未在当前 runner 重绑；不同协议 Provider 的当前候选连续 3 次证据也仍缺失，因此 SHIP-001/QA-001/SHIP-002/SHIP-003 仍不能整体标记完成。** 本次确认并修复运行关闭竞态、真实模型验收假阳性、秘密进入结果和独立验证超时/CI 覆盖缺口，并完成 JSONL 长会话追加优化。详见 [2026-09-16 复审报告](development/evidence/REVIEW-2026-09-16.md)；历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。真人主观 TUI 手感仍单独记录，不是自动化回验结论。
 
@@ -243,7 +243,7 @@ fragment 回归测试。定向、默认/SQLite 全量与相关 race 已通过；
 普通沙箱首次运行因禁止绑定本地临时端口而失败；提升权限重跑后，OAuth、pprof、webfetch、
 Provider runner 等端口测试均通过，该环境限制不计为产品失败。
 
-同一文档头 `0ab9700` 的 [主 CI 35205194272](https://github.com/wly2lcl/basework/actions/runs/35205194272)
+文档提交 `0fd6101` 的 [主 CI 35294261264](https://github.com/wly2lcl/basework/actions/runs/35294261264)
 已全绿，覆盖 Quality、五个平台源码测试、五个平台发布归档 Smoke、Docker Smoke 与 Release Dry Run。
 这些结果关闭本地/CI 门禁回归，但不产生真实 Provider 请求；任务看板仍为 `29/34`，SHIP-001 与
 QA-001 继续等待当前 runner 的 OpenAI-compatible 重绑及不同协议连续 3 次证据。
