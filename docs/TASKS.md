@@ -55,11 +55,11 @@
 | UI-001 | M7 | [工具与后台任务状态卡片](tasks/07-terminal.md#ui-001) | 完成 | RUN-003 | Codex | [记录](development/evidence/UI-001.md) |
 | UI-002 | M7 | [权限与编辑确认体验](tasks/07-terminal.md#ui-002) | 完成 | UI-001, EDIT-003 | Codex | [记录](development/evidence/UI-002.md) |
 | UI-003 | M7 | [会话切换与可恢复进度](tasks/07-terminal.md#ui-003) | 完成 | UI-002, CTX-003 | Codex | [记录](development/evidence/UI-003.md) |
-| SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 进行中 | REL-003, CTX-003, QA-001 | Codex / 复审重开 | [记录](development/evidence/SHIP-001.md) |
+| SHIP-001 | M8 | [固定编码场景回归集](tasks/08-release.md#ship-001) | 完成 | REL-003, CTX-003, QA-001 | Codex / 2026-09-18 Agnes 双协议验收 | [记录](development/evidence/SHIP-001.md) |
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 待验证 | SHIP-001, UI-003, CFG-002 | Codex / 依赖回验 | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 待验证 | SHIP-002, QA-001 | Codex / 依赖回验 | [记录](development/evidence/SHIP-003.md) |
-| QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 进行中 | BASE-001, UI-003 | Codex / 复审重开 | [记录](development/evidence/QA-001.md) |
-| SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 待验证 | QA-001 | Codex / 当前会话 | [记录](development/evidence/SEC-001.md) |
+| QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 完成 | BASE-001, UI-003 | Codex / 2026-09-18 Agnes 双协议验收 | [记录](development/evidence/QA-001.md) |
+| SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 完成 | QA-001 | Codex / 当前候选回验 | [记录](development/evidence/SEC-001.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |

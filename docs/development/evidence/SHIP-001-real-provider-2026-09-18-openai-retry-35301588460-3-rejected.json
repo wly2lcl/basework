@@ -1,0 +1,63 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "openai",
+  "model": "agnes-3.0-flash",
+  "endpoint_origin": "https://apihub.agnes-ai.com/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-18T03:02:35Z",
+  "elapsed_ms": 174626,
+  "agent_ok": true,
+  "validation_ok": false,
+  "final_text_sha256": "dcd62a15f9b0a0ef13ed309de858ec50f7b4574933ec6fef3addf2b0c317eee5",
+  "tool_calls": [
+    {
+      "name": "glob",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": false,
+      "error": "命令执行失败 (退出码 -1):\n/home/runner/work/basework/basework/tests/real_provider/fixtures/fixbug/calc.go\n/home/runner/work/basework/basework/tests/tui_pty/fixtures/fixbug/calc.go\n/tmp/basework-real-provider-trusted-2778509049/calc…"
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "edit",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    }
+  ],
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": true,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "77a6df4287d28b82e2cff3573a9db1e50b890903cd487113db4feaa55dc71170"
+  },
+  "independent_test_exit_code": 0,
+  "independent_test_output_tail": "ok  \tbasework-real-provider-fixture\t0.002s\n",
+  "file_changed": false
+}

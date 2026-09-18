@@ -350,3 +350,52 @@ HOME 缺少 Go build cache，已改为显式使用隔离 HOME 下的 GOCACHE/GOM
 [CI run 35196510402](https://github.com/wly2lcl/basework/actions/runs/35196510402) 已全绿，
 覆盖 Windows 源码测试、五平台发布归档 Smoke、Docker Smoke 和 Release Dry Run；需在当前
 runner 候选重新执行三次后才能更新当前候选矩阵。不同协议仍需连续 3 次真实结果。
+
+## 2026-09-18 Agnes 3.0 Flash 当前候选双协议验收
+
+当前代码候选为 `3e5533df15ea90061a2e290b7598727ac0adfb7e`。本候选包含验收 runner 将
+Agent 的临时 HOME、Go 缓存和工具生成物移到工作区外的修复；模型执行 `go test` 产生的缓存
+不会再被误判为越界文件。密钥仅从 `AGNES_API_KEY` Actions secret 注入，仓库未保存密钥、
+完整模型输出或临时工作目录。
+
+Agnes 官方文档列出 Chat Completions、Responses 和 Anthropic Messages 三种入口；当前项目
+已有的两个 provider 实现分别覆盖 Chat Completions 与 Messages。本轮在同一候选、同一固定
+`fixbug` 夹具和同一提示词上，使用 Chat Completions 与 Anthropic Messages 各连续运行 3 次。
+Responses API 尚未接入本项目的 `llm.Model` provider，因此没有把它冒充为已验收协议。
+
+### OpenAI-compatible Chat Completions
+
+参数为 `provider=openai`、端点 `https://apihub.agnes-ai.com/v1`、模型
+`agnes-3.0-flash`；入口是核心 Agent API，独立验证命令为
+`go test -count=1 -run ^TestAdd$ ./...`。
+
+| 次序 | Workflow run | Agent | 验证 | 测试实际执行 | 实现已修改 | 独立测试退出码 | 结果文件 |
+|---:|---:|---|---|---|---|---:|---|
+| 1 | [35302069294](https://github.com/wly2lcl/basework/actions/runs/35302069294) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-openai-run-35302069294-1.json) |
+| 2 | [35302069294](https://github.com/wly2lcl/basework/actions/runs/35302069294) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-openai-run-35302069294-2.json) |
+| 3 | [35302069294](https://github.com/wly2lcl/basework/actions/runs/35302069294) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-openai-run-35302069294-3.json) |
+
+三份结果均为 `basework.real-provider.v1`，并满足 `agent_ok=true`、`validation_ok=true`、
+`tests_executed=true`、`file_changed=true`、独立测试退出码 0。测试文件哈希均为
+`4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9`；结果只保留脱敏摘要、
+工具状态和哈希。
+
+### Anthropic Messages
+
+参数为 `provider=anthropic`、端点 `https://apihub.agnes-ai.com`（runner 追加
+`/v1/messages`）、模型 `agnes-3.0-flash`；入口同为核心 Agent API。
+
+| 次序 | Workflow run | Agent | 验证 | 测试实际执行 | 实现已修改 | 独立测试退出码 | 结果文件 |
+|---:|---:|---|---|---|---|---:|---|
+| 1 | [35302381433](https://github.com/wly2lcl/basework/actions/runs/35302381433) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-anthropic-run-35302381433-1.json) |
+| 2 | [35302381433](https://github.com/wly2lcl/basework/actions/runs/35302381433) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-anthropic-run-35302381433-2.json) |
+| 3 | [35302381433](https://github.com/wly2lcl/basework/actions/runs/35302381433) | ✅ | ✅ | ✅ | ✅ | 0 | [`json`](SHIP-001-real-provider-2026-09-18-anthropic-run-35302381433-3.json) |
+
+三份结果同样满足全部可信门禁，测试文件哈希一致，未发现 API key。上述两组分别构成
+同一候选、同一入口、同一协议的连续 3 次可信通过；失败样本也已归档：第一次候选运行
+[35300964169](https://github.com/wly2lcl/basework/actions/runs/35300964169) 的端点超时，
+重试 [35301588460](https://github.com/wly2lcl/basework/actions/runs/35301588460) 的第 3 次
+因 `file_changed=false` 被门禁拒绝。失败 JSON 保留在本目录，不能计入通过次数。
+
+**当前结论：SHIP-001 的当前候选双协议连续验收完成。** 证据覆盖核心 Agent API；不把它
+扩展为 CLI/TUI 或真人 TUI 体验结论，发布任务仍按 SHIP-002/SHIP-003 的独立边界审查。
