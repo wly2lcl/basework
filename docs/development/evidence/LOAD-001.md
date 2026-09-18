@@ -1,7 +1,7 @@
 # LOAD-001：真实负载与稳定性验证
 
 **日期**：2026-09-18  
-**代码提交**：`1e773b4`  
+**代码提交**：`3c0322e`
 **Provider**：`agnes-responses`  
 **模型**：`agnes-3.0-flash`  
 **端点**：`https://apihub.agnes-ai.com/v1`  
@@ -25,7 +25,7 @@
 
 ## 变更
 
-真实负载先发现了两个可复现问题，均已在 `1e773b4` 修复并有回归测试：
+真实负载先发现了两个可复现问题，均已在 `3c0322e` 修复并有回归测试：
 
 1. 空 stdout 的工具结果会生成空 `function_call_output`，Agnes 返回 400；现在发送明确的 `(no output)` 占位文本。
 2. Responses 流式请求原先没有重试 429/5xx；现在复用指数退避和 `Retry-After`，流式路径最多 6 次尝试，并受调用 context 限制。

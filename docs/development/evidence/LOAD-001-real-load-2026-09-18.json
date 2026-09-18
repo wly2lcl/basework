@@ -1,7 +1,7 @@
 {
   "schema": "basework.real-load.v1",
   "date": "2026-09-18",
-  "commit": "1e773b4",
+  "commit": "3c0322e",
   "provider": "agnes-responses",
   "model": "agnes-3.0-flash",
   "endpoint_origin": "https://apihub.agnes-ai.com/v1",
