@@ -1,7 +1,7 @@
-# SHIP-002 验证记录：跨平台安装与升级验证（历史记录；上轮验收记录（本次复审已回退））
+# SHIP-002 验证记录：跨平台安装与升级验证（含历史记录；当前结论见最新日期段）
 > **2026-09-16 再复审：下文完成结论均为历史记录。** 前置任务回退；本任务既有实现和局部证据保留，等待依赖修复后回验，不要求重写模块。 当前状态仅见 [TASKS](../../TASKS.md)，依据见 [本次复审](REVIEW-2026-09-16.md)。
 
-> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。早期“完成”只描述历史快照；当前候选、镜像和平台结果见文末日期段。状态不在本证据文件重复维护。
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**完成**。文中早期“待验证”只描述当时的历史快照；当前候选、镜像和平台结果见文末日期段。状态不在本证据文件重复维护。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-002) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -451,7 +451,7 @@ Provider 运行绑定的 `dd08592` 相同；不同协议 Provider 仍是上游 S
 
 ## 2026-09-18 当前候选发布门禁回验
 
-当前候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [GitHub Actions run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试/构建、五平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均完成；run 中的归档 Smoke 在对应 runner 解包并运行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源 JSONL 哈希保持和 v99 未来版本拒绝。
+可执行发布候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [GitHub Actions run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试/构建、五平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均完成；run 中的归档 Smoke 在对应 runner 解包并运行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源 JSONL 哈希保持和 v99 未来版本拒绝。随后仅追加文档的 `1390773` 在 [CI run 35304635163](https://github.com/wly2lcl/basework/actions/runs/35304635163) 全绿。
 
 五个平台的 runner 实测归档 SHA-256（来自各 runner 的 `sha256sum`/PowerShell `Get-FileHash` 输出）如下：
 

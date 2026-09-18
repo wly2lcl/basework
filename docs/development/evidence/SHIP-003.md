@@ -1,7 +1,7 @@
-# SHIP-003 验证记录：候选版本验收与文档收口（历史自动化验收记录；上轮验收记录（本次复审已回退））
+# SHIP-003 验证记录：候选版本验收与文档收口（含历史自动化验收记录；当前结论见最新日期段）
 > **2026-09-16 再复审：下文完成结论均为历史记录。** 前置任务回退；本任务既有实现和局部证据保留，等待依赖修复后回验，不要求重写模块。 当前状态仅见 [TASKS](../../TASKS.md)，依据见 [本次复审](REVIEW-2026-09-16.md)。
 
-> 当前状态以 [任务看板](../../TASKS.md) 为准：**待验证**。历史记录中的“完成”只表示当时快照的自动化检查；当前候选与外部门禁结果见文末日期段。状态不在本证据文件重复维护。
+> 当前状态以 [任务看板](../../TASKS.md) 为准：**完成**。历史记录中的“待验证”只表示当时快照的外部门禁缺口；当前候选与外部门禁结果见文末日期段。状态不在本证据文件重复维护。
 
 > **2026-09-14 复审说明**：以下为历史实施记录，不能继续单独支撑当前验收。新发现或依赖回退涉及 A13、A14；详见 [本轮复审报告](REVIEW-2026-09-14.md) 与 [任务卡](../../tasks/08-release.md#ship-003) 的复审补充。实际状态只维护在 [TASKS](../../TASKS.md)。旧结论保留用于追溯，本轮未修业务代码。
 
@@ -334,7 +334,7 @@ QA-001 的整体状态因此未完成。自动化 PTY 与历史五平台发布�
 
 ## 2026-09-18 当前候选最终验收
 
-当前候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试、五平台发布归档 Smoke、Docker 双架构 Smoke 和 GoReleaser dry-run 均通过；归档 Smoke 在五个对应 runner 上执行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源文件哈希保持和 v99 拒绝验证。PTY/race 质量门禁也通过，未发现未说明的 P0/P1 发布阻断项。
+可执行发布候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试、五平台发布归档 Smoke、Docker 双架构 Smoke 和 GoReleaser dry-run 均通过；归档 Smoke 在五个对应 runner 上执行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源文件哈希保持和 v99 拒绝验证。PTY/race 质量门禁也通过，未发现未说明的 P0/P1 发布阻断项。随后仅追加文档的 `1390773` 在 [CI run 35304635163](https://github.com/wly2lcl/basework/actions/runs/35304635163) 全绿。
 
 真实 Provider 证据已在 [SHIP-001](SHIP-001.md#2026-09-18-agnes-30-flash-当前候选双协议验收) 与 [QA-001](QA-001.md#2026-09-18-当前候选双协议真实-provider-收口) 留档：Agnes `agnes-3.0-flash` 的 OpenAI Chat Completions 与 Anthropic Messages 各连续 3 次成功，六份结果均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。Responses API 尚未接入 `llm.Model`，因此不纳入本次支持声明。
 

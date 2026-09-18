@@ -89,6 +89,6 @@
 - OpenAI-compatible 真实 Provider 使用 `agnes-2.5-flash` 在产品候选 `a78efba` 连续 3 次可信通过（runs `35189820351`、`35189839503`、`35189879941`）；三份脱敏 artifact 已纳入 `docs/development/evidence/`，每次均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。因 `09fd055` 更新验收 runner，需在当前 runner 候选重新执行后再作为最终证据。
 - 推送提交 `ea8a53c` 后的 GitHub Actions run `35170954145` attempt 2 全绿；attempt 1 的 macOS Intel 归档步骤因 `proxy.golang.org` DNS 超时失败，重跑后五平台测试/构建、归档 Smoke、Docker Smoke、Release Dry Run 和 Quality 均通过。
 - 上述状态是 2026-09-17 的历史复审快照；当前状态以任务表为准。2026-09-18 已补齐 Agnes 双协议真实 Provider、五平台发布包、Docker、dry-run 和质量门禁证据。
-- SEC-001 已接入 Checker、SQLite、缓存、迁移、运行时会话/工作区上下文和审计项目字段；实现验证见 [SEC-001](development/evidence/SEC-001.md)，因 QA-001 前置依赖未收口而保持待验证，不改变当前发布候选的 Provider/CI 门禁结论。
+- SEC-001 已接入 Checker、SQLite、缓存、迁移、运行时会话/工作区上下文和审计项目字段；实现验证见 [SEC-001](development/evidence/SEC-001.md)，QA-001 已收口，当前任务状态为完成。
 
 旧 Phase 对应关系见 [路线图](ROADMAP.md)，历史清单见 [归档](archive/README.md)。

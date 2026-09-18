@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步到 `95bb258`。本次复核以 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 为当前候选门禁基线，已全绿；真实 Provider 双协议证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步到文档提交 `1390773`。可执行发布候选为 `95bb258`，其 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；文档提交后的 [CI run 35304635163](https://github.com/wly2lcl/basework/actions/runs/35304635163) 也全绿。真实 Provider 双协议证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能、常规测试、Agnes 双协议真实 Provider、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真实 Provider 结果绑定验收 runner 代码候选 `3e5533d`，当前 `95bb258` 只追加文档、生成统计和跨平台超时 fixture 修复，未改变 Provider runner。真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
+**结论：核心功能、常规测试、Agnes 双协议真实 Provider、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真实 Provider 结果绑定验收 runner 代码候选 `3e5533d`，`95bb258` 是可执行发布候选，`1390773` 只追加文档证据，未改变 Provider runner 或发布产物。真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
 
 ## 当前能力与缺口
 
@@ -256,6 +256,6 @@ QA-001 继续等待当前 runner 的 OpenAI-compatible 重绑及不同协议连�
 
 当前候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿：Quality（格式、默认测试、vet、架构、文档生成物、race、Unix PTY 与 OPT-001）、Ubuntu amd64/arm64、macOS arm64/amd64、Windows amd64 源码测试与构建、五平台发布归档 Smoke、Docker amd64/arm64 Smoke、GoReleaser dry-run 均通过。
 
-本候选修复了 Windows 超时 fixture 的临时目录句柄竞态；测试改为直接长睡眠，避免依赖 Unix `sh` 子进程，同时保留 `independentTest` 的取消、超时和输出上限断言。`make gen` 已同步统计生成物。SHIP-002 与 SHIP-003 的当前候选证据分别见 [证据记录](development/evidence/SHIP-002.md#2026-09-18-当前候选发布门禁回验) 和 [候选验收](development/evidence/SHIP-003.md#2026-09-18-当前候选最终验收)。
+本候选修复了 Windows 超时 fixture 的临时目录句柄竞态；测试改为直接长睡眠，避免依赖 Unix `sh` 子进程，同时保留 `independentTest` 的取消、超时和输出上限断言。`make gen` 已同步统计生成物。SHIP-002 与 SHIP-003 的当前候选证据分别见 [证据记录](development/evidence/SHIP-002.md#2026-09-18-当前候选发布门禁回验) 和 [候选验收](development/evidence/SHIP-003.md#2026-09-18-当前候选最终验收)；文档提交 `1390773` 的全量复验见 [CI run 35304635163](https://github.com/wly2lcl/basework/actions/runs/35304635163)。
 
 任务看板当前为 `34/34` 完成。真实 Provider 仍明确限定为 Agnes `agnes-3.0-flash` 的 OpenAI Chat Completions 与 Anthropic Messages 两种协议，各连续 3 次成功；官方 Responses 端点尚未接入项目适配器，因此不宣称支持。没有创建 tag 或执行发布，真人主观 TUI 体验也仍未评价。
