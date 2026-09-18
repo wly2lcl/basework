@@ -81,7 +81,15 @@ func (m *responsesModel) Stream(ctx context.Context, req *llm.Request) (<-chan l
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+m.apiKey)
 	httpReq.Header.Set("Accept", "text/event-stream")
-	resp, err := m.client.Do(httpReq)
+	// Streaming requests are subject to the same transient 429/5xx and
+	// transport failures as non-streaming requests. Recreate the body for each
+	// attempt so a retry never sends an already-consumed request body.
+	// A real Agent turn can issue several streaming requests in a short burst
+	// (one per tool round). Give 429s a longer recovery window than the small
+	// non-streaming request budget, while still respecting the caller context.
+	resp, err := doWithRetry(ctx, m.client, httpReq, maxRetries+2, func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(jsonBody)), nil
+	})
 	if err != nil {
 		return nil, &llm.Error{Type: llm.ErrorTypeNetwork, Message: fmt.Sprintf("request failed: %v", err)}
 	}
@@ -127,10 +135,18 @@ func toResponsesInput(msgs []llm.ChatMessage) []map[string]any {
 	for _, msg := range msgs {
 		switch msg.Role {
 		case llm.RoleTool:
+			output := joinContentText(msg.Content)
+			// Agnes rejects an empty function_call_output even though an empty
+			// tool result is valid in the internal message model (for example,
+			// a successful command with no stdout). Keep the request shape
+			// valid while preserving the fact that the tool produced no text.
+			if output == "" {
+				output = "(no output)"
+			}
 			result = append(result, map[string]any{
 				"type":    "function_call_output",
 				"call_id": msg.ToolCallID,
-				"output":  joinContentText(msg.Content),
+				"output":  output,
 			})
 		case llm.RoleAssistant:
 			if text := joinContentText(msg.Content); text != "" {

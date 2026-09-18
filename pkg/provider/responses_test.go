@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/wly2lcl/basework/pkg/llm"
@@ -50,6 +52,20 @@ func TestResponsesRequestTranslation(t *testing.T) {
 	tools := body["tools"].([]map[string]any)
 	if tools[0]["type"] != "function" || tools[0]["name"] != "read" {
 		t.Fatalf("Responses tool shape is wrong: %#v", tools[0])
+	}
+}
+
+func TestResponsesRequestTranslationUsesPlaceholderForEmptyToolOutput(t *testing.T) {
+	body := buildResponsesRequest(&llm.Request{Messages: []llm.ChatMessage{
+		{Role: llm.RoleAssistant, ToolCalls: []llm.ToolCall{{ID: "call_empty", Name: "bash", ArgsJSON: `{}`}}},
+		{Role: llm.RoleTool, ToolCallID: "call_empty"},
+	}}, false, "agnes-3.0-flash")
+	input, ok := body["input"].([]map[string]any)
+	if !ok || len(input) != 2 {
+		t.Fatalf("translated input = %#v", body["input"])
+	}
+	if got := input[1]["output"]; got != "(no output)" {
+		t.Fatalf("empty tool output = %#v, want placeholder", got)
 	}
 }
 
@@ -147,6 +163,42 @@ func TestResponsesStream(t *testing.T) {
 	}
 	if deltas[0].ID != "call_1" || deltas[0].Name != "read" || usage == nil || usage.TotalTokens != 5 || !done {
 		t.Fatalf("stream metadata: deltas=%#v usage=%#v done=%v", deltas, usage, done)
+	}
+}
+
+func TestResponsesStreamRetriesRateLimit(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) < 2 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"error":{"message":"rate limited"}}`))
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n\n")
+		_, _ = fmt.Fprint(w, "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[]}}\n\n")
+	}))
+	defer server.Close()
+	model, err := newResponses(server.URL+"/v1", "key", "model", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, err := model.Stream(context.Background(), &llm.Request{Messages: []llm.ChatMessage{{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: "hi"}}}}})
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	var text string
+	for event := range stream {
+		if event.Error != nil {
+			t.Fatalf("stream event error after retry: %v", event.Error)
+		}
+		if event.Type == llm.StreamEventText {
+			text += event.Delta
+		}
+	}
+	if text != "ok" || requests.Load() != 2 {
+		t.Fatalf("retry result text=%q requests=%d", text, requests.Load())
 	}
 }
 
