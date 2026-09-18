@@ -2,7 +2,9 @@
 
 核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步，Responses 接入正在形成新的代码候选。原可执行发布候选 `95bb258` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；Responses 适配器的本地回归、真实 Agnes 单次闭环和文档证据见 [RESP-001](development/evidence/RESP-001.md)。真实 Provider 双协议历史证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
+**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真人主观 TUI 手感仍单独记录，尚未评价。
+
+2026-09-18 的 `LOAD-001` 在合成夹具上完成 5 次连续和 3 路并发真实 Agnes Agent 闭环，全部通过；4 路并发出现账号/渠道 `429`，已作为外部容量边界记录，不能推广为 4 路稳定承诺。真实负载还发现并修复了空 `function_call_output` 的 400，以及流式请求缺少 429/5xx 重试的问题；修复提交为 `1e773b4`，证据见 [LOAD-001](development/evidence/LOAD-001.md)。该提交需要完成远端 CI 后再作为新的发布候选；当前已发布的 `v0.1.5` 不包含这两个修复。
 
 ## 当前能力与缺口
 

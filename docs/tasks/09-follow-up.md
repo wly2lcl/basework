@@ -34,6 +34,25 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 **范围外**：不实现服务端 `previous_response_id` 会话、不把固定夹具三次成功解释为所有请求的稳定成功率，
 不在本任务中改造既有 Chat/Anthropic 适配器。
 
+<a id="load-001"></a>
+
+## LOAD-001：真实负载与稳定性验证
+
+**前置任务**：RESP-001。优先级 P1；验证真实 Provider 在连续和并发 Agent 负载下的可用边界，不能把一次成功或脚本化模型结果写成稳定性结论。
+
+**主要修改范围**：`pkg/provider/responses.go`、`pkg/provider/responses_test.go`、真实负载脱敏证据与发布状态文档。
+
+**验收条件**：
+
+- [x] 使用合成夹具执行 5 次连续真实 Agent 闭环，每次独立测试退出码为 0、实现文件确实发生修改。
+- [x] 使用合成夹具执行 3 路并发真实 Agent 闭环，全部通过且无超时或进程残留。
+- [x] 对 4 路并发的 429 结果保留失败证据，明确记录为 Agnes 账号/渠道容量边界，不把失败伪装成通过。
+- [x] 修复空 `function_call_output` 和 Responses 流式 429/5xx 重试，并通过本地协议回归、全量测试和 race 门禁。
+
+**验证与证据**：见 [`LOAD-001`](../development/evidence/LOAD-001.md) 和同目录脱敏 JSON。
+
+**范围外**：不把当前渠道的 3 路并发上限推广为所有账号的服务承诺；更高并发需要 Provider 配额、队列或上层限流方案。真人 TUI 评价仍单独进行。
+
 <a id="qa-001"></a>
 
 ## QA-001：可复跑的产品验收与证据门禁

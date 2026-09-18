@@ -1,0 +1,186 @@
+{
+  "schema": "basework.real-load.v1",
+  "date": "2026-09-18",
+  "commit": "1e773b4",
+  "provider": "agnes-responses",
+  "model": "agnes-3.0-flash",
+  "endpoint_origin": "https://apihub.agnes-ai.com/v1",
+  "fixture": "synthetic-load-fixture",
+  "fixture_sha256": {
+    "calc.go": "d47c060401cb6ad6a2d45661dedefef2ea9ac35fa6686c2a6187afdc9280ad86",
+    "calc_test.go": "a252d2c1a86f73c1c07b394458811f00d839f3808c495c147cb6dca9889c1a57",
+    "go.mod": "ece9d3a4ed891dcc2abaa8ac6e265663bf5c933c5416c4d9bda930e245372718"
+  },
+  "sequential": {
+    "count": 5,
+    "passed": 5,
+    "results": [
+      {
+        "label": "seq-1",
+        "elapsed_s": 30.255,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "label": "seq-2",
+        "elapsed_s": 34.228,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "label": "seq-3",
+        "elapsed_s": 34.848,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 7,
+        "agent_error": ""
+      },
+      {
+        "label": "seq-4",
+        "elapsed_s": 51.366,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "label": "seq-5",
+        "elapsed_s": 18.906,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      }
+    ]
+  },
+  "concurrency_3": {
+    "count": 3,
+    "passed": 3,
+    "results": [
+      {
+        "i": 3,
+        "elapsed_s": 31.116,
+        "code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "i": 1,
+        "elapsed_s": 34.441,
+        "code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "i": 2,
+        "elapsed_s": 41.605,
+        "code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 5,
+        "agent_error": ""
+      }
+    ]
+  },
+  "concurrency_4_probe": {
+    "count": 4,
+    "passed": 2,
+    "results": [
+      {
+        "label": "concurrent-4",
+        "elapsed_s": 36.565,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 6,
+        "agent_error": ""
+      },
+      {
+        "label": "concurrent-3",
+        "elapsed_s": 42.053,
+        "process_code": 0,
+        "agent_ok": true,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 3,
+        "agent_error": ""
+      },
+      {
+        "label": "concurrent-2",
+        "elapsed_s": 44.313,
+        "process_code": 1,
+        "agent_ok": false,
+        "validation_ok": false,
+        "tests_executed": false,
+        "test_exit_code": 1,
+        "file_changed": false,
+        "tool_calls": 5,
+        "agent_error": "[rate_limit] rate limit exceeded (status=429)"
+      },
+      {
+        "label": "concurrent-1",
+        "elapsed_s": 45.796,
+        "process_code": 1,
+        "agent_ok": false,
+        "validation_ok": true,
+        "tests_executed": true,
+        "test_exit_code": 0,
+        "file_changed": true,
+        "tool_calls": 7,
+        "agent_error": "[rate_limit] rate limit exceeded (status=429)"
+      }
+    ],
+    "interpretation": "Agnes account/channel returned HTTP 429 after retries; this is an external capacity boundary, not counted as application success."
+  },
+  "local_quality": {
+    "provider_unit_and_retry_test": "passed",
+    "default_and_sqlite_full_tests": "passed",
+    "vet": "passed",
+    "related_race": "passed",
+    "build": "passed",
+    "docs_check_and_generation": "passed"
+  },
+  "scope": "Synthetic fixture only; this evidence does not claim universal provider success rate or a 4-way capacity guarantee."
+}
