@@ -168,7 +168,11 @@ func run(fixture, output string) error {
 		return fmt.Errorf("create provider: %w", err)
 	}
 	store := session.NewMemoryStore()
-	agentHome := filepath.Join(work, ".basework-home")
+	agentHome, err := os.MkdirTemp("", "basework-real-provider-agent-home-")
+	if err != nil {
+		return fmt.Errorf("create agent home: %w", err)
+	}
+	defer os.RemoveAll(agentHome)
 	if err := prepareSandboxHome(agentHome); err != nil {
 		return fmt.Errorf("create agent home: %w", err)
 	}

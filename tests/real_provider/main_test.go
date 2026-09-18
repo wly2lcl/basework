@@ -145,7 +145,7 @@ func TestAdd(t *testing.T) { if Add(2, 3) != 5 { t.Fatal("bad") } }
 		var delta map[string]any
 		finish := "stop"
 		if requests == 1 {
-			args, _ := json.Marshal(map[string]string{"command": "printf 'package main\\n\\nfunc Add(a, b int) int { return a + b }\\n' > calc.go"})
+			args, _ := json.Marshal(map[string]string{"command": "printf 'package main\\n\\nfunc Add(a, b int) int { return a + b }\\n' > calc.go && go test ./..."})
 			delta = map[string]any{"tool_calls": []any{map[string]any{
 				"index": 0, "id": "call-fix", "type": "function",
 				"function": map[string]any{"name": "bash", "arguments": string(args)},
