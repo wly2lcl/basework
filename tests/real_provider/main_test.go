@@ -199,14 +199,11 @@ func Add(a, b int) int { return a + b }
 `, `package main
 
 import (
- "os/exec"
  "testing"
  "time"
 )
 
 func TestAdd(t *testing.T) {
- child := exec.Command("sh", "-c", "sleep 30")
- if err := child.Start(); err != nil { t.Fatal(err) }
  time.Sleep(30 * time.Second)
 }
 `)
