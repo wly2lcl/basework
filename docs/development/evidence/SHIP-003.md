@@ -331,3 +331,13 @@ attempt 2 全绿；attempt 1 仅因 macOS Intel runner 下载 Go 模块时 DNS �
 当前任务继续保持待验证：不同协议 Provider 的当前候选连续 3 次证据尚未获得，SHIP-001 与
 QA-001 的整体状态因此未完成。自动化 PTY 与历史五平台发布证据保留，但不能替代这项协议
 矩阵；本次证据提交只更新文档、脱敏结果和生成物，不改变真实 Provider 所绑定的代码候选。
+
+## 2026-09-18 当前候选最终验收
+
+当前候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试、五平台发布归档 Smoke、Docker 双架构 Smoke 和 GoReleaser dry-run 均通过；归档 Smoke 在五个对应 runner 上执行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源文件哈希保持和 v99 拒绝验证。PTY/race 质量门禁也通过，未发现未说明的 P0/P1 发布阻断项。
+
+真实 Provider 证据已在 [SHIP-001](SHIP-001.md#2026-09-18-agnes-30-flash-当前候选双协议验收) 与 [QA-001](QA-001.md#2026-09-18-当前候选双协议真实-provider-收口) 留档：Agnes `agnes-3.0-flash` 的 OpenAI Chat Completions 与 Anthropic Messages 各连续 3 次成功，六份结果均为 `agent_ok=true`、`validation_ok=true`、`tests_executed=true`、`file_changed=true`，独立测试退出码为 0。Responses API 尚未接入 `llm.Model`，因此不纳入本次支持声明。
+
+本次文档提交未创建 tag，也未执行发布；自动化 PTY 按用户选择作为终端级产品验收，真人主观 TUI 手感仍明确标为未评价边界。
+
+**当前结论：SHIP-003 完成。**

@@ -432,7 +432,6 @@ Release Dry Run 均通过。首次 macOS runner 因 `pkg/lsp/TestClientConcurren
 | `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `f8628ecd4f358003acc4d482e32e63300c00359c530f88690c16d92e0d384a50` | 解包、version/config/init、迁移/未来版本拒绝通过 |
 
 当前候选发布包证据已与修复 commit 绑定；实际用户设备安装与真人主观体验仍是单独边界。
-
 ## 2026-09-17 当前代码候选 CI 复核
 
 当前代码候选为 `dd08592adce712af73f1b235dfc829352dc31f1d`。其 [CI run
@@ -449,3 +448,23 @@ attempt 1 因 macOS Intel runner 的 `proxy.golang.org` DNS 超时失败，重�
 
 **当前候选 CI/发布辅助门禁：通过。** 该结果绑定证据提交 `ea8a53c`，其可执行代码与真实
 Provider 运行绑定的 `dd08592` 相同；不同协议 Provider 仍是上游 SHIP-001 缺口。
+
+## 2026-09-18 当前候选发布门禁回验
+
+当前候选 `95bb258e94a8cd97c7b603ef0431fe1458948c65` 的 [GitHub Actions run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 已全绿。Quality、五平台源码测试/构建、五平台发布归档 Smoke、Docker Smoke 和 Release Dry Run 均完成；run 中的归档 Smoke 在对应 runner 解包并运行 `version`、`config explain`、`init --yes`、v1→SQLite 迁移、源 JSONL 哈希保持和 v99 未来版本拒绝。
+
+五个平台的 runner 实测归档 SHA-256（来自各 runner 的 `sha256sum`/PowerShell `Get-FileHash` 输出）如下：
+
+| Runner / 实际平台 | 归档 | SHA-256 | 结果 |
+|---|---|---|---|
+| `ubuntu-latest` / linux-amd64 | `basework_Linux_x86_64.tar.gz` | `809a545417e6fa99ca557ffc6449729d68b44b0b392e1eb74b34c88c3d3594d6` | 解包、version/config/init、迁移/未来版本拒绝通过 |
+| `ubuntu-24.04-arm` / linux-arm64 | `basework_Linux_arm64.tar.gz` | `74e7d4212a4487f67cf1f8aa08c00ce3ef88e6deaf4395dc79ef1c4bf7d0517d` | 同上 |
+| `macos-latest` / darwin-arm64 | `basework_Darwin_arm64.tar.gz` | `6825cd46f23e057d9b52de6454c17e7e8cd1f6ad3d979507027d1000ccebda6e` | 同上 |
+| `macos-15-intel` / darwin-amd64 | `basework_Darwin_x86_64.tar.gz` | `ee2a8e8c4b0ee9c872fc08614a2f211ed3e7ccd31551a60f614b522f4939cf72` | 同上 |
+| `windows-latest` / windows-amd64 | `basework_Windows_x86_64.zip` | `50f943c4cb18d7650c191f2b46523b7d38c372382e807d6851320fb180cfed2c` | 同上 |
+
+同一 run 的 Docker Smoke 已使用 Buildx/QEMU 构建并加载 linux/amd64、linux/arm64 单架构镜像，两个架构均运行 `version` 和只读工作区 `facts show`；Release Dry Run 的 GoReleaser `check` 与 `release --snapshot --clean --skip=docker,publish` 通过，快照版本为 `0.1.4-SNAPSHOT-95bb258`，未创建 tag 或发布。
+
+这次回验满足 SHIP-002 的平台产物、安装/升级保护、镜像和 dry-run 门禁。CI runner 证据不等价于每位用户设备的人工安装体验；Homebrew 等未接入渠道仍不在发布声明内。
+
+**当前结论：SHIP-002 完成。**
