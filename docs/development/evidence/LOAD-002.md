@@ -41,7 +41,9 @@ JSONL 验证由 8 个独立进程各追加 128 个事件组成 1,024 个连续�
 ## CI 与夜间任务
 
 - 短门禁已加入主 [CI Build workflow](../../../.github/workflows/build.yml)，在默认全量测试后显式运行 `tests/load`。
-- 10,000 次 soak 已加入 [Project Load Soak workflow](../../../.github/workflows/project-load.yml)，支持手动触发和每日 02:17 UTC 夜间运行；每次上传脱敏 JSON artifact。首次远端运行完成后，将在此补充运行链接和 artifact 名称。
+- 10,000 次 soak 已加入 [Project Load Soak workflow](../../../.github/workflows/project-load.yml)，支持手动触发和每日 02:17 UTC 夜间运行；每次上传脱敏 JSON artifact。
+
+本提交的远端确认：主 [CI run 35328231049](https://github.com/wly2lcl/basework/actions/runs/35328231049) 全部 Quality、五平台测试、发布归档 Smoke、Docker Smoke、Release Dry Run 通过；[Project Load Soak run 35328300626](https://github.com/wly2lcl/basework/actions/runs/35328300626) 通过，artifact 名称为 `basework-load-002-35328300626`。远端 Go 1.26.8 / Linux amd64 的 10,000 次 soak 为 10,000/10,000，耗时 552.212 秒，吞吐 18.109 req/s，p50 56.653 ms、p95 97.739 ms、p99 108.553 ms、最大 501.273 ms，失败分类为空，goroutine 3→3、FD 9→9、JSONL 0→14,279,315 bytes，`within_bounds=true`。
 
 ## 验收边界
 

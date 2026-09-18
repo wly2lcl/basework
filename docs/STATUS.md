@@ -10,7 +10,7 @@
 
 补充的多 key 复测使用 `AGNES_API_KEY` 至 `AGNES_API_KEY5`：6 个 key 均至少一次闭环成功，两轮 6 路并发均未出现 429，但各有 1 路上下文超时；12 路突发为 8/12，失败均为上下文超时。该结果证明多 key 缓解了之前的账号限流，不代表应用已经自动轮换 key，也不提供 6 路或 12 路稳定 SLO；详见 [多 key 负载证据](development/evidence/LOAD-001-multikey-2026-09-18.json)。
 
-LOAD-002 已纳入真实 Agent、LocalService、JSONLStore 和事件/回调链路：同进程 1/4/8/16/32 全部通过，取消后重启成功，8 进程 JSONL 追加与截断尾恢复通过，10,000 次本地 soak 为 10,000/10,000，p95 37.897 ms、p99 42.236 ms、吞吐 48.895 req/s，资源与 JSONL 体积边界均有机器断言。证据见 [LOAD-002](development/evidence/LOAD-002.md)。该结论仍限定于确定性本地模型和当前环境，不替代真实 Provider、跨机器生产 SLO 或真人 TUI 评价。
+LOAD-002 已纳入真实 Agent、LocalService、JSONLStore 和事件/回调链路：同进程 1/4/8/16/32 全部通过，取消后重启成功，8 进程 JSONL 追加与截断尾恢复通过，10,000 次本地 soak 为 10,000/10,000，p95 37.897 ms、p99 42.236 ms、吞吐 48.895 req/s，资源与 JSONL 体积边界均有机器断言；同一提交的远端 Linux amd64 soak 也以 10,000/10,000 通过（p95 97.739 ms、p99 108.553 ms、吞吐 18.109 req/s）。证据见 [LOAD-002](development/evidence/LOAD-002.md)，主 CI 运行见 [35328231049](https://github.com/wly2lcl/basework/actions/runs/35328231049)，远端 soak 见 [35328300626](https://github.com/wly2lcl/basework/actions/runs/35328300626)。该结论仍限定于确定性本地模型和当前环境，不替代真实 Provider、跨机器生产 SLO 或真人 TUI 评价。
 
 ## 当前能力与缺口
 
