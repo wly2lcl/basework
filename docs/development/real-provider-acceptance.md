@@ -4,9 +4,9 @@
 Provider 密钥；只有显式设置以下环境变量并运行命令时才会发请求：
 
 ```bash
+AGNES_API_KEY="$AGNES_API_KEY" \
 BASEWORK_REAL_PROVIDER=openai \
 BASEWORK_REAL_BASE_URL=https://example.invalid/v1 \
-BASEWORK_REAL_API_KEY="$OPENAI_API_KEY" \
 BASEWORK_REAL_MODEL=gpt-4o \
 BASEWORK_REAL_OUTPUT=/tmp/basework-real-provider.json \
 go run ./tests/real_provider
@@ -36,16 +36,17 @@ stderr。这个过滤保证只
 协议入口和失败/重试次数。
 
 仓库提供 `.github/workflows/real-provider.yml` 作为手动触发入口。它只在明确的
-`workflow_dispatch` 下运行，API key 从 `BASEWORK_REAL_API_KEY` secret 注入，结果以
+`workflow_dispatch` 下运行，API key 从 `AGNES_API_KEY` secret 注入，结果以
 artifact 上传脱敏 JSON；默认 `build.yml` 不调用外部模型。
 
 ## GitHub Actions 运行方式
 
-密钥只添加到仓库的 Actions secret，不要写入仓库、命令历史或聊天记录。已安装并登录
-GitHub CLI 时，可在本地交互设置：
+密钥只添加到仓库的 Actions secret，不要写入仓库、命令历史或聊天记录。Agnes 验收统一
+使用 `AGNES_API_KEY`；运行器也兼容旧的 `BASEWORK_REAL_API_KEY` 本地变量，但不会把任一
+变量传入模型工具的 Bash 环境。已安装并登录 GitHub CLI 时，可在本地交互设置：
 
 ```bash
-gh secret set BASEWORK_REAL_API_KEY --repo wly2lcl/basework
+gh secret set AGNES_API_KEY --repo wly2lcl/basework
 ```
 
 然后按实际端点手动触发工作流；`provider`、`base_url` 和 `model` 必须与这次验收使用的
@@ -57,8 +58,14 @@ gh secret set BASEWORK_REAL_API_KEY --repo wly2lcl/basework
 ```bash
 gh workflow run real-provider.yml --repo wly2lcl/basework \
   -f provider=openai \
-  -f base_url=https://gateway.example.com/v1 \
-  -f model=gpt-4o \
+  -f base_url=https://apihub.agnes-ai.com/v1 \
+  -f model=agnes-3.0-flash \
+  -f repetitions=3
+
+gh workflow run real-provider.yml --repo wly2lcl/basework \
+  -f provider=anthropic \
+  -f base_url=https://apihub.agnes-ai.com \
+  -f model=agnes-3.0-flash \
   -f repetitions=3
 ```
 
@@ -69,3 +76,8 @@ JSON 与候选 commit、日期、协议入口和重复次数一起回填到 SHIP
 `tests_executed=true`、`file_changed=true`、`independent_test_exit_code=0` 和测试哈希
 共同构成可信通过条件；只看 Agent 成功或退出码 0 不足以通过。若 secret、端点或模型
 缺失，工作流必须保持失败，不能用脚本化 Provider 结果替代真实请求。
+
+Agnes 3.0 Flash 官方文档同时列出 Chat Completions、Responses 和 Anthropic Messages
+三种接口。本项目当前 runner 已覆盖 OpenAI Chat Completions 与 Anthropic Messages；
+Responses API 尚未接入本项目的 `llm.Model` provider，因此不能把 Responses 结果冒充为
+已覆盖协议。本轮采用前两种接口各连续 3 次，并在证据中记录实际 provider、端点和模型。

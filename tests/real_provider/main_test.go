@@ -238,7 +238,8 @@ func writeReviewFixture(t *testing.T, dir, implementation, tests string) {
 func TestRunnerEnvironmentDoesNotExposeProviderKeyToBash(t *testing.T) {
 	const secret = "synthetic-runner-key"
 	const otherSecret = "synthetic-other-provider-key"
-	t.Setenv("BASEWORK_REAL_API_KEY", secret)
+	t.Setenv("AGNES_API_KEY", secret)
+	t.Setenv("BASEWORK_REAL_API_KEY", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", otherSecret)
 	t.Setenv("GOFLAGS", "-run=none")
 	env := sanitizedEnvironment()
@@ -248,12 +249,24 @@ func TestRunnerEnvironmentDoesNotExposeProviderKeyToBash(t *testing.T) {
 		}
 	}
 	tool := &builtin.BashTool{Runtime: &builtin.Runtime{Environment: env}}
-	result, err := tool.Execute(t.Context(), []byte(`{"command":"printenv BASEWORK_REAL_API_KEY AWS_SECRET_ACCESS_KEY; exit 1"}`))
+	result, err := tool.Execute(t.Context(), []byte(`{"command":"printenv AGNES_API_KEY BASEWORK_REAL_API_KEY AWS_SECRET_ACCESS_KEY; exit 1"}`))
 	if err != nil || result == nil {
 		t.Fatalf("Bash 环境隔离探针失败: %v", err)
 	}
 	if strings.Contains(result.Content, secret) || strings.Contains(result.Content, otherSecret) {
 		t.Fatal("Bash 子进程读取到了 Provider key")
+	}
+}
+
+func TestRealProviderAPIKeyPrefersAgnesName(t *testing.T) {
+	t.Setenv("BASEWORK_REAL_API_KEY", "legacy-key")
+	t.Setenv("AGNES_API_KEY", "agnes-key")
+	if got := realProviderAPIKey(); got != "agnes-key" {
+		t.Fatalf("realProviderAPIKey() = %q, want AGNES_API_KEY value", got)
+	}
+	t.Setenv("AGNES_API_KEY", "")
+	if got := realProviderAPIKey(); got != "legacy-key" {
+		t.Fatalf("realProviderAPIKey() fallback = %q, want BASEWORK_REAL_API_KEY value", got)
 	}
 }
 

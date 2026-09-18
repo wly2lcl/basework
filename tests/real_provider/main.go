@@ -107,18 +107,18 @@ func main() {
 		// The runner's final stderr line is also an artifact/logging boundary.
 		// Keep the Provider key out even when setup fails before a result file
 		// can be written.
-		fmt.Fprintln(os.Stderr, redactSecret(err.Error(), os.Getenv("BASEWORK_REAL_API_KEY")))
+		fmt.Fprintln(os.Stderr, redactSecret(err.Error(), realProviderAPIKey()))
 		os.Exit(1)
 	}
 }
 
 func run(fixture, output string) error {
 	providerName := envOr("BASEWORK_REAL_PROVIDER", "openai")
-	apiKey := strings.TrimSpace(os.Getenv("BASEWORK_REAL_API_KEY"))
+	apiKey := realProviderAPIKey()
 	baseURL := strings.TrimSpace(os.Getenv("BASEWORK_REAL_BASE_URL"))
 	modelID := strings.TrimSpace(os.Getenv("BASEWORK_REAL_MODEL"))
 	if apiKey == "" || baseURL == "" || modelID == "" {
-		return errors.New("real provider runner requires BASEWORK_REAL_API_KEY, BASEWORK_REAL_BASE_URL, and BASEWORK_REAL_MODEL; no request was sent")
+		return errors.New("real provider runner requires AGNES_API_KEY (or BASEWORK_REAL_API_KEY), BASEWORK_REAL_BASE_URL, and BASEWORK_REAL_MODEL; no request was sent")
 	}
 
 	fixture, err := filepath.Abs(fixture)
@@ -263,6 +263,17 @@ func run(fixture, output string) error {
 	}
 	fmt.Printf("real-provider acceptance passed: result=%s test_exit_code=0 file_changed=true\n", output)
 	return nil
+}
+
+// realProviderAPIKey reads the provider credential without exposing it to the
+// model's tool environment. AGNES_API_KEY is the preferred name for the
+// Agnes acceptance workflow; BASEWORK_REAL_API_KEY remains a generic local
+// override for existing fixtures and non-Agnes providers.
+func realProviderAPIKey() string {
+	if key := strings.TrimSpace(os.Getenv("AGNES_API_KEY")); key != "" {
+		return key
+	}
+	return strings.TrimSpace(os.Getenv("BASEWORK_REAL_API_KEY"))
 }
 
 func independentTest(ctx context.Context, dir string) (int, string, bool) {
