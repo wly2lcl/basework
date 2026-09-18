@@ -62,7 +62,7 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 ## LOAD-002：项目级并发与持续稳定性门禁
 
-**前置任务**：LOAD-001。优先级 P2；把一次性本地负载基线扩展为可重复的项目级稳定性门禁，再讨论生产 SLO。当前状态为待办。
+**前置任务**：LOAD-001。优先级 P2；把一次性本地负载基线扩展为可重复的项目级稳定性门禁，再讨论生产 SLO。当前状态为完成。
 
 **为什么要做**：PROJECT-LOAD-001 已证明真实二进制在 32 路独立单轮和 8 路完整工具闭环下可以完成，但每个进程只执行一次请求，尚未证明同一进程内交错运行、持续追加会话、取消与重启交错、长时间资源是否稳定，也没有把负载驱动器纳入仓库。
 
@@ -76,11 +76,11 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 **验收条件**：
 
-- [ ] 负载驱动器可在全新 checkout 从零运行，结果 JSON 可脱敏复核，失败会回收进程和临时目录。
-- [ ] 同一进程 1/4/8/16/32 交错运行无 session、callback、工具结果串线；取消和关闭后无残留 goroutine、job 或子进程。
-- [ ] soak 达到约定时长/次数，p95/p99、资源增量和失败分类都有阈值；阈值未定前不得宣称生产 SLO。
-- [ ] JSONL 多进程/并发恢复与 EventBus 有界行为有机器断言和 race 证据。
-- [ ] CI/夜间任务、提交、运行链接和原始脱敏统计写入 `docs/development/evidence/LOAD-002.md`。
+- [x] 负载驱动器纳入 `tests/load`，全新 checkout 可从零运行，结果 JSON 脱敏，子进程有 30 秒超时并由 `CommandContext` 回收。
+- [x] 同一进程 1/4/8/16/32 交错运行无 session、callback、结果串线；取消返回 `context.Canceled`，取消后新 run 成功，关闭后 goroutine/FD 无增长。
+- [x] 10,000 次 soak 通过，记录 p50/p95/p99、吞吐、失败分类、goroutine、heap、FD 和 JSONL 体积起止值，并执行资源边界断言。
+- [x] JSONL 8 进程并发追加、连续 seq、截断尾恢复、恢复后追加和 EventBus 有界丢弃均有机器断言；负载测试可单独纳入 race 复验。
+- [x] 主 CI 已加入短门禁；`.github/workflows/project-load.yml` 提供手动/每日夜间 10,000 次 soak 和脱敏 artifact，结果见 [`LOAD-002` 证据](../development/evidence/LOAD-002.md)。
 
 **范围外**：不模拟 Agnes 账号配额，不把模型质量评测混入项目吞吐，不在本任务内实现远程队列或自动 key 轮换。
 

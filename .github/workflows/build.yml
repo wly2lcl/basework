@@ -35,6 +35,9 @@ jobs:
       - name: Run default tests
         run: go test -count=1 ./...
 
+      - name: Run project load gate
+        run: go test ./tests/load -run TestProjectLoad -count=1 -timeout 10m -v
+
       - name: Run vet
         run: go vet -tags "sqlite memory" ./...
 
@@ -56,7 +59,7 @@ jobs:
           git diff --exit-code docs/DEPGRAPH.md docs/STATS.md
 
       - name: Run race tests
-        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
+        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits ./tests/load
 
       # 至少保留一个真实入口烟测：脚本会从当前 checkout 构建二进制，
       # 在临时 HOME、临时 fixtures 和本地回环假服务中跑完整修复流程。

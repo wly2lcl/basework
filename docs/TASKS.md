@@ -61,7 +61,7 @@
 | QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 完成 | BASE-001, UI-003 | Codex / 2026-09-18 Agnes 双协议验收 | [记录](development/evidence/QA-001.md) |
 | RESP-001 | M8 | [Agnes Responses API 接入](tasks/09-follow-up.md#resp-001) | 完成 | QA-001 | Codex / 2026-09-18 Agnes Responses 真实闭环 | [记录](development/evidence/RESP-001.md) |
 | LOAD-001 | M8 | [真实负载与稳定性验证](tasks/09-follow-up.md#load-001) | 完成 | RESP-001 | Codex / 2026-09-18 项目本地确定性 Provider：32 路单轮 32/32、8 路工具闭环 8/8；另记录 Agnes 外部容量边界 | [记录](development/evidence/LOAD-001.md) · [项目证据](development/evidence/PROJECT-LOAD-001-local-2026-09-18.json) |
-| LOAD-002 | M9 | [项目级并发与持续稳定性门禁](tasks/09-follow-up.md#load-002) | 待办 | LOAD-001 | 同一进程运行交错、长时间 soak、资源增长和可重复负载脚本 | [记录](development/evidence/LOAD-002.md) |
+| LOAD-002 | M9 | [项目级并发与持续稳定性门禁](tasks/09-follow-up.md#load-002) | 完成 | LOAD-001 | Codex / 2026-09-18：1/4/8/16/32 并发、取消重启、JSONL 恢复、10,000 次 soak 与资源边界 | [记录](development/evidence/LOAD-002.md) · [脱敏 JSON](development/evidence/LOAD-002-local-2026-09-18.json) |
 | SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 完成 | QA-001 | Codex / 当前候选回验 | [记录](development/evidence/SEC-001.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |

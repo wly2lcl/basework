@@ -2,13 +2,15 @@
 
 核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步，Responses 接入正在形成新的代码候选。原可执行发布候选 `95bb258` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；Responses 适配器的本地回归、真实 Agnes 单次闭环和文档证据见 [RESP-001](development/evidence/RESP-001.md)。真实 Provider 双协议历史证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；M8 已完成，M9 还保留 LOAD-002 项目级持续稳定性门禁。** 真人主观 TUI 手感仍单独记录，尚未评价。
+**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run、PTY/race 质量门禁和 LOAD-002 项目级并发与持续稳定性门禁均已通过；M8/M9 的已列任务完成。** 真人主观 TUI 手感仍单独记录，尚未评价。
 
 2026-09-18 的 `LOAD-001` 在合成夹具上完成 5 次连续和 3 路并发真实 Agnes Agent 闭环，全部通过；4 路并发出现账号/渠道 `429`，已作为外部容量边界记录，不能推广为 4 路稳定承诺。真实负载还发现并修复了空 `function_call_output` 的 400，以及流式请求缺少 429/5xx 重试的问题；修复提交为 `3c0322e`，证据见 [LOAD-001](development/evidence/LOAD-001.md)。最终提交 `a899862` 的远端 CI run `35317046376` 全绿，已发布为 `v0.1.6`。
 
 需要把“项目负载”和“Provider 负载”分开解释：使用本地确定性 SSE Provider 直接启动当前 `basework` 二进制后，32 路单轮运行 **32/32**、8 路读取/编辑/测试工具闭环 **8/8**，72 个本地请求、会话落盘和工作区不变量均通过；证据见 [PROJECT-LOAD-001](development/evidence/PROJECT-LOAD-001-local-2026-09-18.json)。这组结果验证 Basework 自身的运行时和生命周期，不使用 Agnes key，也不证明长期生产 SLO、模型质量或真人 TUI 手感。Agnes 的 6 key/12 路数据仍只说明外部渠道容量边界，不能作为项目负载结论。
 
 补充的多 key 复测使用 `AGNES_API_KEY` 至 `AGNES_API_KEY5`：6 个 key 均至少一次闭环成功，两轮 6 路并发均未出现 429，但各有 1 路上下文超时；12 路突发为 8/12，失败均为上下文超时。该结果证明多 key 缓解了之前的账号限流，不代表应用已经自动轮换 key，也不提供 6 路或 12 路稳定 SLO；详见 [多 key 负载证据](development/evidence/LOAD-001-multikey-2026-09-18.json)。
+
+LOAD-002 已纳入真实 Agent、LocalService、JSONLStore 和事件/回调链路：同进程 1/4/8/16/32 全部通过，取消后重启成功，8 进程 JSONL 追加与截断尾恢复通过，10,000 次本地 soak 为 10,000/10,000，p95 37.897 ms、p99 42.236 ms、吞吐 48.895 req/s，资源与 JSONL 体积边界均有机器断言。证据见 [LOAD-002](development/evidence/LOAD-002.md)。该结论仍限定于确定性本地模型和当前环境，不替代真实 Provider、跨机器生产 SLO 或真人 TUI 评价。
 
 ## 当前能力与缺口
 

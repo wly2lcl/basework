@@ -1,0 +1,41 @@
+name: Project Load Soak
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    name: Project Load Soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run 10,000-operation project soak
+        env:
+          BASEWORK_LOAD_SOAK_OPS: "10000"
+          BASEWORK_LOAD_EVIDENCE: ${{ runner.temp }}/basework-load-002.json
+        run: go test ./tests/load -run TestProjectLoad -count=1 -timeout 30m -v
+
+      - name: Upload redacted load evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basework-load-002-${{ github.run_id }}
+          path: ${{ runner.temp }}/basework-load-002.json
+          if-no-files-found: error
