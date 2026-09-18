@@ -51,6 +51,8 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 **验证与证据**：见 [`LOAD-001`](../development/evidence/LOAD-001.md) 和同目录脱敏 JSON。
 
+**多 key 复测（2026-09-18）**：`AGNES_API_KEY` 至 `AGNES_API_KEY5` 均至少一次闭环成功；两轮 6 路并发没有 429，但各有 1 路上下文超时；12 路突发 8/12，4 路上下文超时。该结果证明多 key 缓解了账号限流，不证明应用已有自动 key 轮换，也不构成 6 路或 12 路生产 SLO。详见 [`LOAD-001-multikey-2026-09-18.json`](../development/evidence/LOAD-001-multikey-2026-09-18.json)。
+
 **范围外**：不把当前渠道的 3 路并发上限推广为所有账号的服务承诺；更高并发需要 Provider 配额、队列或上层限流方案。真人 TUI 评价仍单独进行。
 
 <a id="qa-001"></a>

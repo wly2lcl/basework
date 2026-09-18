@@ -1,0 +1,56 @@
+{
+  "schema": "basework.real-multikey-load.v1",
+  "date": "2026-09-18",
+  "provider": "agnes-responses",
+  "model": "agnes-3.0-flash",
+  "endpoint_origin": "https://apihub.agnes-ai.com/v1",
+  "fixture": "synthetic-load-fixture",
+  "fixture_sha256": {
+    "calc.go": "d47c060401cb6ad6a2d45661dedefef2ea9ac35fa6686c2a6187afdc9280ad86",
+    "calc_test.go": "a252d2c1a86f73c1c07b394458811f00d839f3808c495c147cb6dca9889c1a57",
+    "go.mod": "ece9d3a4ed891dcc2abaa8ac6e265663bf5c933c5416c4d9bda930e245372718"
+  },
+  "keys_configured": 6,
+  "per_key_verified": {
+    "AGNES_API_KEY": true,
+    "AGNES_API_KEY1": true,
+    "AGNES_API_KEY2": true,
+    "AGNES_API_KEY3": true,
+    "AGNES_API_KEY4": true,
+    "AGNES_API_KEY5": true
+  },
+  "six_way_bursts": [
+    {
+      "round": 1,
+      "count": 6,
+      "passed": 5,
+      "failed": 1,
+      "failure_keys": ["AGNES_API_KEY1"],
+      "failure_class": "context deadline exceeded",
+      "rate_limit_failures": 0
+    },
+    {
+      "round": 2,
+      "count": 6,
+      "passed": 5,
+      "failed": 1,
+      "failure_keys": ["AGNES_API_KEY4"],
+      "failure_class": "context deadline exceeded",
+      "rate_limit_failures": 0
+    }
+  ],
+  "isolated_rechecks": [
+    {"key": "AGNES_API_KEY1", "passed": true, "independent_test_exit_code": 0},
+    {"key": "AGNES_API_KEY4", "passed": true, "independent_test_exit_code": 0}
+  ],
+  "twelve_way_burst": {
+    "count": 12,
+    "passed": 8,
+    "failed": 4,
+    "failure_keys": ["AGNES_API_KEY", "AGNES_API_KEY1", "AGNES_API_KEY2", "AGNES_API_KEY4"],
+    "failure_class": "context deadline exceeded",
+    "rate_limit_failures": 0
+  },
+  "interpretation": "Six separately configured keys removed the previously observed 429 in the tested six-way bursts. All six keys completed at least one isolated or six-way acceptance run. Provider context timeouts remained under burst load; twelve-way was not stable. The application still reads only AGNES_API_KEY, so this evidence uses one runner process per key and does not prove automatic key rotation.",
+  "scope": "Synthetic fixture only; no repository source was sent to the Provider. This evidence does not establish a universal success rate, long-running SLO, or production-grade key pool."
+}
