@@ -38,7 +38,7 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 ## LOAD-001：真实负载与稳定性验证
 
-**前置任务**：RESP-001。优先级 P1；验证真实 Provider 在连续和并发 Agent 负载下的可用边界，不能把一次成功或脚本化模型结果写成稳定性结论。
+**前置任务**：RESP-001。优先级 P1；分开验证 Basework 项目本身的运行时负载和真实 Provider 的外部容量边界，不能把一次成功、脚本化模型结果或 Provider 渠道吞吐写成另一方的稳定性结论。
 
 **主要修改范围**：`pkg/provider/responses.go`、`pkg/provider/responses_test.go`、真实负载脱敏证据与发布状态文档。
 
@@ -48,12 +48,41 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 - [x] 使用合成夹具执行 3 路并发真实 Agent 闭环，全部通过且无超时或进程残留。
 - [x] 对 4 路并发的 429 结果保留失败证据，明确记录为 Agnes 账号/渠道容量边界，不把失败伪装成通过。
 - [x] 修复空 `function_call_output` 和 Responses 流式 429/5xx 重试，并通过本地协议回归、全量测试和 race 门禁。
+- [x] 使用仅绑定回环地址的确定性本地 Provider，通过真实 `basework` 二进制完成 32 路单轮运行和 8 路工具/编辑/测试闭环；会话落盘、工作区修改和可信测试文件保持均通过。
 
 **验证与证据**：见 [`LOAD-001`](../development/evidence/LOAD-001.md) 和同目录脱敏 JSON。
 
 **多 key 复测（2026-09-18）**：`AGNES_API_KEY` 至 `AGNES_API_KEY5` 均至少一次闭环成功；两轮 6 路并发没有 429，但各有 1 路上下文超时；12 路突发 8/12，4 路上下文超时。该结果证明多 key 缓解了账号限流，不证明应用已有自动 key 轮换，也不构成 6 路或 12 路生产 SLO。详见 [`LOAD-001-multikey-2026-09-18.json`](../development/evidence/LOAD-001-multikey-2026-09-18.json)。
 
-**范围外**：不把当前渠道的 3 路并发上限推广为所有账号的服务承诺；更高并发需要 Provider 配额、队列或上层限流方案。真人 TUI 评价仍单独进行。
+**范围外**：不把当前 Agnes 渠道的 3 路并发上限推广为所有账号的服务承诺，也不把本地假 Provider 的 32/8 路结果推广为长期生产 SLO；更高外部并发需要 Provider 配额、队列或上层限流方案。真人 TUI 评价仍单独进行。
+
+**项目负载证据**：[`PROJECT-LOAD-001`](../development/evidence/PROJECT-LOAD-001-local-2026-09-18.json)；**Provider 容量证据**：[`LOAD-001`](../development/evidence/LOAD-001.md) 及同目录 Agnes JSON。前者不依赖模型渠道，后者不代表应用自动轮换 key。
+
+<a id="load-002"></a>
+
+## LOAD-002：项目级并发与持续稳定性门禁
+
+**前置任务**：LOAD-001。优先级 P2；把一次性本地负载基线扩展为可重复的项目级稳定性门禁，再讨论生产 SLO。当前状态为待办。
+
+**为什么要做**：PROJECT-LOAD-001 已证明真实二进制在 32 路独立单轮和 8 路完整工具闭环下可以完成，但每个进程只执行一次请求，尚未证明同一进程内交错运行、持续追加会话、取消与重启交错、长时间资源是否稳定，也没有把负载驱动器纳入仓库。
+
+**小步骤**：
+
+1. 将本地确定性 Provider 负载驱动器纳入 `tests/`，固定 seed、端点、夹具哈希、并发档位和退出清理；支持一条命令生成脱敏 JSON，不保存 HOME、端口、key 或临时绝对路径。
+2. 直接通过 `internal/runtime.Service.Start` 验证同一进程 1/4/8/16/32 个交错运行，覆盖正常完成、Provider 延迟、取消、回调解绑、会话切换和关闭等待；检查每个 run 的结果、事件数、session ID 和错误归属不串线。
+3. 做至少 30 分钟或 10,000 次本地请求的 soak，记录 p50/p95/p99、吞吐、失败分类、goroutine、内存、文件描述符和 JSONL 体积起止值；出现错误时保留最小可复现 seed。
+4. 在多进程追加、同一 session 并发写入、取消后重启和完整/截断尾恢复下验证事件不重复、不丢失；把 EventBus 有界投递的丢弃计数和用户可见告警纳入结果。
+5. 将短门禁接入 CI，将 soak 作为手动/夜间 job；更新生产准入表，明确本地假 Provider 只能证明项目边界，真实 Provider 另按端点和配额验收。
+
+**验收条件**：
+
+- [ ] 负载驱动器可在全新 checkout 从零运行，结果 JSON 可脱敏复核，失败会回收进程和临时目录。
+- [ ] 同一进程 1/4/8/16/32 交错运行无 session、callback、工具结果串线；取消和关闭后无残留 goroutine、job 或子进程。
+- [ ] soak 达到约定时长/次数，p95/p99、资源增量和失败分类都有阈值；阈值未定前不得宣称生产 SLO。
+- [ ] JSONL 多进程/并发恢复与 EventBus 有界行为有机器断言和 race 证据。
+- [ ] CI/夜间任务、提交、运行链接和原始脱敏统计写入 `docs/development/evidence/LOAD-002.md`。
+
+**范围外**：不模拟 Agnes 账号配额，不把模型质量评测混入项目吞吐，不在本任务内实现远程队列或自动 key 轮换。
 
 <a id="qa-001"></a>
 

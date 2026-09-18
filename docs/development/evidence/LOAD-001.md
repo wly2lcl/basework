@@ -57,3 +57,16 @@
 - 12 路突发（每个 key 同时承载两个请求）为 **8/12**，4 个失败均为上下文超时，**没有 429**。
 
 这说明增加 key 已解除本次 6 路测试中观察到的账号/渠道 `429`，但不能把 6 路宣称为 100% 稳定 SLO；Provider 在更高突发下仍可能长时间不返回。当前应用仍只读取 `AGNES_API_KEY`，本轮通过“一进程一 key”验证多 key 能力，不代表应用已经自动轮换或均衡这些 key。原始统计见同目录的 [`LOAD-001-multikey-2026-09-18.json`](LOAD-001-multikey-2026-09-18.json)。
+
+## 项目本身的本地负载补充（PROJECT-LOAD-001，2026-09-18）
+
+上面的连续/并发结果是 Agnes 外部 Provider 的容量观察，不能作为 Basework 项目负载证据。为隔离模型渠道，另用仓库已有的 `tests/tui_pty/fake_openai.py` 启动仅绑定 `127.0.0.1` 的确定性 SSE 服务，并通过当前 `basework` 真实二进制启动独立进程；没有使用 Agnes key，也没有访问外网。
+
+| 场景 | 并发 | 通过 | 结果 |
+|---|---:|---:|---|
+| S4：运行时启动、Provider 请求、单轮回复、退出与会话落盘 | 32 | **32/32** | 本地请求 32/32，P95 165ms，32 个会话均落盘 |
+| S1：读取 → `edit_files` 预览 → 提交 → `bash go test` → 最终回复 | 8 | **8/8** | 本地请求 40/40；8 个工作区均改成 `a + b`，测试文件均保持不变，8 个会话均落盘 |
+
+本轮本地假 Provider 共收到 72 个请求，脚本轮次和响应均符合预期。`go test -race` 的 Agent、session、runtime、jobs、edits、observability 与集成测试范围通过；选定的 Session/Streaming/Token/Tool 基准也通过。竞态测试中的 pprof 用例需要本机回环监听权限，放行该权限后通过。原始脱敏统计见 [`PROJECT-LOAD-001-local-2026-09-18.json`](PROJECT-LOAD-001-local-2026-09-18.json)。
+
+这组结果证明的是 Basework 本身的运行时装配、请求传输、Agent 工具循环、会话持久化和工作区不变量在给定本地负载下成立；它不证明 Agnes 或其他 Provider 的容量、模型质量、长期 SLO、真实用户 TUI 手感或生产环境可用性。两类证据必须分开阅读。

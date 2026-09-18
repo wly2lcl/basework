@@ -1,0 +1,48 @@
+{
+  "schema": "basework.project-load.local.v1",
+  "date": "2026-09-18",
+  "commit": "70eff45",
+  "provider": "local-deterministic-openai-sse",
+  "endpoint_origin": "loopback-only",
+  "model": "ship003-fake",
+  "network": "no external network; tests used tests/tui_pty/fake_openai.py",
+  "batches": [
+    {
+      "scenario": "S4",
+      "description": "真实 basework agent 进程，初始化运行时、连接本地 Provider、完成一轮对话并退出",
+      "concurrency": 32,
+      "passed": 32,
+      "failed": 0,
+      "wall_ms": 202.8,
+      "latency_ms": {"min": 20.8, "p50": 113.6, "p95": 164.59, "max": 195.3},
+      "sessions_persisted": "32/32"
+    },
+    {
+      "scenario": "S1",
+      "description": "真实 basework agent 进程，读取→edit_files 预览→提交→bash go test→最终回复",
+      "concurrency": 8,
+      "passed": 8,
+      "failed": 0,
+      "wall_ms": 16087.4,
+      "latency_ms": {"min": 13206.3, "p50": 14621.95, "p95": 15934.26, "max": 16076.5},
+      "workspace_checks": {
+        "implementation_changed_to_expected": "8/8",
+        "old_implementation_absent": "8/8",
+        "trusted_test_unchanged": "8/8",
+        "sessions_persisted": "8/8"
+      }
+    }
+  ],
+  "fake_provider_requests": {"total": 72, "S4": 32, "S1": 40, "unexpected_or_failed": 0},
+  "race_checks": {
+    "packages": ["pkg/agent", "pkg/session", "internal/runtime", "internal/jobs", "internal/edits", "internal/observability", "tests"],
+    "result": "passed",
+    "note": "internal/observability pprof tests required permission to bind a loopback port"
+  },
+  "benchmarks": {
+    "command_scope": "tests/benchmark selected Session/Streaming/Token/Tool benchmarks",
+    "result": "passed",
+    "note": "10ms bounded run; this is a local performance snapshot, not an SLO"
+  },
+  "interpretation": "This evidence validates Basework runtime startup, local Provider transport, agent lifecycle, tool loop, session persistence, and workspace invariants under the stated local load. It says nothing about Agnes/OpenAI capacity, model quality, long-running production SLOs, or human TUI feel."
+}
