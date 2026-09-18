@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "Provider type (for example openai or openai-compat)"
+        description: "Provider type (for example openai, agnes-responses, or openai-compat)"
         required: true
         default: openai
       base_url:

@@ -1,0 +1,54 @@
+{
+  "schema": "basework.real-provider.v1",
+  "provider": "agnes-responses",
+  "model": "agnes-3.0-flash",
+  "endpoint_origin": "https://apihub.agnes-ai.com/v1",
+  "fixture": "fixbug",
+  "prompt": "修复 calc.go 里的 Add 函数缺陷，并运行 go test ./... 独立验证结果。不要修改测试文件。",
+  "started_at": "2026-09-18T05:25:29Z",
+  "elapsed_ms": 42151,
+  "agent_ok": true,
+  "validation_ok": true,
+  "final_text_sha256": "581e48a8fcaa3da8747e6850fbfeffaa28edafe3aa2a07b1ef56e88fc81c4f92",
+  "tool_calls": [
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "read",
+      "success": true
+    },
+    {
+      "name": "edit",
+      "success": true
+    },
+    {
+      "name": "bash",
+      "success": true
+    }
+  ],
+  "verification_command": "go test -count=1 -run ^TestAdd$ ./...",
+  "tests_executed": true,
+  "test_files_sha256": {
+    "calc_test.go": "4b69bb74274892eac935505ea7d133a960403b6ca8b7db0f47adb09f98f239a9"
+  },
+  "implementation_files_sha256": {
+    "calc.go": "b9cb9483df54f2343b5e6f4ba53e0d0dc59afdefcafab7fdd4968258e777aee2"
+  },
+  "independent_test_exit_code": 0,
+  "independent_test_output_tail": "ok  \tbasework-real-provider-fixture\t0.423s\n",
+  "file_changed": true
+}

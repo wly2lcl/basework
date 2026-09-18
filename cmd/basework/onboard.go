@@ -57,6 +57,7 @@ var apiEnvVars = []envVarInfo{
 	{envName: "OG_API_KEY", provider: "opencode", label: "OpenCode Zen (legacy OG_API_KEY)"},
 	{envName: "ANTHROPIC_API_KEY", provider: "anthropic", label: "Anthropic (Claude)"},
 	{envName: "OPENAI_API_KEY", provider: "openai", label: "OpenAI (GPT)"},
+	{envName: "AGNES_API_KEY", provider: "agnes-responses", label: "Agnes Responses (Agnes 3.0 Flash)"},
 	{envName: "GOOGLE_API_KEY", provider: "gemini", label: "Google (Gemini)"},
 }
 
@@ -132,7 +133,11 @@ func runInit() error {
 		apiKey := strings.TrimSpace(scanner.Text())
 		if apiKey != "" {
 			enteredAPIKey = apiKey
-			os.Setenv(strings.ToUpper(selectedProvider)+"_API_KEY", apiKey)
+			envName := strings.ToUpper(selectedProvider) + "_API_KEY"
+			if vars := apiKeyEnvVars(selectedProvider); len(vars) > 0 {
+				envName = vars[0]
+			}
+			os.Setenv(envName, apiKey)
 		}
 	}
 
@@ -147,6 +152,8 @@ func runInit() error {
 		defaultModel = "claude-sonnet-4-20250514"
 	case "gemini":
 		defaultModel = "gemini-2.5-flash"
+	case "agnes-responses":
+		defaultModel = "agnes-3.0-flash"
 	default:
 		defaultModel = "gpt-4o"
 	}
@@ -288,6 +295,8 @@ func runInitNonInteractive() error {
 
 func initDefaultModel(selectedProvider string) string {
 	switch selectedProvider {
+	case "agnes-responses":
+		return "agnes-3.0-flash"
 	case "opencode":
 		return "big-pickle"
 	case "openai", "openai-compat":

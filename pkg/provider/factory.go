@@ -8,7 +8,7 @@ import (
 
 // Config 是 provider 创建配置
 type Config struct {
-	Type    string // "openai", "anthropic", "gemini", "openai-compat", 或兼容 provider 名称
+	Type    string // "openai", "responses", "agnes-responses", "anthropic", "gemini", "openai-compat", 或兼容 provider 名称
 	APIKey  string
 	BaseURL string // 可选，自定义端点
 	ModelID string
@@ -23,10 +23,13 @@ type protocolMeta struct {
 
 // protocols 是已知 provider 的元数据映射
 var protocols = map[string]protocolMeta{
-	"openai":        {defaultBaseURL: "https://api.openai.com/v1", allowEmptyKey: false},
-	"anthropic":     {defaultBaseURL: "https://api.anthropic.com", allowEmptyKey: false},
-	"gemini":        {defaultBaseURL: "https://generativelanguage.googleapis.com", allowEmptyKey: false},
-	"openai-compat": {defaultBaseURL: "", allowEmptyKey: false},
+	"openai":           {defaultBaseURL: "https://api.openai.com/v1", allowEmptyKey: false},
+	"responses":        {defaultBaseURL: "https://api.openai.com/v1", allowEmptyKey: false},
+	"openai-responses": {defaultBaseURL: "https://api.openai.com/v1", allowEmptyKey: false},
+	"agnes-responses":  {defaultBaseURL: "https://apihub.agnes-ai.com/v1", allowEmptyKey: false},
+	"anthropic":        {defaultBaseURL: "https://api.anthropic.com", allowEmptyKey: false},
+	"gemini":           {defaultBaseURL: "https://generativelanguage.googleapis.com", allowEmptyKey: false},
+	"openai-compat":    {defaultBaseURL: "", allowEmptyKey: false},
 	// 常见的 OpenAI 兼容 provider
 	"deepseek":   {defaultBaseURL: "https://api.deepseek.com/v1", allowEmptyKey: false},
 	"groq":       {defaultBaseURL: "https://api.groq.com/openai/v1", allowEmptyKey: false},
@@ -79,6 +82,8 @@ func Create(cfg Config) (llm.Model, error) {
 		return newGemini(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 	case "openai":
 		return newOpenAI(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
+	case "responses", "openai-responses", "agnes-responses":
+		return newResponses(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 	case "bedrock":
 		return newBedrock(baseURL, cfg.APIKey, cfg.ModelID, cfg.Options)
 	case "azure":

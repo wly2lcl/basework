@@ -2,6 +2,38 @@
 
 状态只在 [TASKS](../TASKS.md) 维护。先处理已重开的 P1/P2 问题，再执行体验和性能优化。实现前阅读 [AI 开发流程](../development/ai-workflow.md)。
 
+<a id="resp-001"></a>
+
+## RESP-001：Agnes Responses API 接入
+
+**前置任务**：QA-001。优先级 P1；补齐 Agnes 3.0 Flash 的第三种官方协议入口，不能把
+Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
+
+**主要修改范围**：`pkg/provider/responses.go`、`pkg/provider/responses_test.go`、CLI provider
+映射、Responses/Agnes 文档与脱敏真实验收证据。
+
+**小步骤**：
+
+1. 实现 Responses `input`、工具定义、function call/output 和非流式响应解析。
+2. 实现 Responses SSE 文本、工具参数增量、完整参数、用量、完成和失败事件归一化。
+3. 注册 `responses`、`openai-responses` 与 `agnes-responses`，明确默认端点和 `AGNES_API_KEY`。
+4. 用本地 fake 服务覆盖请求形状、认证、流式/非流式、错误和工具循环，再用 Agnes 真实端点
+   运行固定编码夹具并保存脱敏结果。
+
+**验收条件**：
+
+- [x] `llm.Model` 的 Generate/Stream 均走 `/responses`，并保留工具调用与用量语义。
+- [x] Agnes 历史 function call 所需字段经过真实端点验证，工具结果可继续下一轮请求。
+- [x] 本地协议回归与 CLI/工厂/密钥映射测试通过，默认测试仍不联网。
+- [x] Agnes `agnes-3.0-flash` 真实 Agent 连续 3 次闭环通过，独立测试退出码均为 0，结果脱敏入库。
+- [x] 文档、配置示例、真实验收说明和后续三次连续矩阵要求已同步。
+
+**验证与证据**：见 [`RESP-001`](../development/evidence/RESP-001.md)；真实结果见同目录
+`RESP-001-real-provider-2026-09-18.json`。
+
+**范围外**：不实现服务端 `previous_response_id` 会话、不把固定夹具三次成功解释为所有请求的稳定成功率，
+不在本任务中改造既有 Chat/Anthropic 适配器。
+
 <a id="qa-001"></a>
 
 ## QA-001：可复跑的产品验收与证据门禁

@@ -1,8 +1,8 @@
 # 当前实现状态
 
-核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步。可执行发布候选为 `95bb258`，其 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；随后文档收口提交仍由 [CI run 35306772284](https://github.com/wly2lcl/basework/actions/runs/35306772284) 全量复验通过，代码候选保持不变。真实 Provider 双协议证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
+核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步，Responses 接入正在形成新的代码候选。原可执行发布候选 `95bb258` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；Responses 适配器的本地回归、真实 Agnes 单次闭环和文档证据见 [RESP-001](development/evidence/RESP-001.md)。真实 Provider 双协议历史证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
-**结论：核心功能、常规测试、Agnes 双协议真实 Provider、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真实 Provider 结果绑定验收 runner 代码候选 `3e5533d`，`95bb258` 是可执行发布候选，后续提交只追加文档证据，未改变 Provider runner 或发布产物。真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
+**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
 
 ## 当前能力与缺口
 
@@ -22,7 +22,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed | 发布包和第三方版本兼容仍按 QA/SHIP 验收 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、Agnes OpenAI-compatible 与 Anthropic Messages 各 3 次真实 Provider 记录 | B02/B03/B04/B06 已修复；当前候选 CI run `35303688283` 全绿；Responses API 尚未接入 `llm.Model`，不在本次协议声明内 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、Agnes Chat/Responses/Anthropic 真实 Provider 记录 | B02/B03/B04/B06 已修复；原候选 CI run `35303688283` 全绿；Responses 适配与固定夹具连续三次真实闭环见 RESP-001 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此

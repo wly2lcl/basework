@@ -5,9 +5,9 @@ Provider 密钥；只有显式设置以下环境变量并运行命令时才会�
 
 ```bash
 AGNES_API_KEY="$AGNES_API_KEY" \
-BASEWORK_REAL_PROVIDER=openai \
-BASEWORK_REAL_BASE_URL=https://example.invalid/v1 \
-BASEWORK_REAL_MODEL=gpt-4o \
+BASEWORK_REAL_PROVIDER=agnes-responses \
+BASEWORK_REAL_BASE_URL=https://apihub.agnes-ai.com/v1 \
+BASEWORK_REAL_MODEL=agnes-3.0-flash \
 BASEWORK_REAL_OUTPUT=/tmp/basework-real-provider.json \
 go run ./tests/real_provider
 ```
@@ -52,12 +52,18 @@ gh secret set AGNES_API_KEY --repo wly2lcl/basework
 然后按实际端点手动触发工作流；`provider`、`base_url` 和 `model` 必须与这次验收使用的
 协议入口和模型一致。`repetitions=3` 会在同一 workflow、同一候选 commit 和同一组参数下
 顺序运行三次，并为每次运行保存独立脱敏 JSON；`repetitions=1` 只适合单次探针。每种协议
-在同一候选 commit 上至少连续运行 3 次；表格还要标明
+在同一候选 commit 上至少连续运行 3 次；当前 Responses 三次结果见 [RESP-001](evidence/RESP-001.md)；表格还要标明
 核心 API、CLI 或 TUI 入口，不能把核心 API 结果写成 CLI/TUI 结果：
 
 ```bash
 gh workflow run real-provider.yml --repo wly2lcl/basework \
   -f provider=openai \
+  -f base_url=https://apihub.agnes-ai.com/v1 \
+  -f model=agnes-3.0-flash \
+  -f repetitions=3
+
+gh workflow run real-provider.yml --repo wly2lcl/basework \
+  -f provider=agnes-responses \
   -f base_url=https://apihub.agnes-ai.com/v1 \
   -f model=agnes-3.0-flash \
   -f repetitions=3
@@ -78,6 +84,7 @@ JSON 与候选 commit、日期、协议入口和重复次数一起回填到 SHIP
 缺失，工作流必须保持失败，不能用脚本化 Provider 结果替代真实请求。
 
 Agnes 3.0 Flash 官方文档同时列出 Chat Completions、Responses 和 Anthropic Messages
-三种接口。本项目当前 runner 已覆盖 OpenAI Chat Completions 与 Anthropic Messages；
-Responses API 尚未接入本项目的 `llm.Model` provider，因此不能把 Responses 结果冒充为
-已覆盖协议。本轮采用前两种接口各连续 3 次，并在证据中记录实际 provider、端点和模型。
+三种接口。本项目的 `openai`、`agnes-responses`、`anthropic` 分别覆盖三种协议；Responses
+适配器使用 `input`/`function_call`/Responses SSE 事件，并已通过本地 fake 协议回归与一次真实
+Agnes Agent 闭环。发布前的三次连续真实证据仍按本文件的 workflow 规则执行，不能用一次本地
+或真实成功推广成稳定成功率。

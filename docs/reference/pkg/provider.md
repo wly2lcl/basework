@@ -6,7 +6,7 @@ Provider 工厂：把「用哪家模型」这件事收敛成一处创建入口�
 
 - `Create(Config)` — 按 `Type` 创建模型客户端。
 - `DefaultRegistry()` / `Registry` — 已登记 provider 的集合。
-- 内置实现：OpenAI、Anthropic、Gemini、OpenAI-compatible，以及 Azure、Bedrock、Copilot、
+- 内置实现：OpenAI Chat、OpenAI Responses、Anthropic、Gemini、OpenAI-compatible，以及 Azure、Bedrock、Copilot、
   Ollama、OpenCode 的专用 provider。
 - `ListPlugins` / `RegisterPlugin` / `GetPlugin` / `CreateFromPlugin` — 第三方 provider 插件。
 - Prompt 缓存支持见同包的 `cache.go`。
@@ -15,7 +15,7 @@ Provider 工厂：把「用哪家模型」这件事收敛成一处创建入口�
 
 ```go
 provider.Config{
-    Type:    "openai" | "anthropic" | "gemini" | "openai-compat" | <插件名>,
+    Type:    "openai" | "responses" | "openai-responses" | "agnes-responses" | "anthropic" | "gemini" | "openai-compat" | <插件名>,
     APIKey:  "...",
     BaseURL: "...",        // 可选，自定义端点
     ModelID: "...",
@@ -31,6 +31,10 @@ provider.Config{
 - **新增内置 provider**：实现 `Provider` / `ModelProvider` 接口并在 registry 登记。
 - **外部插件**：实现 `ProviderPlugin` 后 `RegisterPlugin`，再用 `CreateFromPlugin` 创建。
 - **自定义端点**：多数场景不需要写代码，`Config.BaseURL` + `Type: "openai-compat"` 即可。
+- **Responses API**：`responses` / `openai-responses` 使用 OpenAI Responses API；`agnes-responses`
+  默认指向 `https://apihub.agnes-ai.com/v1`，读取 `AGNES_API_KEY`，适合 `agnes-3.0-flash`。
+  该适配器把完整历史作为 `input` 重放，并把 function call/output 与 Responses SSE 事件归一化为
+  `llm.Model` 的工具调用和流式事件。
 
 ## Model Experience
 

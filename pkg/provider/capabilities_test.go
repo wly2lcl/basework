@@ -77,15 +77,18 @@ func TestCapabilitiesFor_ProtocolCapabilitiesAreDeclared(t *testing.T) {
 // TestRequiresAPIKey 确认“免费”与“需要 key”按 provider 元数据独立判断。
 func TestRequiresAPIKey(t *testing.T) {
 	cases := map[string]bool{
-		"openai":        true,
-		"anthropic":     true,
-		"gemini":        true,
-		"deepseek":      true,
-		"openai-compat": true,
-		"opencode":      false, // 允许空 key，但是否可用取决于模型是否免费
-		"ollama":        false,
-		"copilot":       false,
-		"unknown-type":  true, // 未知类型走 openai-compat 路径，Create 会要求 key
+		"openai":           true,
+		"responses":        true,
+		"openai-responses": true,
+		"agnes-responses":  true,
+		"anthropic":        true,
+		"gemini":           true,
+		"deepseek":         true,
+		"openai-compat":    true,
+		"opencode":         false, // 允许空 key，但是否可用取决于模型是否免费
+		"ollama":           false,
+		"copilot":          false,
+		"unknown-type":     true, // 未知类型走 openai-compat 路径，Create 会要求 key
 	}
 	for providerType, want := range cases {
 		if got := RequiresAPIKey(providerType); got != want {
@@ -97,14 +100,17 @@ func TestRequiresAPIKey(t *testing.T) {
 // TestAPIKeyEnvVar 确认 CLI 展示的环境变量与运行入口实际读取的一致。
 func TestAPIKeyEnvVar(t *testing.T) {
 	cases := map[string]string{
-		"anthropic": "ANTHROPIC_API_KEY",
-		"gemini":    "GOOGLE_API_KEY",
-		"opencode":  "OPENCODE_API_KEY",
-		"azure":     "AZURE_API_KEY",
-		"bedrock":   "AWS_ACCESS_KEY_ID",
-		"openai":    "OPENAI_API_KEY",
-		"deepseek":  "OPENAI_API_KEY", // 运行入口对未映射类型回落到 OPENAI_API_KEY
-		"groq":      "OPENAI_API_KEY",
+		"anthropic":        "ANTHROPIC_API_KEY",
+		"gemini":           "GOOGLE_API_KEY",
+		"opencode":         "OPENCODE_API_KEY",
+		"azure":            "AZURE_API_KEY",
+		"bedrock":          "AWS_ACCESS_KEY_ID",
+		"openai":           "OPENAI_API_KEY",
+		"responses":        "OPENAI_API_KEY",
+		"openai-responses": "OPENAI_API_KEY",
+		"agnes-responses":  "AGNES_API_KEY",
+		"deepseek":         "OPENAI_API_KEY", // 运行入口对未映射类型回落到 OPENAI_API_KEY
+		"groq":             "OPENAI_API_KEY",
 	}
 	for providerType, want := range cases {
 		if got := APIKeyEnvVar(providerType); got != want {

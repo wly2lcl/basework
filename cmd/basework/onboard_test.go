@@ -46,7 +46,7 @@ func withTestStdin(t *testing.T, contents string, keepOpen bool) {
 func TestRunInitNonInteractiveCreatesDeterministicConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	withInitGlobals(t, path, "opencode", "", "readonly", false)
-	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"} {
+	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY", "AGNES_API_KEY"} {
 		t.Setenv(name, "")
 	}
 	if err := runInitNonInteractive(); err != nil {
@@ -117,7 +117,7 @@ func TestRunInitNonInteractiveDoesNotReadOpenPipe(t *testing.T) {
 func TestRunInitInteractiveEOFHasDeterministicResult(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)
-	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"} {
+	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY", "AGNES_API_KEY"} {
 		t.Setenv(name, "")
 	}
 	withTestStdin(t, "", false)
@@ -132,7 +132,7 @@ func TestRunInitInteractiveEOFHasDeterministicResult(t *testing.T) {
 func TestRunInitInteractiveInvalidInputFallsBack(t *testing.T) {
 	home := t.TempDir()
 	setTestHome(t, home)
-	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"} {
+	for _, name := range []string{"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY", "AGNES_API_KEY"} {
 		t.Setenv(name, "")
 	}
 	withTestStdin(t, "not-a-provider\nnot-a-model\n", false)
