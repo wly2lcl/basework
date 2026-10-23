@@ -29,7 +29,7 @@ Basework 是一个用 Go 编写的**可嵌入 AI Agent 核心 + CLI/TUI 终端�
 
 ## 五分钟从源码开始
 
-要求 Go 1.26 或更高版本：
+要求 Go **1.26.10 或更新的安全修订版**；已安装的旧二进制和 Docker 镜像需要重新构建，升级本机 Go 不会更新其中的标准库。本轮安全升级与验证证据见 [SEC-002](docs/development/evidence/SEC-002.md)。
 
 ```bash
 git clone https://github.com/wly2lcl/basework.git
@@ -98,6 +98,9 @@ make test
 
 # 文档、任务、相对链接和证据结构
 make check-docs
+
+# 默认与 sqlite/memory 源码漏洞扫描
+make check-vuln
 
 # 刷新依赖图和代码统计；CI 会检查生成物是否新鲜
 make gen

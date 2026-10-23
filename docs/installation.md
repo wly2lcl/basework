@@ -2,6 +2,8 @@
 
 ## 验证范围
 
+源码安装要求 Go **1.26.10 或更新的安全修订版**。2026-10-23 安全复核发现旧 Go 1.26.0 本地产物含已知漏洞，当前安全升级、扫描结果和未验证范围见 [SEC-002](development/evidence/SEC-002.md)。历史 Release 和 `latest` 镜像只有在对应版本重建并有扫描证据后，才可视为包含这次修复；拉取旧 tag 或仅升级本机 Go 不会修复旧产物。
+
 打包配置覆盖 Linux amd64/arm64、macOS amd64/arm64 和 Windows amd64（Windows arm64 按配置明确排除）。当前候选的五平台发布归档 Smoke、Docker Smoke 和迁移/未来版本拒绝检查已有 CI 记录；本机实际安装能力仍取决于所运行的平台。下载时核对 tag、架构与校验和，完整边界见 [当前状态](STATUS.md) 与 [SHIP-002 证据](development/evidence/SHIP-002.md)。
 
 ## 安装方式
@@ -37,6 +39,8 @@ basework version
 ```
 
 应显示版本信息。
+
+Go 构建信息可用 `go version -m /path/to/basework` 查看；该命令只检查构建来源，不是漏洞扫描。正式产物的扫描方式见[发布指南](release.md)。
 
 ## 配置
 

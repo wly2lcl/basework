@@ -1,5 +1,13 @@
 # 当前实现状态
 
+## 2026-10-23 安全更新
+
+本轮 [SEC-002](development/evidence/SEC-002.md) 已完成本地验收：源码和实际工具链升级为 Go 1.26.10，依赖更新为 `x/net v0.60.0`、`x/text v0.42.0`、`x/image v0.45.0` 与 `goldmark v1.7.17`；`x/text` 的选择同时满足 `x/net` 的模块要求。默认/完整源码、五平台新构建二进制与双架构镜像内提取二进制的真实漏洞扫描均无告警，旧 Go 1.26.0 二进制被同一门禁拒绝。默认/完整测试、相关 race、项目短负载、PTY 1–8、OPT-001、vet、架构、文档与生成物检查，以及双架构 Docker 构建/运行均通过；构建输入和产物哈希保存在[脱敏 JSON](development/evidence/SEC-002-security-2026-10-23.json)，任务状态以 [TASKS](TASKS.md) 为准。
+
+本轮验证在 `4283fef` 之后的安全修复工作区中完成，证据记录提交前构建的产物；提交、推送和远端 CI 状态以 Git 与对应 workflow 为准，本地验收不包含正式发布。历史 GitHub Release 和已发布镜像未因本地源码升级自动更新。五平台产物均完成交叉构建和静态扫描，本轮没有在 Windows/macOS Intel 目标机上运行；Docker amd64 Smoke 使用 QEMU，arm64 为原生运行。此前功能与负载验收仍是对应日期、候选和范围的历史证据。
+
+## 2026-09 功能与负载验收快照
+
 核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步，Responses 接入正在形成新的代码候选。原可执行发布候选 `95bb258` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；Responses 适配器的本地回归、真实 Agnes 单次闭环和文档证据见 [RESP-001](development/evidence/RESP-001.md)。真实 Provider 双协议历史证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
 
 **结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run、PTY/race 质量门禁和 LOAD-002 项目级并发与持续稳定性门禁均已通过；M8/M9 的已列任务完成。** 真人主观 TUI 手感仍单独记录，尚未评价。

@@ -4,7 +4,9 @@
 
 ## 当前发布门槛
 
-2026-09-14 复审发现尚未关闭的 P1/P2 问题；不能以旧看板 29/29 或检查报告已写完为由发布。先按 [TASKS](TASKS.md) 完成修复、QA-001 和 SHIP-001/002/003；[复审报告](development/evidence/REVIEW-2026-09-14.md) 保存本次依据。
+2026-10-23 的 [SEC-002 安全升级](development/evidence/SEC-002.md) 已完成本地源码、五平台产物、双架构镜像二进制扫描与回归；本轮尚未提交、推送、验证新远端 CI 或创建正式发行版，状态以 [TASKS](TASKS.md) 为准。此前 QA-001、SHIP-001/002/003 的完成记录保留，但不能代替后来披露漏洞的修复与重新扫描。
+
+构建至少使用 Go **1.26.10 或更新的安全修订版**；默认/完整 tags 源码和本轮实际二进制均须通过漏洞扫描。修改 `go.mod`、升级开发机 Go 或通过旧 CI，都不会更新已经发布的二进制与镜像。新发布应记录候选 commit、实际 Go 版本、扫描器、漏洞库时间、tags 与产物哈希；历史 tag 不重写。
 
 ## 发布产物
 
@@ -55,11 +57,20 @@ tag push 会触发同一个 `Release` workflow。
 ```bash
 go test -tags "sqlite memory" -count=1 ./...
 go vet -tags "sqlite memory" ./...
+make check-vuln
 goreleaser check
 goreleaser release --snapshot --clean --skip=docker,publish
 ```
 
 其中 GoReleaser 命令需要本机已安装 `goreleaser`。
+
+源码扫描覆盖默认与完整 tags 的源码（含测试），不能替代生成产物的检查。GoReleaser 的源码/产物 hooks 在归档、镜像和发布前扫描，扫描失败不继续发布。手动复核明确的产物路径可运行：
+
+```bash
+bash scripts/check-vuln.sh binary ./bin/basework
+```
+
+同时核对 `go version -m` 的工具链、模块版本和 SHA-256，完整记录见 [SEC-002](development/evidence/SEC-002.md)。需要验证多个产物时，向 `binary` 模式传入每个明确文件路径；目录或未匹配的通配符不能当作扫描成功。
 
 如需在发布前验证双架构镜像，使用仓库脚本生成临时 Docker context，不要手工在仓库根目录
 留下 `linux/amd64` 或 `linux/arm64` 交叉编译目录：

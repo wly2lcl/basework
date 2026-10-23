@@ -16,6 +16,31 @@ sys.path.insert(0, str(HERE / "tui_pty"))
 from tui_drive import TuiSession  # noqa: E402
 
 
+def selected_go_toolchain(go: str) -> tuple[Path, str, str]:
+    """在隔离 HOME 前解析项目选用的 SDK，保留已有工具链和模块缓存。"""
+    try:
+        probe = subprocess.run(
+            [go, "env", "-json", "GOROOT", "GOMODCACHE"], cwd=REPO,
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"发现项目 Go 工具链失败: {exc}") from exc
+    if probe.returncode != 0:
+        raise RuntimeError("发现项目 Go 工具链失败: " + (probe.stderr or probe.stdout).strip())
+    try:
+        settings = json.loads(probe.stdout)
+        go_root = settings["GOROOT"]
+        modcache = settings["GOMODCACHE"]
+        if not isinstance(go_root, str) or not go_root or not isinstance(modcache, str) or not modcache:
+            raise ValueError("GOROOT 或 GOMODCACHE 为空")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError(f"项目 Go 工具链信息无效: {exc}") from exc
+    selected_go = Path(go_root) / "bin" / "go"
+    if not selected_go.is_file():
+        raise RuntimeError(f"项目选用的 Go SDK 不存在: {selected_go}")
+    return selected_go, go_root, modcache
+
+
 def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="basework-opt001-pty-"))
     atexit.register(lambda: shutil.rmtree(root, ignore_errors=True))
@@ -28,18 +53,27 @@ def main() -> int:
     if not go:
         print("go not found", file=sys.stderr)
         return 1
+    try:
+        selected_go, go_root, modcache = selected_go_toolchain(go)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     env = dict(os.environ)
     env.update({
         "HOME": str(home),
+        "GOROOT": go_root,
+        "GOMODCACHE": modcache,
+        "PATH": str(selected_go.parent) + os.pathsep + env.get("PATH", ""),
         "GOCACHE": str(cache),
         "GOTOOLCHAIN": "local",
         "TERM": "xterm-256color",
     })
+    # PTY 驱动会合并宿主环境，必须用空值覆盖，防止凭证被重新带入子进程。
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY",
-                "OPENCODE_API_KEY", "OG_API_KEY"):
-        env.pop(key, None)
+                "AGNES_API_KEY", "OPENCODE_API_KEY", "OG_API_KEY"):
+        env[key] = ""
     build = subprocess.run(
-        [go, "build", "-tags", "sqlite memory", "-o", str(binary), "./cmd/basework"],
+        [str(selected_go), "build", "-tags", "sqlite memory", "-o", str(binary), "./cmd/basework"],
         cwd=REPO, env=env, capture_output=True, text=True, check=False,
     )
     if build.returncode != 0:

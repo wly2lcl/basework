@@ -4,7 +4,7 @@ Basework 提供可嵌入的 Go Agent 核心和 CLI/TUI 终端入口。当前已�
 
 ## 从源码运行
 
-要求 Go 1.26+。在仓库根目录执行：
+要求 Go **1.26.10 或更新的安全修订版**。在仓库根目录执行：
 
 ```bash
 go mod download
@@ -12,6 +12,8 @@ make build
 ./bin/basework --help
 ./bin/basework model list
 ```
+
+Go 安全修复必须重新编译后才会进入程序；升级本机工具链不会修复已下载的旧二进制或镜像。当前修复、扫描结果与历史发行包边界见 [SEC-002](development/evidence/SEC-002.md)。
 
 按 [Provider 指南](guides/provider-guide.md) 配置模型、API Key 与端点，然后运行：
 
