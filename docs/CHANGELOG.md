@@ -13,6 +13,17 @@
 
 ## [Unreleased]
 
+### 可复用能力上移（2026-11-13）
+
+- `internal/jobs`、`internal/edits`、`internal/permission`、`internal/observability` 的核心实现按原行为上移为
+  `pkg/jobs`、`pkg/edits`、`pkg/permission`、`pkg/observability`，仓库外 module 可直接导入；
+  `pkg/agent` 适配器仍留在 `internal/permission`、`internal/observability`，核心包不依赖 `pkg/agent`。
+- 四个新包首版为**实验 API（0.x）**，不纳入核心/扩展 API 的 SemVer 承诺；1.0 前破坏性变更须走 ADR
+  并在本文件写明迁移方式。决定见 [ADR 0008](adr/0008-promote-internal-capabilities-to-pkg.md)。
+- 这是纯移动：函数体、默认值、错误文本与日志字段未变，四包测试用例名与数量与移动前基线一致。
+- 新增 `examples/embed_components`：仅用公共 API 组合四个包，验证双 workspace jobs/权限实例并行隔离、
+  编辑预览/提交/撤销、权限拒绝与事件/成本统计；外部 module 通过 `replace` 编译运行通过。
+
 ### 长会话 JSONL 追加优化（2026-09-16）
 
 - `JSONLStore.AppendEvent` 改为文件锁内的增量 `O_APPEND` 单行写入，避免每条事件重写整份历史；

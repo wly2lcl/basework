@@ -68,7 +68,7 @@
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |
 | REUSE-004 | M10 | [权限引擎包上移](tasks/10-reuse.md#reuse-004) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-004.md) |
 | REUSE-005 | M10 | [可观测性包上移](tasks/10-reuse.md#reuse-005) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-005.md) |
-| REUSE-006 | M10 | [内部薄适配与外部嵌入验收](tasks/10-reuse.md#reuse-006) | 待办 | REUSE-002, REUSE-003, REUSE-004, REUSE-005 | — | — |
+| REUSE-006 | M10 | [内部薄适配与外部嵌入验收](tasks/10-reuse.md#reuse-006) | 完成 | REUSE-002, REUSE-003, REUSE-004, REUSE-005 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-006.md) |
 
 ## 2026-11-13 新增 M10：可复用能力上移
 

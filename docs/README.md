@@ -22,6 +22,7 @@
 - [安装](installation.md) · [Docker](docker.md) · [FAQ](FAQ.md)
 - [CLI](guides/cli-guide.md) · [TUI](guides/tui-guide.md) · [配置](guides/configuration.md) · [Provider](guides/provider-guide.md)
 - [嵌入 Go 应用](guides/embedder-guide.md) · [扩展](guides/extending.md) · [迁移](guides/migration.md)
+- [嵌入可靠性组件](guides/embedder-guide.md#可靠性组件实验-api)（`pkg/jobs` · `pkg/edits` · `pkg/permission` · `pkg/observability`）
 - [权限](guides/permission-guide.md) · [安全边界](guides/security.md) · [子代理](guides/subagent-guide.md)
 - [主题](guides/theme.md) · [提示模板](guides/templates.md) · [性能分析](guides/profiling.md)
 

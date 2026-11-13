@@ -428,6 +428,25 @@ func main() {
 
 ---
 
+## 可靠性组件（实验 API）
+
+`pkg/jobs`、`pkg/edits`、`pkg/permission`、`pkg/observability` 提供 CLI 同一套可靠性实现，可单独导入。它们是**实验 API（0.x）**：1.0 前允许破坏性调整，但会走 ADR 并在 [CHANGELOG](../CHANGELOG.md) 写明迁移方式，不纳入核心/扩展 API 的 SemVer 承诺。
+
+| 包 | 用途 | 关键边界 |
+|---|---|---|
+| [pkg/jobs](../reference/pkg/jobs.md) | 后台任务状态机、owner 隔离、输出配额/溢出、进程树终止、JSONL 历史 | 每个 workspace 一个 `Manager`；`interrupted` 不自动重放；默认 ID 仅进程内唯一 |
+| [pkg/edits](../reference/pkg/edits.md) | 编辑预览、基线哈希、逐文件提交、部分成功清单、安全撤销 | 逐文件原子但跨文件非事务；撤销遇到后来编辑按文件跳过 |
+| [pkg/permission](../reference/pkg/permission.md) | interactive/yolo/deny-all、规则作用域、敏感路径、审批 broker、审计与 SQLite | 默认拒绝；不是 OS 沙箱；缺失作用域上下文时规则 fail-closed |
+| [pkg/observability](../reference/pkg/observability.md) | 结构化日志、成本/token 统计、事件总线、pprof | 事件异步有界（并发 100），超出丢弃；pprof 默认关闭 |
+
+组合要点：
+
+- 工具通过 `builtin.AllWithRuntime(&builtin.Runtime{...})` 注入实例级路径检查与事件总线；**不要**使用 `builtin.SetPathChecker` / `SetEventBus` / `SetTimeoutConfig` 包级全局，否则同进程第二个实例会覆盖第一个。
+- `pkg/permission` 与 `pkg/observability` 的核心不依赖 `pkg/agent`。需要 `agent.PermissionChecker` / `agent.EventPublisher` 时自行写约 8–10 行适配器，示例见 [权限指南](permission-guide.md#作为库使用)。不要复制只实现 `Check`、`CheckPath` 返回 nil 的适配器。
+- 可运行的端到端组合见 [examples/embed_components](https://github.com/wly2lcl/basework/tree/main/examples/embed_components)：两个 workspace 的 jobs 与权限实例并行运行，覆盖取消、输出读取、预览/提交/撤销、拒绝与事件统计。
+
+---
+
 ## 相关文档
 
 - [配置参考](configuration.md) — 配置文件和环境变量
