@@ -7,6 +7,7 @@
 | `pkg/agent` | [agent](pkg/agent.md) |
 | `pkg/config` | [config](pkg/config.md) |
 | `pkg/hook` | [hook](pkg/hook.md) |
+| `pkg/jobs` | [jobs](pkg/jobs.md) |
 | `pkg/llm` | [llm](pkg/llm.md) |
 | `pkg/lsp` | [lsp](pkg/lsp.md) |
 | `pkg/mcp` | [mcp](pkg/mcp.md) |

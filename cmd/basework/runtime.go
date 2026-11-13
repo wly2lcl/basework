@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/wly2lcl/basework/internal/compaction"
-	"github.com/wly2lcl/basework/internal/jobs"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/loopdetect"
 	"github.com/wly2lcl/basework/internal/observability"
 	"github.com/wly2lcl/basework/internal/permission"

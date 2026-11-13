@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wly2lcl/basework/internal/jobs"
+	"github.com/wly2lcl/basework/pkg/jobs"
 )
 
 // grandchildPIDAlive 报告进程是否还存在（EPERM 仍算存活）。

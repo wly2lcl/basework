@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/wly2lcl/basework/internal/jobs"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/pkg/tool"
 	"github.com/wly2lcl/basework/pkg/tool/builtin"
 )
@@ -44,7 +44,7 @@ type JobHandle struct {
 // 终止：命令跑在独立进程组/进程组等价物里，取消/超时会终止整棵进程树
 // （unix 用进程组信号，Windows 用 `taskkill /T`），因此直接子进程的孙进程
 // 不会残留。两个平台的差异只在「有没有温和阶段」：unix 先 SIGTERM 再 SIGKILL，
-// Windows 直接强制结束（没有可捕获的信号，见 internal/jobs/process_windows.go）。
+// Windows 直接强制结束（没有可捕获的信号，见 pkg/jobs/process_windows.go）。
 // 该能力由 `jobs.ProcessTreeTerminationSupported()` 显式声明，为 false 的平台
 // 退化为只杀直接子进程。
 //

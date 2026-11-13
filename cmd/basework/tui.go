@@ -15,7 +15,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
-	"github.com/wly2lcl/basework/internal/jobs"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/permission"
 	intruntime "github.com/wly2lcl/basework/internal/runtime"
 	"github.com/wly2lcl/basework/internal/tui"
