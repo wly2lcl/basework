@@ -109,9 +109,9 @@ pkg/observability   c9bde345b5c7b68ea6b2b209eaf35c38e1b253517eebc55fffe17f9b1cd9
 
 - 发布与 API 兼容门禁（1.0 tag、apidiff）按计划不在本任务内，见 [10-reuse.md](../../tasks/10-reuse.md#后续衔接不在本计划内)。
 - 既有 lint 告警（27 条，M10 之前已存在）建议另立任务清理；本计划只保证移动不新增告警。
-- 五平台 CI 的实机运行需要推送触发，待获得授权后执行；本机证据只覆盖 darwin/arm64 运行与五平台交叉编译。
+- 五平台 CI 的实机运行需要推送触发。用户已确认本轮**不推送**（2026-11-13），以本机 darwin/arm64 运行 + 五平台测试二进制交叉编译作为交付证据；待后续推送时由 CI 补运行结论。
 - 四个新包仍是实验 API；首次破坏性调整需新增 ADR 并在 `CHANGELOG.md` 写迁移方式。
 
 ## 结论
 
-四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、五平台测试二进制交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`make lint` 的既有告警在 M10 之前就存在且未在本计划范围内修复；五平台 CI 的实机运行需要推送触发，本会话未执行，均已在「环境限制」中如实记录。
+四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、五平台测试二进制交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`make lint` 的既有告警在 M10 之前就存在且未在本计划范围内修复；五平台 CI 的实机运行需要推送触发，用户已确认本轮不推送、接受本地证据，均已在「环境限制」中如实记录。
