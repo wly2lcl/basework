@@ -19,8 +19,8 @@
 
 | 层级 | 包数 | 非测试 .go 文件 | 定位 |
 |---|---|---|---|
-| `pkg/` | 13 | 120 | 可嵌入核心（稳定 API，不得依赖上层） |
-| `internal/` | 16 | 93 | 终端产品专用逻辑（无兼容性承诺） |
+| `pkg/` | 14 | 122 | 可嵌入核心（稳定 API，不得依赖上层） |
+| `internal/` | 15 | 91 | 终端产品专用逻辑（无兼容性承诺） |
 | `cmd/` | 1 | 23 | 可执行入口 |
 
 ## 层级依赖图
@@ -44,8 +44,9 @@ graph BT
 graph LR
   subgraph pkg["pkg/"]
     direction TB
-    n17["pkg/agent"]
-    n18["pkg/config"]
+    n16["pkg/agent"]
+    n17["pkg/config"]
+    n18["pkg/edits"]
     n19["pkg/hook"]
     n20["pkg/jobs"]
     n21["pkg/llm"]
@@ -61,21 +62,20 @@ graph LR
   subgraph internal["internal/"]
     direction TB
     n1["internal/compaction"]
-    n2["internal/edits"]
-    n3["internal/loopdetect"]
-    n4["internal/oauth"]
-    n5["internal/observability"]
-    n6["internal/permission"]
-    n7["internal/retry"]
-    n8["internal/runtime"]
-    n9["internal/subagent"]
-    n10["internal/tools"]
-    n11["internal/tui"]
-    n12["internal/tui/command"]
-    n13["internal/tui/dialog"]
-    n14["internal/tui/keymap"]
-    n15["internal/tui/plugin"]
-    n16["internal/tui/theme"]
+    n2["internal/loopdetect"]
+    n3["internal/oauth"]
+    n4["internal/observability"]
+    n5["internal/permission"]
+    n6["internal/retry"]
+    n7["internal/runtime"]
+    n8["internal/subagent"]
+    n9["internal/tools"]
+    n10["internal/tui"]
+    n11["internal/tui/command"]
+    n12["internal/tui/dialog"]
+    n13["internal/tui/keymap"]
+    n14["internal/tui/plugin"]
+    n15["internal/tui/theme"]
   end
   subgraph cmd["cmd/"]
     direction TB
@@ -83,9 +83,9 @@ graph LR
   end
   n0 --> n1
   n0 --> n10
-  n0 --> n11
+  n0 --> n16
   n0 --> n17
-  n0 --> n18
+  n0 --> n2
   n0 --> n20
   n0 --> n21
   n0 --> n22
@@ -98,55 +98,55 @@ graph LR
   n0 --> n3
   n0 --> n4
   n0 --> n5
-  n0 --> n6
+  n0 --> n7
   n0 --> n8
   n0 --> n9
-  n1 --> n17
+  n1 --> n16
   n1 --> n21
   n1 --> n26
-  n10 --> n18
-  n10 --> n2
-  n10 --> n20
-  n10 --> n23
-  n10 --> n26
+  n10 --> n11
+  n10 --> n12
+  n10 --> n13
+  n10 --> n14
+  n10 --> n15
+  n10 --> n16
+  n10 --> n21
   n10 --> n28
-  n10 --> n29
-  n10 --> n6
-  n11 --> n12
-  n11 --> n13
-  n11 --> n14
-  n11 --> n15
-  n11 --> n16
-  n11 --> n17
-  n11 --> n21
-  n11 --> n28
-  n17 --> n19
-  n17 --> n21
-  n17 --> n26
-  n17 --> n28
+  n16 --> n19
+  n16 --> n21
+  n16 --> n26
+  n16 --> n28
   n19 --> n21
   n19 --> n28
+  n2 --> n16
+  n2 --> n21
   n20 --> n26
   n22 --> n28
   n23 --> n28
   n24 --> n21
-  n25 --> n18
+  n25 --> n17
   n25 --> n21
   n26 --> n21
   n28 --> n21
   n29 --> n28
-  n3 --> n17
-  n3 --> n21
-  n5 --> n17
-  n6 --> n17
+  n4 --> n16
+  n5 --> n16
+  n6 --> n21
+  n7 --> n16
+  n7 --> n20
   n7 --> n21
-  n8 --> n17
-  n8 --> n20
-  n8 --> n21
-  n8 --> n26
+  n7 --> n26
+  n7 --> n28
+  n8 --> n16
   n8 --> n28
   n9 --> n17
+  n9 --> n18
+  n9 --> n20
+  n9 --> n23
+  n9 --> n26
   n9 --> n28
+  n9 --> n29
+  n9 --> n5
 ```
 
 ## 依赖边清单
@@ -161,7 +161,7 @@ graph LR
 | `internal/retry` | `pkg/llm` |
 | `internal/runtime` | `pkg/agent`、`pkg/jobs`、`pkg/llm`、`pkg/session`、`pkg/tool` |
 | `internal/subagent` | `pkg/agent`、`pkg/tool` |
-| `internal/tools` | `internal/edits`、`internal/permission`、`pkg/config`、`pkg/jobs`、`pkg/mcp`、`pkg/session`、`pkg/tool`、`pkg/tool/builtin` |
+| `internal/tools` | `internal/permission`、`pkg/config`、`pkg/edits`、`pkg/jobs`、`pkg/mcp`、`pkg/session`、`pkg/tool`、`pkg/tool/builtin` |
 | `internal/tui` | `internal/tui/command`、`internal/tui/dialog`、`internal/tui/keymap`、`internal/tui/plugin`、`internal/tui/theme`、`pkg/agent`、`pkg/llm`、`pkg/tool` |
 | `pkg/agent` | `pkg/hook`、`pkg/llm`、`pkg/session`、`pkg/tool` |
 | `pkg/hook` | `pkg/llm`、`pkg/tool` |
@@ -173,7 +173,6 @@ graph LR
 | `pkg/session` | `pkg/llm` |
 | `pkg/tool` | `pkg/llm` |
 | `pkg/tool/builtin` | `pkg/tool` |
-| `internal/edits` | （无模块内依赖） |
 | `internal/oauth` | （无模块内依赖） |
 | `internal/tui/command` | （无模块内依赖） |
 | `internal/tui/dialog` | （无模块内依赖） |
@@ -181,6 +180,7 @@ graph LR
 | `internal/tui/plugin` | （无模块内依赖） |
 | `internal/tui/theme` | （无模块内依赖） |
 | `pkg/config` | （无模块内依赖） |
+| `pkg/edits` | （无模块内依赖） |
 | `pkg/llm` | （无模块内依赖） |
 | `pkg/skill` | （无模块内依赖） |
 
@@ -203,8 +203,8 @@ graph LR
 | `pkg/mcp` | 2 |
 | `pkg/tool/builtin` | 2 |
 | `internal/compaction` | 1 |
-| `internal/edits` | 1 |
 | `internal/loopdetect` | 1 |
+| `internal/oauth` | 1 |
 
 （共 27 个包有非零计数，此处仅列前 12）
 

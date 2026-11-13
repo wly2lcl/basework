@@ -6,6 +6,7 @@
 |---|---|
 | `pkg/agent` | [agent](pkg/agent.md) |
 | `pkg/config` | [config](pkg/config.md) |
+| `pkg/edits` | [edits](pkg/edits.md) |
 | `pkg/hook` | [hook](pkg/hook.md) |
 | `pkg/jobs` | [jobs](pkg/jobs.md) |
 | `pkg/llm` | [llm](pkg/llm.md) |

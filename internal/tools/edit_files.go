@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wly2lcl/basework/internal/edits"
+	"github.com/wly2lcl/basework/pkg/edits"
 	"github.com/wly2lcl/basework/pkg/session"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
