@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
 )
 
 // TestPermissionMigration 测试完整迁移流程。

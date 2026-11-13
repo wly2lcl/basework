@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/wly2lcl/basework/pkg/jobs"
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
 	intruntime "github.com/wly2lcl/basework/internal/runtime"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"

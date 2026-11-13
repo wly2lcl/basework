@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
 )
 
 // permissionCmd 表示 permission 子命令

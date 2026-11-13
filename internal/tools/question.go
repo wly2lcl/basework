@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
 

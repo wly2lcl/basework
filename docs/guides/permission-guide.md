@@ -1,6 +1,6 @@
 # 权限系统使用指南
 
-本文说明当前运行时权限、敏感路径保护、命令黑名单和 SQLite 规则管理的实际行为。实现位于 `internal/permission/`，它是产品内部组件；外部 Go module 只能使用 `pkg/*` 公共 API，不能导入 `internal/permission`。
+本文说明当前运行时权限、敏感路径保护、命令黑名单和 SQLite 规则管理的实际行为。核心实现在 `pkg/permission/`；`internal/permission/` 只保留 `agent.PermissionChecker` 适配器。外部 Go module 可以导入 `pkg/permission`，但不能导入 `internal/permission`。
 
 ## 当前边界
 
@@ -20,6 +20,33 @@ make build
 ```
 
 不带 tag 的二进制仍可运行 Agent、TUI 和内存权限检查，但没有 `permission`、`migrate`、`version` 等 SQLite 入口。实际命令以当前二进制的 `basework --help` 为准。
+
+## 作为库使用
+
+嵌入 `pkg/agent` 时，权限检查需要同时覆盖「工具是否可调用」与「路径是否可写」。`pkg/permission` 提供 `Checker` 与 `PathChecker`，`agent.PermissionChecker` 由调用方桥接；不要复制只实现 `Check`、`CheckPath` 直接返回 nil 的版本，那等于关掉路径保护。
+
+```go
+type permissionAdapter struct {
+	checker *permission.Checker
+	paths   *permission.PathChecker
+}
+
+func (a *permissionAdapter) Check(ctx context.Context, toolName string, args map[string]interface{}) (bool, error) {
+	return a.checker.Check(ctx, toolName, args)
+}
+
+func (a *permissionAdapter) CheckPath(path string) error {
+	allowed, reason := a.paths.CheckPath(path)
+	if !allowed {
+		return fmt.Errorf("路径被拒绝: %s (%s)", path, reason)
+	}
+	return nil
+}
+
+var _ agent.PermissionChecker = (*permissionAdapter)(nil)
+```
+
+接线时把同一个适配器同时交给 `agent` 与 `builtin.Runtime`（见 [嵌入指南](embedder-guide.md)），不要使用包级 `Set*` 全局。安全边界不变：这是应用层检查，不是 OS 沙箱；`yolo` 关闭的是工具审批，不是敏感路径保护。
 
 ## 权限模式
 
@@ -171,7 +198,7 @@ SQLite 规则导出格式就是 `StoredRule` 数组，例如：
 
 `strict` 拒绝命中路径，`warn` 记录并允许，`off` 关闭检查。`allow` 优先于默认和自定义黑名单；路径会展开 `~`、规范化并解析相对路径，符号链接目标也会参与检查。
 
-默认模式匹配的保护项来自 `internal/permission.DefaultSensitivePaths`：`.git/`、`.svn/`、`.hg/`、`/.ssh/`、`/.aws/`、`/.gnupg/`、`/.config/gcloud/`、`/etc/shadow`、`/etc/sudoers`。列表不包含一个名为 `~/.config/basework/` 的固定条目；如果要保护自定义 Basework 数据路径，请在 `sensitive_paths.block` 中显式配置。
+默认模式匹配的保护项来自 `pkg/permission.DefaultSensitivePaths`：`.git/`、`.svn/`、`.hg/`、`/.ssh/`、`/.aws/`、`/.gnupg/`、`/.config/gcloud/`、`/etc/shadow`、`/etc/sudoers`。列表不包含一个名为 `~/.config/basework/` 的固定条目；如果要保护自定义 Basework 数据路径，请在 `sensitive_paths.block` 中显式配置。
 
 ## 排查顺序
 

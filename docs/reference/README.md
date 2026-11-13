@@ -13,6 +13,7 @@
 | `pkg/lsp` | [lsp](pkg/lsp.md) |
 | `pkg/mcp` | [mcp](pkg/mcp.md) |
 | `pkg/memory` | [memory](pkg/memory.md) |
+| `pkg/permission` | [permission](pkg/permission.md) |
 | `pkg/provider` | [provider](pkg/provider.md) |
 | `pkg/session` | [session](pkg/session.md) |
 | `pkg/skill` | [skill](pkg/skill.md) |

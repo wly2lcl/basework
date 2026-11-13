@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/config"
 )
 

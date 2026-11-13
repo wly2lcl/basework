@@ -4,16 +4,18 @@ import (
 	"context"
 	"fmt"
 
+	core "github.com/wly2lcl/basework/pkg/permission"
+
 	"github.com/wly2lcl/basework/pkg/agent"
 )
 
-// PermissionAdapter 将 *Checker 适配为 agent.PermissionChecker 接口。
+// PermissionAdapter 将 *core.Checker 适配为 agent.PermissionChecker 接口。
 type PermissionAdapter struct {
-	inner *Checker
+	inner *core.Checker
 }
 
 // NewPermissionAdapter 创建适配器。
-func NewPermissionAdapter(c *Checker) *PermissionAdapter {
+func NewPermissionAdapter(c *core.Checker) *PermissionAdapter {
 	return &PermissionAdapter{inner: c}
 }
 
@@ -33,15 +35,15 @@ func (a *PermissionAdapter) CheckPath(path string) error {
 // Ensure PermissionAdapter implements agent.PermissionChecker.
 var _ agent.PermissionChecker = (*PermissionAdapter)(nil)
 
-// PathPermissionAdapter 将 *PathChecker 适配为 agent.PermissionChecker 接口。
+// PathPermissionAdapter 将 *core.PathChecker 适配为 agent.PermissionChecker 接口。
 type PathPermissionAdapter struct {
-	inner           *Checker
-	pathChecker     *PathChecker
+	inner           *core.Checker
+	pathChecker     *core.PathChecker
 	approvalDetails func(toolName string, args map[string]interface{}) ([]string, string)
 }
 
 // NewPathPermissionAdapter 创建同时支持权限和路径检查的适配器。
-func NewPathPermissionAdapter(c *Checker, pc *PathChecker) *PathPermissionAdapter {
+func NewPathPermissionAdapter(c *core.Checker, pc *core.PathChecker) *PathPermissionAdapter {
 	return &PathPermissionAdapter{inner: c, pathChecker: pc}
 }
 

@@ -66,7 +66,7 @@
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |
-| REUSE-004 | M10 | [权限引擎包上移](tasks/10-reuse.md#reuse-004) | 待办 | REUSE-001 | — | — |
+| REUSE-004 | M10 | [权限引擎包上移](tasks/10-reuse.md#reuse-004) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-004.md) |
 | REUSE-005 | M10 | [可观测性包上移](tasks/10-reuse.md#reuse-005) | 待办 | REUSE-001 | — | — |
 | REUSE-006 | M10 | [内部薄适配与外部嵌入验收](tasks/10-reuse.md#reuse-006) | 待办 | REUSE-002, REUSE-003, REUSE-004, REUSE-005 | — | — |
 

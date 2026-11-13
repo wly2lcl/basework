@@ -17,7 +17,8 @@ import (
 	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/loopdetect"
 	"github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/internal/permission"
+	"github.com/wly2lcl/basework/pkg/permission"
+	permissionadapter "github.com/wly2lcl/basework/internal/permission"
 	intruntime "github.com/wly2lcl/basework/internal/runtime"
 	"github.com/wly2lcl/basework/internal/subagent"
 	runtimetools "github.com/wly2lcl/basework/internal/tools"
@@ -161,7 +162,7 @@ func newRuntimeAgent(cfg *config.Config, opts runtimeAgentOptions) (*runtimeAgen
 		if err != nil {
 			return nil, err
 		}
-		if adapter, ok := permissionChecker.Adapter.(*permission.PathPermissionAdapter); ok {
+		if adapter, ok := permissionChecker.Adapter.(*permissionadapter.PathPermissionAdapter); ok {
 			adapter.SetApprovalDetails(editTool.ApprovalDetails)
 		}
 		for i, cleanup := range permissionChecker.Cleanups {
@@ -776,7 +777,7 @@ func newPermissionChecker(cfg *config.Config, promptOverride permission.PromptFu
 	)
 	return &runtimePermissionChecker{
 		Core:     checker,
-		Adapter:  permission.NewPathPermissionAdapter(checker, pathChecker),
+		Adapter:  permissionadapter.NewPathPermissionAdapter(checker, pathChecker),
 		Cleanups: persistence.Cleanups,
 	}, nil
 }
