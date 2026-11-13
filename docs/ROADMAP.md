@@ -38,6 +38,8 @@
 
 先修 RUN-002 关闭登记竞态和 QA-001 的凭证/测试/超时/CI 问题；再回验 RUN-003、CTX-003 与 UI 依赖链，最后补 SHIP-001 的当前协议样本及 SHIP-002/003 候选关联。M9 的 OPT-001/002 已有初始化与性能基线，新增 OPT-003 处理实测 JSONL 瓶颈。具体状态、切片与顺序统一见 [看板](TASKS.md)。
 
+2026-11-13 新增 M10 可复用能力上移：把 `internal/jobs`、`internal/edits`、`internal/permission`、`internal/observability` 提升为 `pkg` 公共实现，保持 CLI/TUI 行为不变，并用仓库外 module 示例证明仅靠公共 API 可用。执行顺序、包边界、风险与验收见 [可复用能力上移计划](tasks/10-reuse.md)。该方向完成后才评估 1.0 发布与 API 兼容门禁。
+
 ## 后续候选方向与进入条件
 
 | 方向 | 进入条件 | 暂缓理由 |

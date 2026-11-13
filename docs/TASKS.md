@@ -63,6 +63,16 @@
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
+| REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 待办 | BASE-001 | — | — |
+| REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 待办 | REUSE-001 | — | — |
+| REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 待办 | REUSE-001 | — | — |
+| REUSE-004 | M10 | [权限引擎包上移](tasks/10-reuse.md#reuse-004) | 待办 | REUSE-001 | — | — |
+| REUSE-005 | M10 | [可观测性包上移](tasks/10-reuse.md#reuse-005) | 待办 | REUSE-001 | — | — |
+| REUSE-006 | M10 | [内部薄适配与外部嵌入验收](tasks/10-reuse.md#reuse-006) | 待办 | REUSE-002, REUSE-003, REUSE-004, REUSE-005 | — | — |
+
+## 2026-11-13 新增 M10：可复用能力上移
+
+本轮不重开已完成任务。M10 把 `internal/jobs`、`internal/edits`、`internal/permission`、`internal/observability` 上移为 `pkg` 公共实现，先评估再逐包搬运，最后用仓库外 module 示例验收。顺序、边界与风险见 [可复用能力上移计划](tasks/10-reuse.md)。默认从 REUSE-001 开始，一次只领取一个任务；REUSE-002/003 依赖最少，可在评估后先行。
 
 ## 进度更新纪律
 
