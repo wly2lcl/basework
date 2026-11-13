@@ -73,6 +73,18 @@ go mod tidy && go run .
 → basework/internal 依赖：none
 ```
 
+### 跨平台编译矩阵（编译级证据，非运行结论）
+
+```
+for plat in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+  GOOS=$os GOARCH=$arch CGO_ENABLED=0 go test -c -tags 'sqlite memory' ./pkg/<pkg>
+done
+目标：pkg/jobs pkg/edits pkg/permission pkg/observability cmd/basework internal/runtime internal/tools
+→ ALL_CROSS_COMPILE_OK（5 平台 × 7 包全部编译成功）
+```
+
+说明：`modernc.org/sqlite` 是纯 Go 实现，因此带 `sqlite memory` 标签也能在无 cgo 的交叉编译下通过；这证明平台构建标签与测试代码可编译，不能替代对应平台的运行结论。
+
 ### 用例基线抽查
 
 ```
@@ -87,8 +99,8 @@ pkg/observability   c9bde345b5c7b68ea6b2b209eaf35c38e1b253517eebc55fffe17f9b1cd9
 
 ## 环境限制与异常
 
-- `make lint` 失败：本机未安装 `golangci-lint`（`No such file or directory`），不是代码问题；`make vet` 已通过。
-- 五平台 CI 与 Windows 实机运行未在本会话执行，只记录本机 darwin/arm64 运行与 Windows amd64 交叉编译；不能把交叉编译当作 Windows 运行结论。
+- **`make lint` 门禁在 M10 之前就是红的**：本机安装了与 `.golangci.yml`（v1 配置）匹配的 `golangci-lint v1.64.8` 后运行，得到 27 条 staticcheck/errcheck/unused 问题，分布在 `pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/memory`、`internal/*`、`cmd/basework` 等既有文件；在 `ccb3767`（M10 之前）的干净 worktree 中运行结果相同。移动后的 `pkg/jobs`、`pkg/permission`、`pkg/observability` 中 5 条同类问题也是搬迁自原 `internal` 代码，`examples/embed_components` 无新增问题。M10 未引入新告警，但也没有修掉既有 lint 债；修 lint 属于独立任务，不在本计划范围。
+- 五平台 CI 与 Windows 实机运行未在本会话执行（需要推送到远端触发 Actions，未获授权），只记录本机 darwin/arm64 运行、五平台测试二进制交叉编译；不能把交叉编译当作运行结论。
 - 首次 `go test ./...` 出现两个与本变更无关的现象，均已单独复验：
   - `pkg/jobs` 的 `TestTerminateCommand_ForceKillsAfterGrace` 在整仓并行高负载下超时，单独 `-count=5` 与 `-count=10` 均通过（计时敏感）；
   - `pkg/provider` 的 `TestCopilot_TokenRefreshExpired` 在沙箱内写 `~/.config` 被拒绝，在沙箱外通过；`pkg/provider` 本次未改动。使用隔离 `HOME` 后整仓测试为绿。
@@ -96,9 +108,10 @@ pkg/observability   c9bde345b5c7b68ea6b2b209eaf35c38e1b253517eebc55fffe17f9b1cd9
 ## 剩余与交接
 
 - 发布与 API 兼容门禁（1.0 tag、apidiff）按计划不在本任务内，见 [10-reuse.md](../../tasks/10-reuse.md#后续衔接不在本计划内)。
+- 既有 lint 告警（27 条，M10 之前已存在）建议另立任务清理；本计划只保证移动不新增告警。
+- 五平台 CI 的实机运行需要推送触发，待获得授权后执行；本机证据只覆盖 darwin/arm64 运行与五平台交叉编译。
 - 四个新包仍是实验 API；首次破坏性调整需新增 ADR 并在 `CHANGELOG.md` 写迁移方式。
-- 无未决问题。
 
 ## 结论
 
-四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、Windows 交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`golangci-lint` 与五平台 CI 未在本机执行，已在「环境限制」中如实记录。
+四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、五平台测试二进制交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`make lint` 的既有告警在 M10 之前就存在且未在本计划范围内修复；五平台 CI 的实机运行需要推送触发，本会话未执行，均已在「环境限制」中如实记录。
