@@ -16,7 +16,8 @@ import (
 	"github.com/wly2lcl/basework/internal/compaction"
 	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/loopdetect"
-	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/pkg/observability"
+	observabilityadapter "github.com/wly2lcl/basework/internal/observability"
 	"github.com/wly2lcl/basework/pkg/permission"
 	permissionadapter "github.com/wly2lcl/basework/internal/permission"
 	intruntime "github.com/wly2lcl/basework/internal/runtime"
@@ -542,7 +543,7 @@ func runtimeBehaviorOptions(cfg *config.Config, model llm.Model, subAgentCoordin
 		opts = append(opts, agent.WithLoopDetector(d))
 	}
 	if bus := newRuntimeEventBus(cfg); bus != nil {
-		adapter := observability.NewEventBusAdapter(bus)
+		adapter := observabilityadapter.NewEventBusAdapter(bus)
 		builtin.SetEventBus(adapter)
 		opts = append(opts, agent.WithEventBus(adapter))
 	}

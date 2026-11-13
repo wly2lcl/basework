@@ -19,8 +19,8 @@
 
 | 层级 | 包数 | 非测试 .go 文件 | 定位 |
 |---|---|---|---|
-| `pkg/` | 15 | 134 | 可嵌入核心（稳定 API，不得依赖上层） |
-| `internal/` | 15 | 79 | 终端产品专用逻辑（无兼容性承诺） |
+| `pkg/` | 16 | 142 | 可嵌入核心（稳定 API，不得依赖上层） |
+| `internal/` | 15 | 71 | 终端产品专用逻辑（无兼容性承诺） |
 | `cmd/` | 1 | 23 | 可执行入口 |
 
 ## 层级依赖图
@@ -53,12 +53,13 @@ graph LR
     n22["pkg/lsp"]
     n23["pkg/mcp"]
     n24["pkg/memory"]
-    n25["pkg/permission"]
-    n26["pkg/provider"]
-    n27["pkg/session"]
-    n28["pkg/skill"]
-    n29["pkg/tool"]
-    n30["pkg/tool/builtin"]
+    n25["pkg/observability"]
+    n26["pkg/permission"]
+    n27["pkg/provider"]
+    n28["pkg/session"]
+    n29["pkg/skill"]
+    n30["pkg/tool"]
+    n31["pkg/tool/builtin"]
   end
   subgraph internal["internal/"]
     direction TB
@@ -98,6 +99,7 @@ graph LR
   n0 --> n29
   n0 --> n3
   n0 --> n30
+  n0 --> n31
   n0 --> n4
   n0 --> n5
   n0 --> n7
@@ -105,7 +107,7 @@ graph LR
   n0 --> n9
   n1 --> n16
   n1 --> n21
-  n1 --> n27
+  n1 --> n28
   n10 --> n11
   n10 --> n12
   n10 --> n13
@@ -113,53 +115,54 @@ graph LR
   n10 --> n15
   n10 --> n16
   n10 --> n21
-  n10 --> n29
+  n10 --> n30
   n16 --> n19
   n16 --> n21
-  n16 --> n27
-  n16 --> n29
+  n16 --> n28
+  n16 --> n30
   n19 --> n21
-  n19 --> n29
+  n19 --> n30
   n2 --> n16
   n2 --> n21
-  n20 --> n27
-  n22 --> n29
-  n23 --> n29
+  n20 --> n28
+  n22 --> n30
+  n23 --> n30
   n24 --> n21
-  n26 --> n17
-  n26 --> n21
+  n27 --> n17
   n27 --> n21
-  n29 --> n21
-  n30 --> n29
+  n28 --> n21
+  n30 --> n21
+  n31 --> n30
   n4 --> n16
+  n4 --> n25
   n5 --> n16
-  n5 --> n25
+  n5 --> n26
   n6 --> n21
   n7 --> n16
   n7 --> n20
   n7 --> n21
-  n7 --> n27
-  n7 --> n29
+  n7 --> n28
+  n7 --> n30
   n8 --> n16
-  n8 --> n29
+  n8 --> n30
   n9 --> n17
   n9 --> n18
   n9 --> n20
   n9 --> n23
-  n9 --> n25
-  n9 --> n27
-  n9 --> n29
+  n9 --> n26
+  n9 --> n28
   n9 --> n30
+  n9 --> n31
 ```
 
 ## 依赖边清单
 
 | 包 | 依赖 |
 |---|---|
-| `cmd/basework` | `internal/compaction`、`internal/loopdetect`、`internal/oauth`、`internal/observability`、`internal/permission`、`internal/runtime`、`internal/subagent`、`internal/tools`、`internal/tui`、`pkg/agent`、`pkg/config`、`pkg/jobs`、`pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/permission`、`pkg/provider`、`pkg/session`、`pkg/skill`、`pkg/tool`、`pkg/tool/builtin` |
+| `cmd/basework` | `internal/compaction`、`internal/loopdetect`、`internal/oauth`、`internal/observability`、`internal/permission`、`internal/runtime`、`internal/subagent`、`internal/tools`、`internal/tui`、`pkg/agent`、`pkg/config`、`pkg/jobs`、`pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/observability`、`pkg/permission`、`pkg/provider`、`pkg/session`、`pkg/skill`、`pkg/tool`、`pkg/tool/builtin` |
 | `internal/compaction` | `pkg/agent`、`pkg/llm`、`pkg/session` |
 | `internal/loopdetect` | `pkg/agent`、`pkg/llm` |
-| `internal/observability` | `pkg/agent` |
+| `internal/observability` | `pkg/agent`、`pkg/observability` |
 | `internal/permission` | `pkg/agent`、`pkg/permission` |
 | `internal/retry` | `pkg/llm` |
 | `internal/runtime` | `pkg/agent`、`pkg/jobs`、`pkg/llm`、`pkg/session`、`pkg/tool` |
@@ -185,6 +188,7 @@ graph LR
 | `pkg/config` | （无模块内依赖） |
 | `pkg/edits` | （无模块内依赖） |
 | `pkg/llm` | （无模块内依赖） |
+| `pkg/observability` | （无模块内依赖） |
 | `pkg/permission` | （无模块内依赖） |
 | `pkg/skill` | （无模块内依赖） |
 
@@ -205,29 +209,29 @@ graph LR
 | `pkg/jobs` | 3 |
 | `pkg/permission` | 3 |
 | `pkg/mcp` | 2 |
+| `pkg/observability` | 2 |
 | `pkg/tool/builtin` | 2 |
 | `internal/compaction` | 1 |
 | `internal/loopdetect` | 1 |
-| `internal/oauth` | 1 |
 
-（共 28 个包有非零计数，此处仅列前 12）
+（共 29 个包有非零计数，此处仅列前 12）
 
 ### 扇出 Top（依赖最多）
 
 | 包 | 计数 |
 |---|---|
-| `cmd/basework` | 21 |
+| `cmd/basework` | 22 |
 | `internal/tools` | 8 |
 | `internal/tui` | 8 |
 | `internal/runtime` | 5 |
 | `pkg/agent` | 4 |
 | `internal/compaction` | 3 |
 | `internal/loopdetect` | 2 |
+| `internal/observability` | 2 |
 | `internal/permission` | 2 |
 | `internal/subagent` | 2 |
 | `pkg/hook` | 2 |
 | `pkg/provider` | 2 |
-| `internal/observability` | 1 |
 
 （共 20 个包有非零计数，此处仅列前 12）
 

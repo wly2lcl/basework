@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/pkg/observability"
 )
 
 // BenchmarkTokenRecordUsage 测试 TokenTracker.RecordUsage 的写入吞吐量。

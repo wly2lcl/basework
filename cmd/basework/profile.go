@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/wly2lcl/basework/internal/observability"
+	"github.com/wly2lcl/basework/pkg/observability"
 )
 
 var (
