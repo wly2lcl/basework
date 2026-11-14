@@ -239,7 +239,7 @@ func TestAgent_HandleMessage_Basic(t *testing.T) {
 	}
 	defer a.Close()
 
-	resp, err := a.HandleMessage(nil, "你好")
+	resp, err := a.HandleMessage(context.TODO(), "你好")
 	if err != nil {
 		t.Fatalf("HandleMessage 返回错误: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestAgent_HandleMessage_WithToolLoop(t *testing.T) {
 	}
 	defer a.Close()
 
-	resp, err := a.HandleMessage(nil, "执行工具")
+	resp, err := a.HandleMessage(context.TODO(), "执行工具")
 	if err != nil {
 		t.Fatalf("HandleMessage 返回错误: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestAgent_HandleMessage_MaxStepsExceeded(t *testing.T) {
 	}
 	defer a.Close()
 
-	_, err = a.HandleMessage(nil, "循环测试")
+	_, err = a.HandleMessage(context.TODO(), "循环测试")
 	if err != ErrMaxStepsExceeded {
 		t.Errorf("期望 ErrMaxStepsExceeded, 得到 %v", err)
 	}

@@ -311,11 +311,7 @@ func searchExa(ctx context.Context, apiKey, query string, numResults int) ([]Sea
 
 	results := make([]SearchResult, 0, len(exaResp.Results))
 	for _, r := range exaResp.Results {
-		results = append(results, SearchResult{
-			Title:   r.Title,
-			URL:     r.URL,
-			Summary: r.Summary,
-		})
+		results = append(results, SearchResult(r))
 	}
 
 	return results, nil

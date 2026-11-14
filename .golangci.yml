@@ -15,8 +15,6 @@ linters:
     - exhaustive  # 太严格
 
 linters-settings:
-  govet:
-    check-shadowing: false
   staticcheck:
     checks: ['all']
 

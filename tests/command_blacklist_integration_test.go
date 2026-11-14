@@ -7,36 +7,12 @@ import (
 	"testing"
 
 	"github.com/wly2lcl/basework/pkg/llm"
-	"github.com/wly2lcl/basework/pkg/session"
 	"github.com/wly2lcl/basework/pkg/tool/builtin"
 )
 
 // ---------------------------------------------------------------------------
 // Task 6.2: 命令黑名单集成测试
 // ---------------------------------------------------------------------------
-
-// newAgentForBlacklist 创建启用了黑名单的 agent。
-// 使用 mockModel 和内置 BashTool。
-func newAgentForBlacklist(t *testing.T, permissionMode string, blockedCommands []string, responses []llm.Response) *mockAgent {
-	t.Helper()
-
-	// 使用 BashTool 并配置黑名单
-	bashTool := &builtin.BashTool{
-		PermissionMode:  permissionMode,
-		BlockedCommands: blockedCommands,
-	}
-
-	model := &mockModel{
-		responses: responses,
-	}
-
-	store := session.NewMemoryStore()
-	a, err := newAgentWithTools(model, store, bashTool)
-	if err != nil {
-		t.Fatalf("创建 agent 失败: %v", err)
-	}
-	return a
-}
 
 // mockAgent 包装 agent，提供 Close 方法。
 type mockAgent struct {
@@ -52,44 +28,6 @@ func (a *mockAgent) Close() {
 	if a.closeFn != nil {
 		a.closeFn()
 	}
-}
-
-// newAgentWithCache 创建启用缓存 Marking 的 agent。
-func newAgentWithCache(model llm.Model, store *session.MemoryStore, cacheEnabled bool) (*mockAgent, error) {
-	// 这个测试中，我们直接验证缓存函数的正确性而非通过完整 agent 流程，
-	// 因为黑名单集成测试已覆盖 agent+tool 的组合使用方式。
-	_ = cacheEnabled
-	_ = store
-	_ = model
-	return &mockAgent{
-		handleMessage: func(ctx context.Context, msg string) (*llm.Response, error) {
-			// 调用 provider 包的缓存标记函数
-			resp, err := model.Generate(ctx, &llm.Request{
-				Messages: []llm.ChatMessage{
-					{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: msg}}},
-				},
-			})
-			return resp, err
-		},
-		closeFn: func() {},
-	}, nil
-}
-
-// newAgentWithTools 创建带指定工具的 agent。
-func newAgentWithTools(model llm.Model, store *session.MemoryStore, tools ...interface{}) (*mockAgent, error) {
-	return &mockAgent{
-		handleMessage: func(ctx context.Context, msg string) (*llm.Response, error) {
-			resp, err := model.Generate(ctx, &llm.Request{
-				Messages: []llm.ChatMessage{
-					{Role: llm.RoleUser, Content: []llm.ContentPart{{Type: llm.ContentTypeText, Text: msg}}},
-				},
-			})
-			_ = tools
-			_ = store
-			return resp, err
-		},
-		closeFn: func() {},
-	}, nil
 }
 
 // TestIntegration_BlacklistDefaultMode 测试默认模式下危险命令被拦截。

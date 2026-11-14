@@ -90,15 +90,6 @@ func runManagerMockServer() {
 // 测试辅助函数
 // ---------------------------------------------------------------------------
 
-// managerTestTransport 创建一个使用 Manager mock 子进程的 StdioTransport。
-func managerTestTransport() *StdioTransport {
-	return NewStdioTransport(
-		os.Args[0],
-		[]string{"-test.run=TestManagerMockHelper$"},
-		map[string]string{"GO_MCP_MOCK": "1"},
-	)
-}
-
 // managerTestConfig 返回适用于 Manager 测试的 ServerConfig。
 func managerTestConfig() ServerConfig {
 	return ServerConfig{

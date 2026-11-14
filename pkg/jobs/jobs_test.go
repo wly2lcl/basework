@@ -21,12 +21,6 @@ func (r *recorder) add(j Job) {
 	r.events = append(r.events, j)
 }
 
-func (r *recorder) count() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return len(r.events)
-}
-
 func (r *recorder) countOf(id string) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -95,11 +95,6 @@ func (ms *MetricsSubscriber) EventTypes() []string {
 	}
 }
 
-// defaultLogger 创建默认的日志记录器（stdout, info 级别）
-func defaultLogger() *Logger {
-	return NewLogger(LogLevelInfo, os.Stdout)
-}
-
 // SetupSubscribers 根据配置初始化并返回订阅者列表。
 // 返回的订阅者已经与事件总线关联。
 func SetupSubscribers(config Config, bus *EventBus, logger *Logger, costTracker *CostTracker, tokenTracker *TokenTracker) {

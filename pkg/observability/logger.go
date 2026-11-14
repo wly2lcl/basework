@@ -107,7 +107,7 @@ func (l *Logger) Log(level LogLevel, msg string, fields map[string]interface{}) 
 	}
 
 	data = append(data, '\n')
-	l.output.Write(data)
+	_, _ = l.output.Write(data)
 }
 
 // Debug 记录 debug 级别日志

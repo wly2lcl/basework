@@ -332,7 +332,6 @@ func TestAnthropic_Stream_WithToolCalls(t *testing.T) {
 	}
 
 	var textDeltas []string
-	var toolCallDeltas []*llm.ToolCallDelta
 	var completeToolCall *llm.ToolCallDelta
 	gotDone := false
 
@@ -343,8 +342,6 @@ func TestAnthropic_Stream_WithToolCalls(t *testing.T) {
 		case llm.StreamEventToolCall:
 			if evt.ToolCall.Complete {
 				completeToolCall = evt.ToolCall
-			} else {
-				toolCallDeltas = append(toolCallDeltas, evt.ToolCall)
 			}
 		case llm.StreamEventDone:
 			gotDone = true

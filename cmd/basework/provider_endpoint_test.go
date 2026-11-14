@@ -284,6 +284,30 @@ func TestBuildProviderOptions_OllamaEndpointPrecedence(t *testing.T) {
 	}
 }
 
+// TestBuildProviderOptions_PromptCacheToggle 验证 Prompt 缓存开关真正下发给 Provider：
+// 默认配置开启，配置关闭时也必须下发 false（而不是靠 Provider 侧缺省值）。
+func TestBuildProviderOptions_PromptCacheToggle(t *testing.T) {
+	cfg := config.NewStore("").Get()
+	opts := buildProviderOptions(cfg, "openai", config.Endpoint{Source: config.EndpointSourceDefault})
+	got, ok := opts["prompt_cache_enabled"]
+	if !ok {
+		t.Fatal("默认配置下应下发 prompt_cache_enabled")
+	}
+	if v, isBool := got.(bool); !isBool || !v {
+		t.Errorf("默认应开启 Prompt 缓存: got %v", got)
+	}
+
+	cfg.PromptCache.Enabled = false
+	opts = buildProviderOptions(cfg, "openai", config.Endpoint{Source: config.EndpointSourceDefault})
+	got, ok = opts["prompt_cache_enabled"]
+	if !ok {
+		t.Fatal("关闭缓存时仍应下发 prompt_cache_enabled")
+	}
+	if v, isBool := got.(bool); !isBool || v {
+		t.Errorf("配置关闭时应下发 false: got %v", got)
+	}
+}
+
 // TestConfigExplain_ShowsCustomEndpointAndRedactsKey explain 必须展示生效端点
 // （URL 不是秘密，排查需要），同时绝不显示 key。
 func TestConfigExplain_ShowsCustomEndpointAndRedactsKey(t *testing.T) {

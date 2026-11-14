@@ -32,8 +32,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/pkg/agent"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/pkg/session"
 )
 

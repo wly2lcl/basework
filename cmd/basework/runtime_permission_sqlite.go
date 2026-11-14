@@ -5,8 +5,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/config"
+	"github.com/wly2lcl/basework/pkg/permission"
 )
 
 func openRuntimePermissionPersistence(cfg *config.Config) (*runtimePermissionPersistence, error) {

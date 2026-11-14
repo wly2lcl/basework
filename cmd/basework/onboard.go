@@ -100,7 +100,7 @@ func runInit() error {
 		scanner.Scan()
 		choice := strings.TrimSpace(scanner.Text())
 		idx := 0
-		fmt.Sscanf(choice, "%d", &idx)
+		_, _ = fmt.Sscanf(choice, "%d", &idx)
 		if idx < 1 || idx > len(detected) {
 			selectedProvider = detected[0].provider
 			fmt.Printf("使用默认: %s\n", detected[0].label)
@@ -118,7 +118,7 @@ func runInit() error {
 		scanner.Scan()
 		choice := strings.TrimSpace(scanner.Text())
 		idx := 0
-		fmt.Sscanf(choice, "%d", &idx)
+		_, _ = fmt.Sscanf(choice, "%d", &idx)
 		if idx < 1 || idx > len(apiEnvVars) {
 			selectedProvider = "opencode"
 			fmt.Println("使用默认: OpenCode Zen")
@@ -166,12 +166,14 @@ func runInit() error {
 
 	// 5. 创建或更新配置
 	store := config.NewStore(cfgPath)
-	store.Mutate(func(c *config.Config) {
+	if err := store.Mutate(func(c *config.Config) {
 		c.Provider = selectedProvider
 		c.Model = defaultModel
 		c.Temperature = 0.7
 		c.MaxTokens = 4096
-	})
+	}); err != nil {
+		return fmt.Errorf("更新配置失败: %w", err)
+	}
 
 	if err := store.Save(); err != nil {
 		return fmt.Errorf("保存配置失败: %w", err)
@@ -320,7 +322,7 @@ func promptOpenCodeFreeModel(scanner *bufio.Scanner, fallback string) string {
 		return fallback
 	}
 	idx := 0
-	fmt.Sscanf(choice, "%d", &idx)
+	_, _ = fmt.Sscanf(choice, "%d", &idx)
 	if idx < 1 || idx > len(models) {
 		fmt.Printf("使用默认免费模型: %s\n", fallback)
 		return fallback

@@ -1,18 +1,8 @@
 package provider
 
 import (
-	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
 )
-
-// shouldCachePrompt 检查 prompt 缓存是否在配置中启用。
-// 如果 cfg 为 nil，默认返回 false（安全默认）。
-func shouldCachePrompt(cfg *config.Config) bool {
-	if cfg == nil {
-		return false
-	}
-	return cfg.PromptCache.Enabled
-}
 
 // cacheControlEphemeral 是 cache_control 标记值
 var cacheControlEphemeral = map[string]any{

@@ -199,11 +199,6 @@ func (c *Checker) checkInteractive(ctx context.Context, toolName string, args ma
 	return allow, nil
 }
 
-// recordAudit 记录审计事件（如果配置了 AuditLogger）。
-func (c *Checker) recordAudit(toolName, ruleID, decision string, args map[string]interface{}) {
-	c.recordAuditWithScope(toolName, ruleID, decision, args, c.ScopeContext())
-}
-
 func (c *Checker) recordAuditWithScope(toolName, ruleID, decision string, args map[string]interface{}, scope ScopeContext) {
 	if c.AuditLogger == nil {
 		return

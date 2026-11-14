@@ -12,7 +12,7 @@ import (
 //
 // 递增规则：只要对 Event 结构或其 Data 负载做**不兼容**修改（删除字段、
 // 改变字段语义、新增必填字段），就递增本值，并在下方 eventMigrations /
-// dbMigrations 中补上从上一个版本到本版本的**相邻**迁移步骤。
+// sqlite.go 的 dbMigrations 中补上从上一个版本到本版本的**相邻**迁移步骤。
 //
 // 无需递增的兼容变更：新增带 omitempty 的可选字段。
 //
@@ -61,29 +61,6 @@ var eventMigrations = []migration{
 		// payload 不变不代表投影结果不变。版本号在这里标明读端支持的新解释规则，
 		// 以及「请求上下文可能来自日志本身，而不只是配置」这一能力边界。
 		Apply: func(raw []byte) ([]byte, error) { return stampSchemaVersion(raw, 2) },
-	},
-}
-
-// dbMigrations 是 SQLite 库级迁移链，按 From 升序排列。
-var dbMigrations = []migration{
-	{
-		From: 0,
-		To:   1,
-		// v0 → v1：仅置 PRAGMA user_version，表结构未变。
-		// 用 SQLite 原生的 user_version 而非自建 meta 表，少一张表少一处不一致。
-		ApplyDB: func(db *sql.DB) error {
-			_, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", 1))
-			return err
-		},
-	},
-	{
-		From: 1,
-		To:   2,
-		// v1 → v2：同样只更新版本号，不变换事件 payload（理由见 eventMigrations 的 v1→v2）。
-		ApplyDB: func(db *sql.DB) error {
-			_, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", 2))
-			return err
-		},
 	},
 }
 

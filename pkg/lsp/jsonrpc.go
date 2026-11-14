@@ -339,7 +339,7 @@ func (c *Conn) dispatchMessage(body []byte) {
 			ID:      *msg.ID,
 			Result:  json.RawMessage("null"),
 		}
-		c.write(resp)
+		_ = c.write(resp)
 
 	case msg.ID != nil:
 		// 对我们之前请求的响应

@@ -17,9 +17,6 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("63")).
 			Padding(0, 1)
-
-	styleInputValue = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("255"))
 )
 
 // InputDialog 输入对话框

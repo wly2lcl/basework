@@ -133,15 +133,6 @@ func buildCapsInitResponse(caps ServerCapabilities) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"protocolVersion":"2024-11-05","capabilities":{%s}}`, capFields))
 }
 
-// capabilityTestTransport 创建一个使用可配置能力 mock 子进程的 StdioTransport。
-func capabilityTestTransport(caps string) *StdioTransport {
-	return NewStdioTransport(
-		os.Args[0],
-		[]string{"-test.run=TestCapabilityMockHelper$"},
-		map[string]string{"GO_MCP_CAPS": caps},
-	)
-}
-
 // capabilityTestConfig 返回适用于能力测试的 ServerConfig。
 func capabilityTestConfig(caps string) ServerConfig {
 	return ServerConfig{

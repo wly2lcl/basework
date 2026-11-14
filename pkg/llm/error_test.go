@@ -13,8 +13,8 @@ func TestError_ImplementsErrorInterface(t *testing.T) {
 		ProviderError: "rate limit exceeded",
 	}
 	var err error = e
-	if err == nil {
-		t.Fatal("Error should not be nil")
+	if got, want := err.Error(), "[rate_limit] too many requests (status=429)"; got != want {
+		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 }
 

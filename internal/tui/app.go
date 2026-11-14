@@ -87,14 +87,6 @@ const (
 	inputAreaHeight = 5
 )
 
-// 主题感知的样式创建函数
-func makeStatusBarStyle(t *theme.Theme) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Background(lipgloss.Color(t.Get(theme.ColorStatusBar))).
-		Foreground(lipgloss.Color(t.Get(theme.ColorStatusFg))).
-		Padding(0, 1)
-}
-
 func makeUserMsgStyle(t *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(t.Get(theme.ColorUserMsg)))

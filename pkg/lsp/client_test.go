@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -25,7 +24,6 @@ type mockLSPServer struct {
 
 	mu            sync.Mutex
 	methodHandler map[string]func(id int, method string, params json.RawMessage)
-	initialized   atomic.Bool // 是否已收到 initialized 通知
 }
 
 // newMockLSPServer 创建 LSP 模拟服务器。

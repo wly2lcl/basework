@@ -316,12 +316,11 @@ func TestMarkOpenAIContentForCache_WithImage(t *testing.T) {
 }
 
 // ============================================================
-// Tests for shouldCachePrompt (with config)
+// Tests for markAnthropicMessagesForCache (cache toggle)
 // ============================================================
 
-func TestShouldCachePrompt_Enabled(t *testing.T) {
-	// Test with a minimal mock approach - just test the edge cases
-	// shouldCachePrompt is used internally; test via markAnthropicMessagesForCache
+func TestMarkAnthropicMessagesForCache_Toggle(t *testing.T) {
+	// 关闭缓存时不下发 system blocks；开启时下发。
 
 	// When cache is disabled, systemBlocks should be nil
 	sysBlocks, _, _ := markAnthropicMessagesForCache("test", []map[string]any{}, false)

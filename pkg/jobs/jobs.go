@@ -167,11 +167,10 @@ type Options struct {
 type Manager struct {
 	opts Options
 
-	mu      sync.Mutex
-	jobs    map[string]*jobState
-	order   []string
-	counter int64
-	wg      sync.WaitGroup
+	mu    sync.Mutex
+	jobs  map[string]*jobState
+	order []string
+	wg    sync.WaitGroup
 }
 
 // jobState 是 Manager 内部的活的 job 记录。

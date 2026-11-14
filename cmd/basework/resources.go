@@ -101,26 +101,3 @@ func (p *runtimeResourcePlugin) Name() string { return "runtime-resources" }
 func (p *runtimeResourcePlugin) Initialize(context.Context, agent.Agent) error { return nil }
 
 func (p *runtimeResourcePlugin) Shutdown(context.Context) error { return p.scope.Close() }
-
-// runtimeAgentInitFail 把 agent.New 之前创建的资源在失败路径上全部释放。
-// 用法（newRuntimeAgent）：
-//
-//	scope := newRuntimeResourceScope()
-//	defer scope.CloseIfNotOwnedBy(&owned)   // 或显式 owned 标记
-//	...各资源 scope.Register...
-//	agt, err := agent.New(...)
-//	if err != nil { return nil, err }       // defer 释放全部
-//	owned = true                            // 成功后由插件接管
-type ownedMarker struct{ owned bool }
-
-func (o *ownedMarker) markOwned() { o.owned = true }
-
-func (o *ownedMarker) releaseIfNotOwned(scope *runtimeResourceScope) func() {
-	return func() {
-		if !o.owned {
-			if err := scope.Close(); err != nil {
-				log.Printf("[runtime] warning: 运行时装配失败后的资源释放出错: %v", err)
-			}
-		}
-	}
-}

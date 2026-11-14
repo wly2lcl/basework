@@ -46,6 +46,7 @@ var layerDesc = map[string]string{
 // 前缀匹配：登记 `golang.org/x/image` 即同时放行其子包（draw、webp 等）。
 var approvedPkgDeps = map[string]string{
 	"github.com/golang/snappy": "pkg/session 会话压缩",
+	"github.com/google/uuid":   "pkg/permission SQLite 审计记录 ID",
 	"golang.org/x/image":       "pkg/llm 图像处理",
 	"golang.org/x/oauth2":      "pkg/provider Copilot OAuth 设备授权",
 	"modernc.org/sqlite":       "pkg/session 与 pkg/memory 的持久化",
@@ -61,16 +62,6 @@ type pkgInfo struct {
 	// depCtx 记录「第三方依赖 → 引入它的文件所用构建约束集合」。
 	// 构建约束为空集表示该依赖在默认构建下即被引入。
 	depCtx map[string]map[string]bool
-}
-
-// hasDep 判断该包是否引入了指定第三方依赖，支持子包前缀匹配。
-func (p pkgInfo) hasDep(dep string) bool {
-	for _, d := range p.ExtDeps {
-		if d == dep || strings.HasPrefix(d, dep+"/") {
-			return true
-		}
-	}
-	return false
 }
 
 // violation 表示一条层级或依赖边界违规。

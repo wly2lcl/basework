@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/internal/subagent"
 	runtimetools "github.com/wly2lcl/basework/internal/tools"
 	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/lsp"
+	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/tool"
 )
 

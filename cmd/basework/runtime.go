@@ -14,20 +14,20 @@ import (
 	"time"
 
 	"github.com/wly2lcl/basework/internal/compaction"
-	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/loopdetect"
-	"github.com/wly2lcl/basework/pkg/observability"
 	observabilityadapter "github.com/wly2lcl/basework/internal/observability"
-	"github.com/wly2lcl/basework/pkg/permission"
 	permissionadapter "github.com/wly2lcl/basework/internal/permission"
 	intruntime "github.com/wly2lcl/basework/internal/runtime"
 	"github.com/wly2lcl/basework/internal/subagent"
 	runtimetools "github.com/wly2lcl/basework/internal/tools"
 	"github.com/wly2lcl/basework/pkg/agent"
 	"github.com/wly2lcl/basework/pkg/config"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/lsp"
 	"github.com/wly2lcl/basework/pkg/mcp"
+	"github.com/wly2lcl/basework/pkg/observability"
+	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/provider"
 	"github.com/wly2lcl/basework/pkg/session"
 	"github.com/wly2lcl/basework/pkg/skill"
@@ -1001,10 +1001,6 @@ func runtimeSkillPaths(cfg *config.Config, workDir string) []string {
 		)
 	}
 	return paths
-}
-
-type runtimeCleanupPlugin struct {
-	cleanups []func() error
 }
 
 // filterToolsByAllowlist 按白名单过滤工具表（CFG-002）。allowlist 为空时

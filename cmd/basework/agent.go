@@ -306,6 +306,9 @@ func buildProviderOptions(cfg *config.Config, providerType string, endpoint conf
 		}
 	}
 
+	// Prompt 缓存开关：Provider 侧读取该选项，未传入时默认开启。
+	opts["prompt_cache_enabled"] = cfg.PromptCache.Enabled
+
 	return opts
 }
 

@@ -3,9 +3,10 @@ package tests
 
 import (
 	"context"
-	"strings"
+	"path/filepath"
 	"testing"
 
+	"github.com/wly2lcl/basework/pkg/config"
 	"github.com/wly2lcl/basework/pkg/llm"
 	"github.com/wly2lcl/basework/pkg/session"
 )
@@ -85,12 +86,38 @@ func TestIntegration_PromptCacheUsageFields(t *testing.T) {
 		usage.CacheCreationInputTokens, usage.CacheReadInputTokens)
 }
 
-// TestIntegration_PromptCacheConfig 验证配置支持 Prompt 缓存开关。
+// TestIntegration_PromptCacheConfig 验证配置能真实读取 Prompt 缓存开关：
+// 缺省开启、显式关闭，以及配置文件缺失时回落到默认开启。
 func TestIntegration_PromptCacheConfig(t *testing.T) {
-	// 验证 prompt_cache 配置结构存在
-	// 通过字符串匹配验证 config 结构中包含 PromptCacheConfig
-	_ = strings.Contains("prompt_cache", "prompt_cache")
-	t.Log("Config 中包含 PromptCache 配置结构")
+	if got := config.NewStore("").Get().PromptCache.Enabled; !got {
+		t.Errorf("默认配置应开启 Prompt 缓存, got %v", got)
+	}
+
+	path := filepath.Join(t.TempDir(), "config.json")
+	store := config.NewStore(path)
+	if err := store.Mutate(func(c *config.Config) {
+		c.PromptCache.Enabled = false
+	}); err != nil {
+		t.Fatalf("修改配置失败: %v", err)
+	}
+	if err := store.Save(); err != nil {
+		t.Fatalf("保存配置失败: %v", err)
+	}
+	loaded, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got := loaded.Get().PromptCache.Enabled; got {
+		t.Errorf("显式关闭后 Prompt 缓存应关闭, got %v", got)
+	}
+
+	missing, err := config.Load(filepath.Join(t.TempDir(), "absent.json"))
+	if err != nil {
+		t.Fatalf("配置缺失时应回落到默认配置: %v", err)
+	}
+	if got := missing.Get().PromptCache.Enabled; !got {
+		t.Errorf("配置缺失时默认应开启 Prompt 缓存, got %v", got)
+	}
 }
 
 // TestIntegration_PromptCacheMarking 验证缓存标记逻辑的正确性。

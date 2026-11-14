@@ -128,7 +128,6 @@ graph LR
   n22 --> n30
   n23 --> n30
   n24 --> n21
-  n27 --> n17
   n27 --> n21
   n28 --> n21
   n30 --> n21
@@ -175,7 +174,7 @@ graph LR
 | `pkg/lsp` | `pkg/tool` |
 | `pkg/mcp` | `pkg/tool` |
 | `pkg/memory` | `pkg/llm` |
-| `pkg/provider` | `pkg/config`、`pkg/llm` |
+| `pkg/provider` | `pkg/llm` |
 | `pkg/session` | `pkg/llm` |
 | `pkg/tool` | `pkg/llm` |
 | `pkg/tool/builtin` | `pkg/tool` |
@@ -205,9 +204,9 @@ graph LR
 | `pkg/tool` | 10 |
 | `pkg/agent` | 8 |
 | `pkg/session` | 6 |
-| `pkg/config` | 3 |
 | `pkg/jobs` | 3 |
 | `pkg/permission` | 3 |
+| `pkg/config` | 2 |
 | `pkg/mcp` | 2 |
 | `pkg/observability` | 2 |
 | `pkg/tool/builtin` | 2 |
@@ -231,17 +230,13 @@ graph LR
 | `internal/permission` | 2 |
 | `internal/subagent` | 2 |
 | `pkg/hook` | 2 |
-| `pkg/provider` | 2 |
+| `internal/retry` | 1 |
 
 （共 20 个包有非零计数，此处仅列前 12）
 
 ## 层级违规检测
 
-❌ 发现违规，必须修复：
-
-| 来源 | 目标 | 违反规则 |
-|---|---|---|
-| `pkg/permission` | `github.com/google/uuid` | pkg/ 引入未登记在白名单的第三方依赖（见 docs/ARCHITECTURE.md） |
+✅ 未发现层级或依赖边界违规。
 
 ## pkg/ 层第三方依赖明细
 
@@ -253,7 +248,7 @@ graph LR
 | `pkg/llm` | `golang.org/x/image/draw` | 默认构建 | ✅ |
 | `pkg/llm` | `golang.org/x/image/webp` | 默认构建 | ✅ |
 | `pkg/memory` | `modernc.org/sqlite` | `memory` | ✅ |
-| `pkg/permission` | `github.com/google/uuid` | `sqlite` | ❌ 未登记 |
+| `pkg/permission` | `github.com/google/uuid` | `sqlite` | ✅ |
 | `pkg/permission` | `modernc.org/sqlite` | `sqlite` | ✅ |
 | `pkg/provider` | `golang.org/x/oauth2` | 默认构建 | ✅ |
 | `pkg/session` | `github.com/golang/snappy` | `sqlite` | ✅ |

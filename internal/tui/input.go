@@ -230,11 +230,6 @@ func (iv *InputView) currentLineText() string {
 	return ""
 }
 
-// insertRune 在当前光标位置插入字符
-func (iv *InputView) insertRune(r rune) {
-	iv.insertText(string(r))
-}
-
 // insertText 在当前光标位置插入一段文本（可含多个字符，如粘贴或输入法上屏）。
 //
 // cursorPos 是**rune 索引**，不是字节偏移：按字节切片会把中文切成半个字符，
@@ -431,7 +426,7 @@ func findPathCompletions(prefix string) []string {
 	for _, entry := range entries {
 		name := entry.Name()
 		if strings.HasPrefix(name, base) {
-			fullPath := prefix
+			var fullPath string
 			if idx := strings.LastIndex(prefix, "/"); idx >= 0 {
 				fullPath = prefix[:idx+1] + name
 			} else {

@@ -643,18 +643,13 @@ func (s *JSONLStore) loadSession(id string) (*sessionData, error) {
 	return sd, nil
 }
 
-// readEvents 从 JSONL 文件读取所有事件。
+// readEventsWithMeta 从 JSONL 文件读取所有事件，并返回是否带有文件头。
 //
 // 处理三件事：
 //  1. 首行文件头识别——含 `_schema` 即为头，跳过；否则视为 v0 老文件（首行即事件）。
 //     判定是 O(1) 的（只看首行），读路径是热路径，不做全文件扫描。
 //  2. 版本判定——文件头或单条事件的版本高于 SchemaVersion 时返回 ErrSchemaTooNew。
 //  3. 逐条迁移——低版本事件经 migrate.go 的相邻迁移链升级到当前版本。
-func (s *JSONLStore) readEvents(path string) ([]Event, error) {
-	events, _, err := s.readEventsWithMeta(path)
-	return events, err
-}
-
 func (s *JSONLStore) readEventsWithMeta(path string) ([]Event, bool, error) {
 	f, err := os.Open(path)
 	if err != nil {

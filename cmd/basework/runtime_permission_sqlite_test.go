@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wly2lcl/basework/pkg/permission"
 	"github.com/wly2lcl/basework/pkg/config"
+	"github.com/wly2lcl/basework/pkg/permission"
 )
 
 func TestRuntimePermissionCheckerUsesSQLiteStoreAndAudit(t *testing.T) {

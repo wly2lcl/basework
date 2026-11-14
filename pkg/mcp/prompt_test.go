@@ -87,15 +87,6 @@ func runPromptMockServer() {
 	}
 }
 
-// promptTestTransport 创建一个使用 Prompt mock 子进程的 StdioTransport。
-func promptTestTransport() *StdioTransport {
-	return NewStdioTransport(
-		os.Args[0],
-		[]string{"-test.run=TestPromptMockHelper$"},
-		map[string]string{"GO_PROMPT_MOCK": "1"},
-	)
-}
-
 // promptTestConfig 返回适用于提示测试的 ServerConfig。
 func promptTestConfig() ServerConfig {
 	return ServerConfig{

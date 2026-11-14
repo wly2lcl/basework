@@ -100,10 +100,7 @@ func (s *mockServer) readHeaders() (int, error) {
 			break
 		}
 		if strings.HasPrefix(line, "Content-Length:") {
-			n, err := fmt.Sscanf(line, "Content-Length: %d", &contentLength)
-			if err == nil && n == 1 {
-				// 成功
-			}
+			_, _ = fmt.Sscanf(line, "Content-Length: %d", &contentLength)
 		}
 	}
 	return contentLength, nil

@@ -119,8 +119,6 @@ func newOpenCode(baseURL, apiKey, modelID string, opts map[string]any) (llm.Mode
 // openCodeModel 结构体 — 嵌入 compatModel 以实现 llm.Model
 type openCodeModel struct {
 	*compatModel
-	apiKey  string
-	modelID string
 }
 
 // 确保编译时验证接口实现

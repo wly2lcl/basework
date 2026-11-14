@@ -261,8 +261,8 @@ func (t *StdioTransport) Reset() {
 
 	// 杀死旧进程
 	if t.cmd != nil && t.cmd.Process != nil {
-		t.cmd.Process.Kill()
-		t.cmd.Wait() // 忽略等待错误
+		_ = t.cmd.Process.Kill()
+		_ = t.cmd.Wait() // 忽略等待错误
 	}
 
 	// 重置状态——不置 nil 指针（避免与 readLoop 的 data race），

@@ -183,7 +183,7 @@ func TestSteeringIntegration(t *testing.T) {
 	}
 
 	// 发送用户消息
-	resp, err := a.HandleMessage(nil, "你好")
+	resp, err := a.HandleMessage(context.TODO(), "你好")
 	if err != nil {
 		t.Fatalf("HandleMessage 返回错误: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestSteeringIntegration_MultipleMessages(t *testing.T) {
 	_ = sm.InjectMessage(context.Background(), "第一条", Queue)
 	_ = sm.InjectMessage(context.Background(), "第二条", Steer)
 
-	_, err = a.HandleMessage(nil, "测试")
+	_, err = a.HandleMessage(context.TODO(), "测试")
 	if err != nil {
 		t.Fatalf("HandleMessage 返回错误: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestSteeringIntegration_WithSystemPrompt(t *testing.T) {
 
 	_ = sm.InjectMessage(context.Background(), "steer指令", Queue)
 
-	_, err = a.HandleMessage(nil, "测试")
+	_, err = a.HandleMessage(context.TODO(), "测试")
 	if err != nil {
 		t.Fatalf("HandleMessage 返回错误: %v", err)
 	}

@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -66,7 +67,7 @@ func TestMCPReadToolExecuteMissingResource(t *testing.T) {
 	tool := NewMCPReadTool(mcp.NewManager())
 	defer tool.manager.Close()
 
-	result, err := tool.Execute(nil, []byte(`{}`))
+	result, err := tool.Execute(context.TODO(), []byte(`{}`))
 	if err != nil {
 		t.Fatalf("Execute should not return error: %v", err)
 	}

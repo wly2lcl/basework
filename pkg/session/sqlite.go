@@ -16,6 +16,30 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// dbMigrations 是 SQLite 库级迁移链，按 From 升序排列。
+// 放在 build tag 为 sqlite 的本文件内，避免默认构建下出现未使用的变量。
+var dbMigrations = []migration{
+	{
+		From: 0,
+		To:   1,
+		// v0 → v1：仅置 PRAGMA user_version，表结构未变。
+		// 用 SQLite 原生的 user_version 而非自建 meta 表，少一张表少一处不一致。
+		ApplyDB: func(db *sql.DB) error {
+			_, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", 1))
+			return err
+		},
+	},
+	{
+		From: 1,
+		To:   2,
+		// v1 → v2：同样只更新版本号，不变换事件 payload（理由见 eventMigrations 的 v1→v2）。
+		ApplyDB: func(db *sql.DB) error {
+			_, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", 2))
+			return err
+		},
+	},
+}
+
 // SQLiteStore 是基于 SQLite 的会话存储实现。
 // 使用 modernc.org/sqlite（纯 Go，无 CGO）。
 // 通过 build tag "sqlite" 控制编译。

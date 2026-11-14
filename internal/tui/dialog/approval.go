@@ -18,11 +18,10 @@ import (
 // 决策后对话框自我关闭；重复应答由 broker 按 ID 幂等忽略。
 type ApprovalDialog struct {
 	baseDialog
-	req        ApprovalRequest
-	Respond    func(approved bool) bool
-	decided    bool
-	scroll     int
-	heightHint int
+	req     ApprovalRequest
+	Respond func(approved bool) bool
+	decided bool
+	scroll  int
 }
 
 // ApprovalRequest 是对话框需要的展示数据（与 permission.ApprovalRequest

@@ -144,8 +144,7 @@ func TestCancel_RunningAndIdempotent(t *testing.T) {
 	defer cancelCaller()
 
 	// Start 是同步的，放后台跑，以便主 goroutine 调 Cancel。
-	var started chan struct{}
-	started = make(chan struct{})
+	started := make(chan struct{})
 	go func() {
 		sub := svc.Subscribe()
 		_ = sub

@@ -89,15 +89,6 @@ func runResourceMockServer() {
 	}
 }
 
-// resourceTestTransport 创建一个使用 Resource mock 子进程的 StdioTransport。
-func resourceTestTransport() *StdioTransport {
-	return NewStdioTransport(
-		os.Args[0],
-		[]string{"-test.run=TestResourceMockHelper$"},
-		map[string]string{"GO_RESOURCE_MOCK": "1"},
-	)
-}
-
 // resourceTestConfig 返回适用于资源测试的 ServerConfig。
 func resourceTestConfig() ServerConfig {
 	return ServerConfig{

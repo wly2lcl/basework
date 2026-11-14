@@ -24,7 +24,7 @@ type SessionSwitcher interface {
 // RegisterBuiltinCommands 注册内置命令
 func RegisterBuiltinCommands(r *Registry, app App) {
 	// /help 命令
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "help",
 		Description: "显示帮助信息",
 		Handler: func(args string) error {
@@ -33,7 +33,7 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 	})
 
 	// /clear 命令
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "clear",
 		Description: "清空消息历史",
 		Handler: func(args string) error {
@@ -43,7 +43,7 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 	})
 
 	// /theme 命令
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "theme",
 		Description: "切换主题（查看可用主题或设置主题）",
 		Args:        "[theme_name]",
@@ -58,7 +58,7 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 	})
 
 	// /quit 命令
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "quit",
 		Description: "退出程序",
 		Handler: func(args string) error {
@@ -68,7 +68,7 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 	})
 
 	// /config 命令
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "config",
 		Description: "查看当前配置信息",
 		Handler: func(args string) error {
@@ -79,7 +79,7 @@ func RegisterBuiltinCommands(r *Registry, app App) {
 
 	// /session <id> 命令：切换到已存在的历史会话。具体的 runtime 重建
 	// 由产品层注入，TUI 只负责校验入口和显示错误。
-	r.Register(&Command{
+	_ = r.Register(&Command{
 		Name:        "session",
 		Description: "切换到已有会话（/session <id>）",
 		Args:        "<session_id>",

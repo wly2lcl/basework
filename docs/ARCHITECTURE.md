@@ -219,12 +219,13 @@ description: "代码审查最佳实践"
 | `golang.org/x/oauth2` | `pkg/provider` | 默认构建 |
 | `modernc.org/sqlite` | `pkg/session`、`pkg/memory` | `sqlite` / `memory` |
 | `github.com/golang/snappy` | `pkg/session` | `sqlite` |
+| `github.com/google/uuid` | `pkg/permission` | `sqlite` |
 
 白名单定义在 `scripts/gendeps/main.go` 的 `approvedPkgDeps`：新增 `pkg/` 层第三方依赖
 必须同时改白名单与本表，否则 `make deps` 会以非零退出，CI 也会失败。
 
 > 这张表来自一次纠错：本文档此前声称 `pkg/` 层「不依赖任何第三方库」、
-> 后又称「唯一例外是 `golang.org/x/image`」，两次都与代码不符（实际有 4 个）。
+> 后又称「唯一例外是 `golang.org/x/image`」，两次都与代码不符（实际有 5 个）。
 > 结构性断言和数字一样会漂移，因此现在由依赖图生成器做机器核对。
 
 **已知偏差（待评估）**：`golang.org/x/image` 与 `golang.org/x/oauth2` 没有 build tag

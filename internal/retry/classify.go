@@ -32,8 +32,11 @@ func IsRetryable(err error) bool {
 		return true
 	}
 
-	// 检查临时性网络错误
-	if errors.As(err, &netErr) && netErr.Temporary() {
+	// 检查临时性网络错误。
+	// net.Error.Temporary 已废弃，这里用局部接口匹配，但先限定为 net.Error，
+	// 避免把任意带 Temporary() 方法的错误都判为可重试。
+	var tempErr interface{ Temporary() bool }
+	if errors.As(err, &netErr) && errors.As(err, &tempErr) && tempErr.Temporary() {
 		return true
 	}
 

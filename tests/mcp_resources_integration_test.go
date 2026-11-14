@@ -121,10 +121,7 @@ func readHeadersMock(reader *bufio.Reader) (int, error) {
 			break
 		}
 		if strings.HasPrefix(line, "Content-Length:") {
-			n, err := fmt.Sscanf(line, "Content-Length: %d", &contentLength)
-			if err == nil && n == 1 {
-				// already set
-			}
+			_, _ = fmt.Sscanf(line, "Content-Length: %d", &contentLength)
 		}
 	}
 	return contentLength, nil

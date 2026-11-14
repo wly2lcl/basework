@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/internal/tui"
+	"github.com/wly2lcl/basework/pkg/jobs"
 	"github.com/wly2lcl/basework/pkg/session"
 )
 

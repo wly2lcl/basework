@@ -467,13 +467,8 @@ func TestParseEntryEmpty(t *testing.T) {
 
 // TestParseEntryInvalidHeader 测试解析无效头部。
 func TestParseEntryInvalidHeader(t *testing.T) {
-	entry, ok := parseEntry(LayerProject, "无效格式")
-	if ok {
-		// 可能返回 true，但 content 会被设置为 "无效格式"
-		// 时间会是默认值
-		if entry.CreatedAt.IsZero() == false {
-			// 也可以接受
-		}
+	if _, ok := parseEntry(LayerProject, "无效格式"); ok {
+		t.Fatal("无效头部（无正文行）应返回 ok=false")
 	}
 }
 

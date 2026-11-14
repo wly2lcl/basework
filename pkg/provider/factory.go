@@ -42,19 +42,6 @@ var protocols = map[string]protocolMeta{
 	"ollama":   {defaultBaseURL: "http://localhost:11434", allowEmptyKey: true},
 }
 
-// compatProviders 列出所有已知走 OpenAI-compatible 路径的 provider 类型
-var compatProviders = map[string]bool{
-	"openai-compat": true,
-	"deepseek":      true,
-	"groq":          true,
-	"together":      true,
-	"openrouter":    true,
-	"xai":           true,
-	"mistral":       true,
-	"opencode":      true,
-	"ollama":        true,
-}
-
 // Create 根据配置创建 Model
 func Create(cfg Config) (llm.Model, error) {
 	// 查找元数据

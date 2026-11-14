@@ -19,7 +19,6 @@ type Dialog interface {
 type baseDialog struct {
 	title   string
 	message string
-	onClose func()
 }
 
 func (d *baseDialog) Init() tea.Cmd {

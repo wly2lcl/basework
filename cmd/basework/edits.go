@@ -199,10 +199,6 @@ func runEditsList(cmd *cobra.Command, args []string) error {
 			fmt.Printf("  - %s\n", f)
 		}
 	}
-	if err := s.Delete; err != nil {
-		// 不可达；占位防止误用——见下方说明。
-		_ = err
-	}
 	return nil
 }
 

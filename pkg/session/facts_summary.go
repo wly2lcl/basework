@@ -138,7 +138,7 @@ func SummarizeFacts(w *WorkspaceFacts, opts FactsSummaryOptions) *FactsSummary {
 		line := ""
 		switch {
 		case f.Kind == FactFileModified || f.Kind == FactFileRead || f.Kind == FactFileReverted:
-			state := "unchanged"
+			var state string
 			if opts.Hash != nil && hashed < MaxHashPerBuild {
 				hashed++
 				h, err := opts.Hash(f.Path)

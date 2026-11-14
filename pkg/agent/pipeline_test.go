@@ -136,16 +136,6 @@ func eventsFromResponse(resp *llm.Response) <-chan llm.StreamEvent {
 	return ch
 }
 
-// mockSession 是 session.Store 的测试封装，绑定 session ID
-type mockSession struct {
-	session.Store
-	sessionID string
-}
-
-func (s *mockSession) Messages() ([]llm.ChatMessage, error) {
-	return s.Store.Messages()
-}
-
 // mockTool 是工具测试实现
 type mockTool struct {
 	name        string
@@ -294,22 +284,6 @@ func seedSystemPromptEvent(t *testing.T, td *testTurnD, prompt string) {
 		Data:      data,
 	}); err != nil {
 		t.Fatalf("写入 system prompt 事件失败: %v", err)
-	}
-}
-
-// seedSteeredEvent 向测试会话写入一条 steered 事件。
-func seedSteeredEvent(t *testing.T, td *testTurnD, msgs ...string) {
-	t.Helper()
-	data, err := session.EncodeData(&session.SteeredData{Messages: msgs})
-	if err != nil {
-		t.Fatalf("编码 steered 事件失败: %v", err)
-	}
-	if err := td.session.AppendEvent(session.Event{
-		SessionID: td.sessionID,
-		Type:      session.EventSteered,
-		Data:      data,
-	}); err != nil {
-		t.Fatalf("写入 steered 事件失败: %v", err)
 	}
 }
 
