@@ -13,6 +13,17 @@
 
 ## [Unreleased]
 
+### 静态检查清零与依赖白名单补齐（2026-11-14）
+
+- 修复 `make lint` 的既有告警：删除未使用的字段/函数/类型、补齐未检查的返回值、修正无效赋值与
+  不可达的空分支、统一 gofmt；`cmd/basework/edits.go` 中检查方法值是否为 nil 的死代码一并移除。
+- `pkg/session` 的 `dbMigrations` 移入 `sqlite` build tag 文件，默认构建不再出现未使用变量。
+- 删除 `pkg/provider` 中未使用的 prompt 缓存开关 `shouldCachePrompt` 与 provider 分类表，
+  `pkg/provider` 因此不再依赖 `pkg/config`（依赖图已重新生成）；同时把 `config.PromptCache.Enabled`
+  接入 `buildProviderOptions`，该配置项此前没有消费者、实际空转，现在才真正生效。
+- `github.com/google/uuid`（`pkg/permission` 的 SQLite 审计 ID，`sqlite` tag）补入
+  `approvedPkgDeps` 与架构文档依赖表，`make deps` 恢复通过。
+
 ### 可复用能力上移（2026-11-13）
 
 - `internal/jobs`、`internal/edits`、`internal/permission`、`internal/observability` 的核心实现按原行为上移为

@@ -99,7 +99,10 @@ pkg/observability   c9bde345b5c7b68ea6b2b209eaf35c38e1b253517eebc55fffe17f9b1cd9
 
 ## 环境限制与异常
 
-- **`make lint` 门禁在 M10 之前就是红的**：本机安装了与 `.golangci.yml`（v1 配置）匹配的 `golangci-lint v1.64.8` 后运行，得到 27 条 staticcheck/errcheck/unused 问题，分布在 `pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/memory`、`internal/*`、`cmd/basework` 等既有文件；在 `ccb3767`（M10 之前）的干净 worktree 中运行结果相同。移动后的 `pkg/jobs`、`pkg/permission`、`pkg/observability` 中 5 条同类问题也是搬迁自原 `internal` 代码，`examples/embed_components` 无新增问题。M10 未引入新告警，但也没有修掉既有 lint 债；修 lint 属于独立任务，不在本计划范围。
+- **`make lint` 已清零（2026-11-14）**：M10 记录时的 27 条既有告警已全部修复（删除未使用代码、
+  补齐 errcheck、修正无效赋值/空分支、gofmt），并补上 `pkg/permission` 对 `github.com/google/uuid`
+  的白名单登记，`make deps`/`make gen` 恢复通过。原记录如下，保留作历史：本机安装了与
+  `.golangci.yml`（v1 配置）匹配的 `golangci-lint v1.64.8` 后运行，得到 27 条 staticcheck/errcheck/unused 问题，分布在 `pkg/llm`、`pkg/lsp`、`pkg/mcp`、`pkg/memory`、`internal/*`、`cmd/basework` 等既有文件；在 `ccb3767`（M10 之前）的干净 worktree 中运行结果相同。移动后的 `pkg/jobs`、`pkg/permission`、`pkg/observability` 中 5 条同类问题也是搬迁自原 `internal` 代码，`examples/embed_components` 无新增问题。M10 未引入新告警，但也没有修掉既有 lint 债；修 lint 属于独立任务，不在本计划范围。
 - 五平台 CI 与 Windows 实机运行未在本会话执行（需要推送到远端触发 Actions，未获授权），只记录本机 darwin/arm64 运行、五平台测试二进制交叉编译；不能把交叉编译当作运行结论。
 - 首次 `go test ./...` 出现两个与本变更无关的现象，均已单独复验：
   - `pkg/jobs` 的 `TestTerminateCommand_ForceKillsAfterGrace` 在整仓并行高负载下超时，单独 `-count=5` 与 `-count=10` 均通过（计时敏感）；
@@ -108,10 +111,10 @@ pkg/observability   c9bde345b5c7b68ea6b2b209eaf35c38e1b253517eebc55fffe17f9b1cd9
 ## 剩余与交接
 
 - 发布与 API 兼容门禁（1.0 tag、apidiff）按计划不在本任务内，见 [10-reuse.md](../../tasks/10-reuse.md#后续衔接不在本计划内)。
-- 既有 lint 告警（27 条，M10 之前已存在）建议另立任务清理；本计划只保证移动不新增告警。
+- 既有 lint 告警已于 2026-11-14 清理完毕（见上），`make lint` 现为通过。
 - 五平台 CI 的实机运行需要推送触发。用户已确认本轮**不推送**（2026-11-13），以本机 darwin/arm64 运行 + 五平台测试二进制交叉编译作为交付证据；待后续推送时由 CI 补运行结论。
 - 四个新包仍是实验 API；首次破坏性调整需新增 ADR 并在 `CHANGELOG.md` 写迁移方式。
 
 ## 结论
 
-四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、五平台测试二进制交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`make lint` 的既有告警在 M10 之前就存在且未在本计划范围内修复；五平台 CI 的实机运行需要推送触发，用户已确认本轮不推送、接受本地证据，均已在「环境限制」中如实记录。
+四包上移完成并收口：仓库外 module 只用公共 API 即可组合 jobs/edits/permission/observability，双实例互不污染；全量默认与 `sqlite memory` 测试、race、PTY 1–8、五平台测试二进制交叉编译、vet、文档与架构门禁、`make gen` 无差异全部通过。M10 六项任务全部完成。`make lint` 的既有告警已于 2026-11-14 全部修复并清零；五平台 CI 的实机运行需要推送触发，用户已确认本轮不推送、接受本地证据，均已在「环境限制」中如实记录。
