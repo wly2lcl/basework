@@ -179,6 +179,10 @@ func responseText(resp *agent.Response) string {
 // lookupAPIKey 根据 provider 类型查找对应的环境变量
 func lookupAPIKey(providerType string) string {
 	switch providerType {
+	case "agnes-responses":
+		if key := os.Getenv("AGNES_API_KEY"); key != "" {
+			return key
+		}
 	case "openai", "openai-compat":
 		if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 			return key

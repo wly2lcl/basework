@@ -1,8 +1,24 @@
 # 当前实现状态
 
-核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步。可执行发布候选为 `95bb258`，其 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；随后文档收口提交仍由 [CI run 35306772284](https://github.com/wly2lcl/basework/actions/runs/35306772284) 全量复验通过，代码候选保持不变。真实 Provider 双协议证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
+## 2026-10-23 安全更新
 
-**结论：核心功能、常规测试、Agnes 双协议真实 Provider、五平台发布归档、Docker Smoke、GoReleaser dry-run 和 PTY/race 质量门禁均已通过；任务表中的 M8/M9 任务已完成。** 真实 Provider 结果绑定验收 runner 代码候选 `3e5533d`，`95bb258` 是可执行发布候选，后续提交只追加文档证据，未改变 Provider runner 或发布产物。真人主观 TUI 手感仍单独记录，尚未评价；本次不创建 tag、不执行发布。
+本轮 [SEC-002](development/evidence/SEC-002.md) 已完成本地验收：源码和实际工具链升级为 Go 1.26.10，依赖更新为 `x/net v0.60.0`、`x/text v0.42.0`、`x/image v0.45.0` 与 `goldmark v1.7.17`；`x/text` 的选择同时满足 `x/net` 的模块要求。默认/完整源码、五平台新构建二进制与双架构镜像内提取二进制的真实漏洞扫描均无告警，旧 Go 1.26.0 二进制被同一门禁拒绝。默认/完整测试、相关 race、项目短负载、PTY 1–8、OPT-001、vet、架构、文档与生成物检查，以及双架构 Docker 构建/运行均通过；构建输入和产物哈希保存在[脱敏 JSON](development/evidence/SEC-002-security-2026-10-23.json)，任务状态以 [TASKS](TASKS.md) 为准。
+
+本轮验证在 `4283fef` 之后的安全修复工作区中完成，证据记录提交前构建的产物；提交、推送和远端 CI 状态以 Git 与对应 workflow 为准，本地验收不包含正式发布。历史 GitHub Release 和已发布镜像未因本地源码升级自动更新。五平台产物均完成交叉构建和静态扫描，本轮没有在 Windows/macOS Intel 目标机上运行；Docker amd64 Smoke 使用 QEMU，arm64 为原生运行。此前功能与负载验收仍是对应日期、候选和范围的历史证据。
+
+## 2026-09 功能与负载验收快照
+
+核对日期：2026-09-18；当前 `main` 与 `origin/main` 已同步，Responses 接入正在形成新的代码候选。原可执行发布候选 `95bb258` 的 [CI run 35303688283](https://github.com/wly2lcl/basework/actions/runs/35303688283) 全绿；Responses 适配器的本地回归、真实 Agnes 单次闭环和文档证据见 [RESP-001](development/evidence/RESP-001.md)。真实 Provider 双协议历史证据见 [SHIP-001](development/evidence/SHIP-001.md) 与 [QA-001](development/evidence/QA-001.md)。任务状态只在 [TASKS](TASKS.md) 维护。
+
+**结论：核心功能、常规测试、Agnes 三协议适配（Responses 已新增）、Agnes 真实 Responses 固定夹具连续 3 次闭环、五平台发布归档、Docker Smoke、GoReleaser dry-run、PTY/race 质量门禁和 LOAD-002 项目级并发与持续稳定性门禁均已通过；M8/M9 的已列任务完成。** 真人主观 TUI 手感仍单独记录，尚未评价。
+
+2026-09-18 的 `LOAD-001` 在合成夹具上完成 5 次连续和 3 路并发真实 Agnes Agent 闭环，全部通过；4 路并发出现账号/渠道 `429`，已作为外部容量边界记录，不能推广为 4 路稳定承诺。真实负载还发现并修复了空 `function_call_output` 的 400，以及流式请求缺少 429/5xx 重试的问题；修复提交为 `3c0322e`，证据见 [LOAD-001](development/evidence/LOAD-001.md)。最终提交 `a899862` 的远端 CI run `35317046376` 全绿，已发布为 `v0.1.6`。
+
+需要把“项目负载”和“Provider 负载”分开解释：使用本地确定性 SSE Provider 直接启动当前 `basework` 二进制后，32 路单轮运行 **32/32**、8 路读取/编辑/测试工具闭环 **8/8**，72 个本地请求、会话落盘和工作区不变量均通过；证据见 [PROJECT-LOAD-001](development/evidence/PROJECT-LOAD-001-local-2026-09-18.json)。这组结果验证 Basework 自身的运行时和生命周期，不使用 Agnes key，也不证明长期生产 SLO、模型质量或真人 TUI 手感。Agnes 的 6 key/12 路数据仍只说明外部渠道容量边界，不能作为项目负载结论。
+
+补充的多 key 复测使用 `AGNES_API_KEY` 至 `AGNES_API_KEY5`：6 个 key 均至少一次闭环成功，两轮 6 路并发均未出现 429，但各有 1 路上下文超时；12 路突发为 8/12，失败均为上下文超时。该结果证明多 key 缓解了之前的账号限流，不代表应用已经自动轮换 key，也不提供 6 路或 12 路稳定 SLO；详见 [多 key 负载证据](development/evidence/LOAD-001-multikey-2026-09-18.json)。
+
+LOAD-002 已纳入真实 Agent、LocalService、JSONLStore 和事件/回调链路：同进程 1/4/8/16/32 全部通过，取消后重启成功，8 进程 JSONL 追加与截断尾恢复通过，10,000 次本地 soak 为 10,000/10,000，p95 37.897 ms、p99 42.236 ms、吞吐 48.895 req/s，资源与 JSONL 体积边界均有机器断言；同一提交的远端 Linux amd64 soak 也以 10,000/10,000 通过（p95 97.739 ms、p99 108.553 ms、吞吐 18.109 req/s）。证据见 [LOAD-002](development/evidence/LOAD-002.md)，主 CI 运行见 [35328231049](https://github.com/wly2lcl/basework/actions/runs/35328231049)，远端 soak 见 [35328300626](https://github.com/wly2lcl/basework/actions/runs/35328300626)。该结论仍限定于确定性本地模型和当前环境，不替代真实 Provider、跨机器生产 SLO 或真人 TUI 评价。
 
 ## 当前能力与缺口
 
@@ -22,7 +38,7 @@
 | 运行服务 | internal/runtime.Service，CLI/TUI 经 Start，关闭等待在途运行，排队可取消，瞬时事件有界投递，回调按 run/session 路由；B01 已修复 | RUN-003/UI 依赖回验已通过；真人体验仍单独记录 |
 | TUI | Unicode 输入、消息/工具展示、任务卡片、审批组件、恢复面板、忙碌状态栏、Ctrl+C 取消本轮、`/session` 会话切换与历史隔离 | 修复候选的运行服务依赖回验和 PTY scenario1–8 已通过；Windows PTY/真人手感未评价，五平台归档已有上一候选运行证据 |
 | 嵌入 | `pkg/agent`、provider、session、tool 公共 API；仓库外 module 可编译运行 examples/embed；`pkg/jobs`、`pkg/edits`、`pkg/permission`、`pkg/observability` 作为实验 API 提供可复用组件 | 发布包和第三方版本兼容仍按 QA/SHIP 验收；实验 API 在 1.0 前允许破坏性调整 |
-| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、Agnes OpenAI-compatible 与 Anthropic Messages 各 3 次真实 Provider 记录 | B02/B03/B04/B06 已修复；当前候选 CI run `35303688283` 全绿；Responses API 尚未接入 `llm.Model`，不在本次协议声明内 |
+| 发布准备 | 五平台源码测试、候选 GoReleaser dry-run、五平台发布归档 Smoke、linux/amd64+arm64 Docker Smoke、Agnes Chat/Responses/Anthropic 真实 Provider 记录 | B02/B03/B04/B06 已修复；原候选 CI run `35303688283` 全绿；Responses 适配与固定夹具连续三次真实闭环见 RESP-001 |
 
 Unix 进程终止使用进程组信号；Windows 使用 taskkill /T /F，并按 ParentProcessId
 补清理 taskkill 竞态漏掉的后代进程，无温和阶段。此实现已有目标 CI 测试记录，但不能据此

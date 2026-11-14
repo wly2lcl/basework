@@ -4,6 +4,7 @@ version: 2
 before:
   hooks:
     - go mod tidy
+    - bash scripts/check-vuln.sh source
 
 builds:
   - id: basework
@@ -29,6 +30,11 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+    # 每个目标产物必须在归档、镜像构建和发布之前通过检查。
+    hooks:
+      post:
+        - cmd: bash scripts/check-vuln.sh binary "{{ .Path }}"
+          output: true
 
 archives:
   - formats: [tar.gz]

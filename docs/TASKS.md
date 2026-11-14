@@ -13,6 +13,10 @@
 
 “完成任务数/总数”只表示任务数量，不表示工作量百分比、代码质量或发布时间。阶段没有额外人工进度表，避免两份状态漂移。
 
+## 2026-10-23 安全更新
+
+**SEC-002 / P1 已完成本地验收**：升级 Go 安全工具链与受影响依赖，加入源码/产物漏洞扫描并通过回归；源码、五平台产物和双架构镜像内二进制扫描无已知漏洞告警。此前 37/37 完成只描述旧任务验收，不能覆盖后来披露的 Go 或依赖漏洞。具体范围、哈希和未发布边界见 [SEC-002](development/evidence/SEC-002.md)。本条记录本地验收结果，提交、推送和远端 CI 状态以 Git 与对应 workflow 为准，正式发行版另行发布；下方 2026-09 的执行顺序与候选段落保留为历史记录。
+
 ## 2026-09-16 复审后的执行顺序
 
 [本次复审报告](development/evidence/REVIEW-2026-09-16.md) 记录 B01–B07；[一键最小复现](development/review-reproduction-2026-09-16.md) 保存三个已确认的失败探针。此前 32/32 是旧快照，不能覆盖新发现。历史修复见 [上次复审](development/evidence/REVIEW-2026-09-14.md)。
@@ -59,7 +63,11 @@
 | SHIP-002 | M8 | [跨平台安装与升级验证](tasks/08-release.md#ship-002) | 完成 | SHIP-001, UI-003, CFG-002 | Codex / 2026-09-18 候选 CI 与五平台发布 Smoke | [记录](development/evidence/SHIP-002.md) |
 | SHIP-003 | M8 | [候选版本验收与文档收口](tasks/08-release.md#ship-003) | 完成 | SHIP-002, QA-001 | Codex / 2026-09-18 候选验收 | [记录](development/evidence/SHIP-003.md) |
 | QA-001 | M8 | [可复跑的产品验收与证据门禁](tasks/09-follow-up.md#qa-001) | 完成 | BASE-001, UI-003 | Codex / 2026-09-18 Agnes 双协议验收 | [记录](development/evidence/QA-001.md) |
+| RESP-001 | M8 | [Agnes Responses API 接入](tasks/09-follow-up.md#resp-001) | 完成 | QA-001 | Codex / 2026-09-18 Agnes Responses 真实闭环 | [记录](development/evidence/RESP-001.md) |
+| LOAD-001 | M8 | [真实负载与稳定性验证](tasks/09-follow-up.md#load-001) | 完成 | RESP-001 | Codex / 2026-09-18 项目本地确定性 Provider：32 路单轮 32/32、8 路工具闭环 8/8；另记录 Agnes 外部容量边界 | [记录](development/evidence/LOAD-001.md) · [项目证据](development/evidence/PROJECT-LOAD-001-local-2026-09-18.json) |
+| LOAD-002 | M9 | [项目级并发与持续稳定性门禁](tasks/09-follow-up.md#load-002) | 完成 | LOAD-001 | Codex / 2026-09-18：1/4/8/16/32 并发、取消重启、JSONL 恢复、10,000 次 soak 与资源边界 | [记录](development/evidence/LOAD-002.md) · [脱敏 JSON](development/evidence/LOAD-002-local-2026-09-18.json) |
 | SEC-001 | M9 | [权限作用域上下文过滤](tasks/09-follow-up.md#sec-001) | 完成 | QA-001 | Codex / 当前候选回验 | [记录](development/evidence/SEC-001.md) |
+| SEC-002 | M9 | [Go 工具链与依赖安全升级](tasks/09-follow-up.md#sec-002) | 完成 | QA-001 | Codex / 2026-10-23 安全修复与本地验收 | [记录](development/evidence/SEC-002.md) |
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |

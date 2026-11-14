@@ -43,6 +43,7 @@ for arch in amd64 arm64; do
   CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
     go build -tags 'sqlite memory' -ldflags "$ldflags" \
     -o "$stage_dir/linux/${arch}/basework" ./cmd/basework
+  bash ./scripts/check-vuln.sh binary "$stage_dir/linux/${arch}/basework"
 done
 
 build_args=(buildx build --platform linux/amd64,linux/arm64

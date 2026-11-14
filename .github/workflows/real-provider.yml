@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "Provider type (for example openai or openai-compat)"
+        description: "Provider type (for example openai, agnes-responses, or openai-compat)"
         required: true
         default: openai
       base_url:
@@ -38,6 +38,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Run sequential redacted acceptance repetitions

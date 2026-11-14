@@ -338,6 +338,13 @@ func TestLookupAPIKeySupportsLegacyOpenCodeEnv(t *testing.T) {
 	}
 }
 
+func TestLookupAPIKeySupportsAgnesResponsesEnv(t *testing.T) {
+	t.Setenv("AGNES_API_KEY", "agnes-key")
+	if got := lookupAPIKey("agnes-responses"); got != "agnes-key" {
+		t.Fatalf("expected Agnes Responses key, got %q", got)
+	}
+}
+
 func toolNameSet(tools []tool.Tool) map[string]bool {
 	names := make(map[string]bool, len(tools))
 	for _, tool := range tools {

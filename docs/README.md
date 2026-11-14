@@ -8,6 +8,7 @@
 |---|---|---|
 | 使用项目 | [快速开始](getting-started.md) | 构建、配置、首次使用 |
 | 看本轮计划复审 | [2026-09-14 复审](development/evidence/REVIEW-2026-09-14.md) · [复现](development/review-reproduction.md) | 缺陷、验收缺口与可重跑样例 |
+| 看本轮安全修复 | [SEC-002](development/evidence/SEC-002.md) · [安全策略](SECURITY.md) | Go/依赖升级、源码与产物扫描、历史发行包边界 |
 | 看现在能做什么 | [当前状态](STATUS.md) | 实现与验证边界，不维护待办 |
 | 看后续做什么 | [业务路线图](ROADMAP.md) | 用户场景、阶段目标、发布门槛 |
 | 看开发进度、选下一项 | [任务看板](TASKS.md) | 任务状态的唯一手工来源 |

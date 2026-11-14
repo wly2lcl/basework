@@ -22,10 +22,18 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Test vulnerability gate failure handling
+        run: make test-vuln-script
+
+      - name: Check source vulnerabilities
+        timeout-minutes: 15
+        run: make check-vuln
 
       - name: Check formatting
         run: test -z "$(gofmt -l $(find . -path './.git' -prune -o -path './.opencode' -prune -o -name '*.go' -print))"
@@ -34,6 +42,9 @@ jobs:
       # full-suite gate as well as the sqlite/memory configuration below.
       - name: Run default tests
         run: go test -count=1 ./...
+
+      - name: Run project load gate
+        run: go test ./tests/load -run TestProjectLoad -count=1 -timeout 10m -v
 
       - name: Run vet
         run: go vet -tags "sqlite memory" ./...
@@ -56,7 +67,7 @@ jobs:
           git diff --exit-code docs/DEPGRAPH.md docs/STATS.md
 
       - name: Run race tests
-        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits
+        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits ./tests/load
 
       # 至少保留一个真实入口烟测：脚本会从当前 checkout 构建二进制，
       # 在临时 HOME、临时 fixtures 和本地回环假服务中跑完整修复流程。
@@ -97,6 +108,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Download dependencies
@@ -145,12 +157,15 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Download dependencies
         run: go mod download
 
+      # GoReleaser hooks 检查默认/可选源码，并逐个检查五平台二进制后才归档。
       - name: Build release archives
+        timeout-minutes: 35
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -304,6 +319,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Check GoReleaser config
@@ -314,6 +330,7 @@ jobs:
           args: check
 
       - name: Run GoReleaser snapshot
+        timeout-minutes: 35
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -334,6 +351,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
           cache: true
 
       - name: Set up QEMU

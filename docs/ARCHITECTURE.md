@@ -194,7 +194,7 @@ description: "代码审查最佳实践"
 
 | 技术 | 用途 | 说明 |
 |------|------|------|
-| Go 1.26+ | 开发语言 | 泛型、`log/slog`、`net/http` 增强 |
+| Go 1.26.10+ | 开发语言 | 泛型、`log/slog`、`net/http` 增强；构建使用安全修订版 |
 | 标准库优先 | 核心依赖 | HTTP/JSON/SSE 自实现；`pkg/` 层第三方依赖限定在下方清单内 |
 | `modernc.org/sqlite` | 持久化 | 纯 Go SQLite，`sqlite` / `memory` build tag 控制 |
 | `golang.org/x/image` | WebP 解码 + 图片缩放 | `pkg/llm/image.go`（多模态图片输入） |

@@ -1,4 +1,4 @@
-.PHONY: build test lint clean tidy vet check-arch check-docs stats deps gen coverage progress docker-candidate
+.PHONY: build test lint clean tidy vet check-arch check-docs check-vuln test-vuln-script stats deps gen coverage progress docker-candidate
 
 # 默认构建
 build:
@@ -39,6 +39,14 @@ check-arch:
 # 文档校验：集中布局、ADR、链接、包契约、任务依赖与证据
 check-docs:
 	go run ./scripts/doccheck
+
+# 默认与 sqlite,memory 构建都检查整个模块；漏洞和扫描错误均阻断。
+check-vuln:
+	bash ./scripts/check-vuln.sh source
+
+# 检查扫描失败、错误输入与路径边界，不请求网络。
+test-vuln-script:
+	bash ./scripts/check-vuln_test.sh
 
 # 生成代码统计（写入 docs/STATS.md）
 # 刻意不带 -cover：`go test -cover` 对含并发的包不可复现（同一代码会抖动 ±0.5%），

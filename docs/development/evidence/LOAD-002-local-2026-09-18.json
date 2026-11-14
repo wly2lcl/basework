@@ -1,0 +1,188 @@
+{
+  "schema": "basework.project-load.v2",
+  "date": "2026-09-18T09:03:55Z",
+  "go": "go1.26.0",
+  "goos": "darwin",
+  "goarch": "arm64",
+  "seed": "basework-load-2026-09-18",
+  "endpoint": "none (in-process deterministic model)",
+  "fixture_hash": "f6ee81b1fc2cb7331608e61b3418cd3a95611692c4ac08ae7feff748c7377872",
+  "same_process_matrix": [
+    {
+      "concurrency": 1,
+      "requests": 1,
+      "passed": 1,
+      "failed": 0,
+      "events": 7,
+      "dropped_events": 0,
+      "latency_ms": {
+        "min": 1.825,
+        "p50": 1.825,
+        "p95": 1.825,
+        "p99": 1.825,
+        "max": 1.825
+      },
+      "resources": {
+        "goroutines_before": 3,
+        "goroutines_after": 3,
+        "heap_bytes_before": 256768,
+        "heap_bytes_after": 254088,
+        "fds_before": 6,
+        "fds_after": 6,
+        "jsonl_bytes_before": 0,
+        "jsonl_bytes_after": 1690,
+        "within_bounds": true
+      }
+    },
+    {
+      "concurrency": 4,
+      "requests": 4,
+      "passed": 4,
+      "failed": 0,
+      "events": 25,
+      "dropped_events": 0,
+      "latency_ms": {
+        "min": 1.107,
+        "p50": 1.7345000000000002,
+        "p95": 2.2716,
+        "p99": 2.31912,
+        "max": 2.331
+      },
+      "resources": {
+        "goroutines_before": 3,
+        "goroutines_after": 3,
+        "heap_bytes_before": 286864,
+        "heap_bytes_after": 259496,
+        "fds_before": 6,
+        "fds_after": 6,
+        "jsonl_bytes_before": 0,
+        "jsonl_bytes_after": 5854,
+        "within_bounds": true
+      }
+    },
+    {
+      "concurrency": 8,
+      "requests": 8,
+      "passed": 8,
+      "failed": 0,
+      "events": 49,
+      "dropped_events": 0,
+      "latency_ms": {
+        "min": 0.47,
+        "p50": 1.7885,
+        "p95": 3.0321,
+        "p99": 3.14802,
+        "max": 3.177
+      },
+      "resources": {
+        "goroutines_before": 3,
+        "goroutines_after": 3,
+        "heap_bytes_before": 295720,
+        "heap_bytes_after": 271104,
+        "fds_before": 6,
+        "fds_after": 6,
+        "jsonl_bytes_before": 0,
+        "jsonl_bytes_after": 11410,
+        "within_bounds": true
+      }
+    },
+    {
+      "concurrency": 16,
+      "requests": 16,
+      "passed": 16,
+      "failed": 0,
+      "events": 97,
+      "dropped_events": 0,
+      "latency_ms": {
+        "min": 0.502,
+        "p50": 3.4465,
+        "p95": 13.431,
+        "p99": 13.7022,
+        "max": 13.77
+      },
+      "resources": {
+        "goroutines_before": 3,
+        "goroutines_after": 3,
+        "heap_bytes_before": 299512,
+        "heap_bytes_after": 288768,
+        "fds_before": 6,
+        "fds_after": 6,
+        "jsonl_bytes_before": 0,
+        "jsonl_bytes_after": 22575,
+        "within_bounds": true
+      }
+    },
+    {
+      "concurrency": 32,
+      "requests": 32,
+      "passed": 32,
+      "failed": 0,
+      "events": 193,
+      "dropped_events": 0,
+      "latency_ms": {
+        "min": 0.546,
+        "p50": 12.792000000000002,
+        "p95": 26.536049999999996,
+        "p99": 29.565939999999998,
+        "max": 30.752
+      },
+      "resources": {
+        "goroutines_before": 3,
+        "goroutines_after": 3,
+        "heap_bytes_before": 309704,
+        "heap_bytes_after": 328312,
+        "fds_before": 6,
+        "fds_after": 6,
+        "jsonl_bytes_before": 0,
+        "jsonl_bytes_after": 44990,
+        "within_bounds": true
+      }
+    }
+  ],
+  "cancellation_and_restart": {
+    "passed": true,
+    "detail": "cancel returns context.Canceled; subsequent Cancel is false; a new run succeeds; Close completes"
+  },
+  "bounded_subscription": {
+    "passed": true,
+    "buffer": 1,
+    "dropped": 15,
+    "reread_advice": "Dropped\u003e0 requires rereading durable session events"
+  },
+  "jsonl_multiprocess_and_recovery": {
+    "passed": true,
+    "workers": 8,
+    "events_per_worker": 128,
+    "events": 1024,
+    "seq_contiguous": true,
+    "truncated_tail_recovered": true,
+    "append_after_recovery": true
+  },
+  "soak": {
+    "operations": 10000,
+    "passed": 10000,
+    "failed": 0,
+    "elapsed_ms": 204521.104,
+    "requests_per_second": 48.89470955309007,
+    "latency_ms": {
+      "min": 0.484,
+      "p50": 20.3185,
+      "p95": 37.897149999999996,
+      "p99": 42.23586999999999,
+      "max": 119.56
+    },
+    "events": 60001,
+    "resources": {
+      "goroutines_before": 3,
+      "goroutines_after": 3,
+      "heap_bytes_before": 376936,
+      "heap_bytes_after": 13462488,
+      "fds_before": 6,
+      "fds_after": 6,
+      "jsonl_bytes_before": 0,
+      "jsonl_bytes_after": 14099195,
+      "within_bounds": true
+    },
+    "failure_types": {}
+  }
+}

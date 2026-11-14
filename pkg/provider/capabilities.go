@@ -170,6 +170,8 @@ func RequiresAPIKey(providerType string) bool {
 // 必须与 cmd/basework 的 lookupAPIKey 保持一致；未单独映射的类型回落到 OPENAI_API_KEY。
 func APIKeyEnvVar(providerType string) string {
 	switch providerType {
+	case "agnes-responses":
+		return "AGNES_API_KEY"
 	case "anthropic":
 		return "ANTHROPIC_API_KEY"
 	case "gemini":

@@ -23,6 +23,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 | Provider | 协议 | 端点 | 环境变量 |
 |----------|------|------|----------|
 | OpenAI | openai-chat | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| OpenAI Responses | `responses` / `openai-responses` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
 | Anthropic | anthropic-messages | `https://api.anthropic.com` | `ANTHROPIC_API_KEY` |
 | Gemini | gemini | `https://generativelanguage.googleapis.com` | `GOOGLE_API_KEY` |
 
@@ -48,6 +49,7 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 | Azure OpenAI | `"azure"` | `https://{resource}.openai.azure.com` | `AZURE_API_KEY` |
 | GitHub Copilot | `"copilot"` | `https://api.githubcopilot.com` | OAuth 认证 |
 | Ollama | `"ollama"` | `http://localhost:11434/v1` | 无（本地） |
+| Agnes Responses | `"agnes-responses"` | `https://apihub.agnes-ai.com/v1` | `AGNES_API_KEY` |
 
 ---
 
@@ -62,9 +64,14 @@ basework 支持 15+ LLM 提供商，通过 `pkg/provider` 统一接口访问。�
 export ANTHROPIC_API_KEY=sk-ant-...
 export OPENAI_API_KEY=sk-...
 export GOOGLE_API_KEY=...
+export AGNES_API_KEY=...
 
 # OpenAI 兼容 Provider
 # 未单独映射的兼容类型（包括 DeepSeek、Groq、Together 等）回落到 OPENAI_API_KEY
+
+# Agnes Responses（默认模型可用 agnes-3.0-flash）
+export BASEWORK_PROVIDER=agnes-responses
+export AGNES_API_KEY=...
 ```
 
 环境变量方式适合 CI/CD、容器化部署和多环境管理。配置文件名不会泄露到版本控制中。

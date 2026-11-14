@@ -2,6 +2,88 @@
 
 状态只在 [TASKS](../TASKS.md) 维护。先处理已重开的 P1/P2 问题，再执行体验和性能优化。实现前阅读 [AI 开发流程](../development/ai-workflow.md)。
 
+<a id="resp-001"></a>
+
+## RESP-001：Agnes Responses API 接入
+
+**前置任务**：QA-001。优先级 P1；补齐 Agnes 3.0 Flash 的第三种官方协议入口，不能把
+Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
+
+**主要修改范围**：`pkg/provider/responses.go`、`pkg/provider/responses_test.go`、CLI provider
+映射、Responses/Agnes 文档与脱敏真实验收证据。
+
+**小步骤**：
+
+1. 实现 Responses `input`、工具定义、function call/output 和非流式响应解析。
+2. 实现 Responses SSE 文本、工具参数增量、完整参数、用量、完成和失败事件归一化。
+3. 注册 `responses`、`openai-responses` 与 `agnes-responses`，明确默认端点和 `AGNES_API_KEY`。
+4. 用本地 fake 服务覆盖请求形状、认证、流式/非流式、错误和工具循环，再用 Agnes 真实端点
+   运行固定编码夹具并保存脱敏结果。
+
+**验收条件**：
+
+- [x] `llm.Model` 的 Generate/Stream 均走 `/responses`，并保留工具调用与用量语义。
+- [x] Agnes 历史 function call 所需字段经过真实端点验证，工具结果可继续下一轮请求。
+- [x] 本地协议回归与 CLI/工厂/密钥映射测试通过，默认测试仍不联网。
+- [x] Agnes `agnes-3.0-flash` 真实 Agent 连续 3 次闭环通过，独立测试退出码均为 0，结果脱敏入库。
+- [x] 文档、配置示例、真实验收说明和后续三次连续矩阵要求已同步。
+
+**验证与证据**：见 [`RESP-001`](../development/evidence/RESP-001.md)；真实结果见同目录
+`RESP-001-real-provider-2026-09-18.json`。
+
+**范围外**：不实现服务端 `previous_response_id` 会话、不把固定夹具三次成功解释为所有请求的稳定成功率，
+不在本任务中改造既有 Chat/Anthropic 适配器。
+
+<a id="load-001"></a>
+
+## LOAD-001：真实负载与稳定性验证
+
+**前置任务**：RESP-001。优先级 P1；分开验证 Basework 项目本身的运行时负载和真实 Provider 的外部容量边界，不能把一次成功、脚本化模型结果或 Provider 渠道吞吐写成另一方的稳定性结论。
+
+**主要修改范围**：`pkg/provider/responses.go`、`pkg/provider/responses_test.go`、真实负载脱敏证据与发布状态文档。
+
+**验收条件**：
+
+- [x] 使用合成夹具执行 5 次连续真实 Agent 闭环，每次独立测试退出码为 0、实现文件确实发生修改。
+- [x] 使用合成夹具执行 3 路并发真实 Agent 闭环，全部通过且无超时或进程残留。
+- [x] 对 4 路并发的 429 结果保留失败证据，明确记录为 Agnes 账号/渠道容量边界，不把失败伪装成通过。
+- [x] 修复空 `function_call_output` 和 Responses 流式 429/5xx 重试，并通过本地协议回归、全量测试和 race 门禁。
+- [x] 使用仅绑定回环地址的确定性本地 Provider，通过真实 `basework` 二进制完成 32 路单轮运行和 8 路工具/编辑/测试闭环；会话落盘、工作区修改和可信测试文件保持均通过。
+
+**验证与证据**：见 [`LOAD-001`](../development/evidence/LOAD-001.md) 和同目录脱敏 JSON。
+
+**多 key 复测（2026-09-18）**：`AGNES_API_KEY` 至 `AGNES_API_KEY5` 均至少一次闭环成功；两轮 6 路并发没有 429，但各有 1 路上下文超时；12 路突发 8/12，4 路上下文超时。该结果证明多 key 缓解了账号限流，不证明应用已有自动 key 轮换，也不构成 6 路或 12 路生产 SLO。详见 [`LOAD-001-multikey-2026-09-18.json`](../development/evidence/LOAD-001-multikey-2026-09-18.json)。
+
+**范围外**：不把当前 Agnes 渠道的 3 路并发上限推广为所有账号的服务承诺，也不把本地假 Provider 的 32/8 路结果推广为长期生产 SLO；更高外部并发需要 Provider 配额、队列或上层限流方案。真人 TUI 评价仍单独进行。
+
+**项目负载证据**：[`PROJECT-LOAD-001`](../development/evidence/PROJECT-LOAD-001-local-2026-09-18.json)；**Provider 容量证据**：[`LOAD-001`](../development/evidence/LOAD-001.md) 及同目录 Agnes JSON。前者不依赖模型渠道，后者不代表应用自动轮换 key。
+
+<a id="load-002"></a>
+
+## LOAD-002：项目级并发与持续稳定性门禁
+
+**前置任务**：LOAD-001。优先级 P2；把一次性本地负载基线扩展为可重复的项目级稳定性门禁，再讨论生产 SLO。当前状态为完成。
+
+**为什么要做**：PROJECT-LOAD-001 已证明真实二进制在 32 路独立单轮和 8 路完整工具闭环下可以完成，但每个进程只执行一次请求，尚未证明同一进程内交错运行、持续追加会话、取消与重启交错、长时间资源是否稳定，也没有把负载驱动器纳入仓库。
+
+**小步骤**：
+
+1. 将本地确定性 Provider 负载驱动器纳入 `tests/`，固定 seed、端点、夹具哈希、并发档位和退出清理；支持一条命令生成脱敏 JSON，不保存 HOME、端口、key 或临时绝对路径。
+2. 直接通过 `internal/runtime.Service.Start` 验证同一进程 1/4/8/16/32 个交错运行，覆盖正常完成、Provider 延迟、取消、回调解绑、会话切换和关闭等待；检查每个 run 的结果、事件数、session ID 和错误归属不串线。
+3. 做至少 30 分钟或 10,000 次本地请求的 soak，记录 p50/p95/p99、吞吐、失败分类、goroutine、内存、文件描述符和 JSONL 体积起止值；出现错误时保留最小可复现 seed。
+4. 在多进程追加、同一 session 并发写入、取消后重启和完整/截断尾恢复下验证事件不重复、不丢失；把 EventBus 有界投递的丢弃计数和用户可见告警纳入结果。
+5. 将短门禁接入 CI，将 soak 作为手动/夜间 job；更新生产准入表，明确本地假 Provider 只能证明项目边界，真实 Provider 另按端点和配额验收。
+
+**验收条件**：
+
+- [x] 负载驱动器纳入 `tests/load`，全新 checkout 可从零运行，结果 JSON 脱敏，子进程有 30 秒超时并由 `CommandContext` 回收。
+- [x] 同一进程 1/4/8/16/32 交错运行无 session、callback、结果串线；取消返回 `context.Canceled`，取消后新 run 成功，关闭后 goroutine/FD 无增长。
+- [x] 10,000 次 soak 通过，记录 p50/p95/p99、吞吐、失败分类、goroutine、heap、FD 和 JSONL 体积起止值，并执行资源边界断言。
+- [x] JSONL 8 进程并发追加、连续 seq、截断尾恢复、恢复后追加和 EventBus 有界丢弃均有机器断言；负载测试可单独纳入 race 复验。
+- [x] 主 CI 已加入短门禁；`.github/workflows/project-load.yml` 提供手动/每日夜间 10,000 次 soak 和脱敏 artifact，结果见 [`LOAD-002` 证据](../development/evidence/LOAD-002.md)。
+
+**范围外**：不模拟 Agnes 账号配额，不把模型质量评测混入项目吞吐，不在本任务内实现远程队列或自动 key 轮换。
+
 <a id="qa-001"></a>
 
 ## QA-001：可复跑的产品验收与证据门禁
@@ -104,6 +186,34 @@
 实现与验证已完成；QA-001 已收口，SEC-001 可转为“完成”。
 
 **范围外**：不把应用层规则包装成 OS 沙箱，不在本任务内实现远程策略服务或全平台权限代理。
+
+<a id="sec-002"></a>
+
+## SEC-002：Go 工具链与依赖安全升级
+
+**前置任务**：QA-001。优先级 P1；修复 2026-10-23 核查确认的 Go 工具链与第三方依赖已知漏洞，并将后续扫描纳入可重复的构建和发布流程。
+
+**先读 / 主要修改范围**：`go.mod`、`go.sum`、Makefile、安全扫描脚本、构建/发布 workflow、当前安装与安全文档；基线、扫描范围和实际结果统一保存到 [SEC-002 证据](../development/evidence/SEC-002.md)。
+
+**小步骤**：
+
+1. 核对官方公告与 Go 漏洞库，记录当前源码依赖、工具链、产物构建信息与告警；静态调用候选不写成已经复现利用。
+2. 将最低 Go 版本与实际构建工具链升级至 1.26.10 或更新安全修订版；至少升级 `x/net` 至 v0.60.0、`x/text` 至 v0.41.0、`x/image` 至 v0.45.0、`goldmark` 至 v1.7.17，并核对兼容要求与最终模块图。
+3. 新增 `make check-vuln`，分别扫描默认与 `sqlite memory` 源码；为实际二进制增加漏洞扫描，接入 CI 与发布路径。扫描数据库不可用或有命中时必须失败，不用 JSON 模式的退出 0 掩盖 finding。
+4. 用安全工具链回归默认/完整 tags、相关 race、PTY、项目短负载、vet、架构、文档和生成物新鲜度，重新构建声明的目标平台产物并扫描；镜像须包含本轮安全二进制。
+5. 更新当前安装、开发、发布与安全说明，记录工具链/扫描器/数据库时间、平台、tags、产物哈希与剩余范围。旧 Release 和镜像保持历史事实，不因当前源码安全扫描通过便写成已修复发布。
+
+**验收条件**：
+
+- [x] `go.mod`、实际工具链和 CI/发布配置均满足安全版本要求，四项受影响依赖达到最低修复版本。
+- [x] `make check-vuln` 对默认与完整 tags 源码实际执行且无已知漏洞 finding，失败分支不会静默跳过；CI 和发布产物扫描已接线。
+- [x] 新构建的 Linux amd64/arm64、macOS amd64/arm64、Windows amd64 二进制均有构建信息、哈希和扫描结果；镜像复用安全二进制，镜像运行范围单独注明。
+- [x] 默认/完整 tags 全量测试、相关 race、PTY、项目短负载、vet、架构、文档与生成物检查实际通过，所有失败或环境边界均保留并解释。
+- [x] 当前使用文档、STATUS、TASKS 和本任务证据一致，清楚区分当前工作区、本地产物、历史 Release 和正式发布。
+
+**验证与证据**：执行命令、日志摘要与产物对应关系见 [SEC-002](../development/evidence/SEC-002.md) 和[脱敏 JSON](../development/evidence/SEC-002-security-2026-10-23.json)。本地验收通过；新远端 CI 与正式发布仍未执行，不作为本任务已发布的声明。
+
+**范围外**：本任务不重写业务功能，不把漏洞扫描通过称为无任何安全风险，不擅自创建 tag、GitHub Release 或推送镜像；正式发布仍按用户明确指令执行。
 
 <a id="opt-002"></a>
 

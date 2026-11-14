@@ -35,6 +35,12 @@
 - 新增 `examples/embed_components`：仅用公共 API 组合四个包，验证双 workspace jobs/权限实例并行隔离、
   编辑预览/提交/撤销、权限拒绝与事件/成本统计；外部 module 通过 `replace` 编译运行通过。
 
+### Go 工具链与依赖安全更新（2026-10-23）
+
+- 提升最低安全工具链至 Go 1.26.10，更新 `x/net`、`x/text`、`x/image` 和 `goldmark` 的受影响版本；以最终 `go.mod` 与实际构建信息为准。
+- 增加默认/完整 tags 源码与实际二进制的漏洞扫描门禁；源码、五平台二进制及双架构镜像内提取二进制扫描均无已知漏洞告警。全量测试、race、PTY、短负载和镜像 Smoke 通过，产物哈希与结果见 [SEC-002](development/evidence/SEC-002.md)。
+- 当前修改属于未发布安全候选；历史 GitHub Release、已安装副本与 Docker 镜像不会自动获得修复。
+
 ### 长会话 JSONL 追加优化（2026-09-16）
 
 - `JSONLStore.AppendEvent` 改为文件锁内的增量 `O_APPEND` 单行写入，避免每条事件重写整份历史；

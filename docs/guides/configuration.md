@@ -63,6 +63,8 @@ Provider 直接通过 Go 代码中的 `provider.Create()` 配置，也可以通�
 | 类型值 | 说明 | 默认端点 |
 |--------|------|----------|
 | `openai` | OpenAI API | `https://api.openai.com/v1` |
+| `responses` / `openai-responses` | OpenAI Responses API | `https://api.openai.com/v1` |
+| `agnes-responses` | Agnes Responses API | `https://apihub.agnes-ai.com/v1` |
 | `anthropic` | Anthropic Claude | `https://api.anthropic.com` |
 | `gemini` | Google Gemini | `https://generativelanguage.googleapis.com` |
 | `openai-compat` | OpenAI 兼容 API | 自定义 |
@@ -136,6 +138,7 @@ basework 自动识别以下环境变量：
 | `GOOGLE_API_KEY` | Google Gemini |
 | `OPENCODE_API_KEY` | OpenCode Zen |
 | `OG_API_KEY` | OpenCode Zen（兼容旧环境变量名） |
+| `AGNES_API_KEY` | Agnes Responses（`agnes-responses`） |
 | `AZURE_API_KEY` | Azure OpenAI |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | Amazon Bedrock |
 | `BASEWORK_PROVIDER` | 覆盖配置文件里的 `provider` |
@@ -144,6 +147,9 @@ basework 自动识别以下环境变量：
 
 各 OpenAI 兼容 provider（`openai-compat`、`deepseek`、`groq`、`together`、
 `openrouter`、`xai`、`mistral`）在没有专属环境变量时回落到 `OPENAI_API_KEY`。
+
+`agnes-responses` 使用 Responses 的 `/responses` 路径，默认模型可设为
+`agnes-3.0-flash`；它独立读取 `AGNES_API_KEY`，不会把 Agnes key 当作默认 OpenAI key。
 
 CLI 的 `basework init` 命令会自动检测 API key 类环境变量。
 

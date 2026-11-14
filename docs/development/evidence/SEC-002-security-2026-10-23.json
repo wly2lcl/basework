@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-23",
+  "task_id": "SEC-002",
+  "base_commit": "4283fefe3f9389304d74143ee750e25924fe5977",
+  "worktree_modified": true,
+  "published": false,
+  "new_remote_ci_verified": false,
+  "product_source_and_modules_sha256": "eaf11883c413f32376c5e84797ec728c96df502b213850e9c26b04c327874a35",
+  "build_input_sha256": {
+    "go.mod": "08e1eb446f543811183a07a5acd529231a709437677f7e12fc168cd9f0f779d6",
+    "go.sum": "0a0e22cc279e226730459856e8d74f548bedea2be46f93d0b6d674de0dda281f",
+    ".goreleaser.yml": "5f9aefb2a84aa298cd5017528c3d13fc61a0fdf74eb65f4e85f811ef2ba6159b",
+    "scripts/check-vuln.sh": "f59644fd9eb3713d0390574c9246c80c6921689207ecaadc561cb9d0ff39c4ea",
+    "scripts/build_docker_candidate.sh": "60ee2e14aacbf7319ebec0b90d3be00c60f6c5feef05b3d023ede5df1dc734a5",
+    ".github/workflows/build.yml": "d16d75ab43c2378abf1bbf271fa9d3c95dbb2b01f937727aeec8fde0cdbcb533",
+    ".github/workflows/release.yml": "ad4bf42c13640ce19833ffcd4088aad84074ea59d86f91a28f694e6cefc3f7b5"
+  },
+  "go_version": "go1.26.10",
+  "scanner": {
+    "name": "govulncheck",
+    "version": "v1.8.0",
+    "database": "https://vuln.go.dev",
+    "database_last_modified": "2026-10-21T00:27:29Z"
+  },
+  "dependencies": {
+    "golang.org/x/net": "v0.60.0",
+    "golang.org/x/text": "v0.42.0",
+    "golang.org/x/image": "v0.45.0",
+    "github.com/yuin/goldmark": "v1.7.17",
+    "golang.org/x/sync": "v0.23.0",
+    "golang.org/x/sys": "v0.48.0"
+  },
+  "source_scans": [
+    {
+      "pattern": "./...",
+      "tests_included": true,
+      "tags": [],
+      "result": "No vulnerabilities found."
+    },
+    {
+      "pattern": "./...",
+      "tests_included": true,
+      "tags": [
+        "sqlite",
+        "memory"
+      ],
+      "result": "No vulnerabilities found."
+    }
+  ],
+  "negative_gate": {
+    "binary_go_version": "go1.26.0",
+    "exit_code": 1,
+    "vulnerabilities_reported": 31,
+    "example": "GO-2026-6809"
+  },
+  "build_tags": [
+    "sqlite",
+    "memory"
+  ],
+  "release_artifacts": [
+    {
+      "platform": "linux/amd64",
+      "binary": "dist/basework_linux_amd64_v1/basework",
+      "go_version": "go1.26.10",
+      "vcs_modified": true,
+      "binary_sha256": "2b35eaa949491f301e8476d93f2dad2b864d3b212202183ffd5626ef934c44cd",
+      "archive": "dist/basework_Linux_x86_64.tar.gz",
+      "archive_sha256": "bce6aac77f07c817148971a5d794af050916577fbae84b0d6a16480a7a2c9377",
+      "archive_payload_matches_binary": true,
+      "vulnerability_scan": "No vulnerabilities found.",
+      "dependencies": {
+        "golang.org/x/net": "v0.60.0",
+        "golang.org/x/text": "v0.42.0",
+        "golang.org/x/image": "v0.45.0",
+        "github.com/yuin/goldmark": "v1.7.17"
+      }
+    },
+    {
+      "platform": "linux/arm64",
+      "binary": "dist/basework_linux_arm64_v8.0/basework",
+      "go_version": "go1.26.10",
+      "vcs_modified": true,
+      "binary_sha256": "96b2c3d813a185e3874ef498370e339e046db1720a9478e7b0a45561db18301a",
+      "archive": "dist/basework_Linux_arm64.tar.gz",
+      "archive_sha256": "a97a11a02fdac1818cac3182fbf4c0720c1caec3a508e5b6ac8cef8852e461d7",
+      "archive_payload_matches_binary": true,
+      "vulnerability_scan": "No vulnerabilities found.",
+      "dependencies": {
+        "golang.org/x/net": "v0.60.0",
+        "golang.org/x/text": "v0.42.0",
+        "golang.org/x/image": "v0.45.0",
+        "github.com/yuin/goldmark": "v1.7.17"
+      }
+    },
+    {
+      "platform": "darwin/amd64",
+      "binary": "dist/basework_darwin_amd64_v1/basework",
+      "go_version": "go1.26.10",
+      "vcs_modified": true,
+      "binary_sha256": "1cc399043ac94675dcc8f4e399703bc4fec36aa8708e6065afc895f0ca2dd819",
+      "archive": "dist/basework_Darwin_x86_64.tar.gz",
+      "archive_sha256": "f378523ee61cb085b7ab24780d4f58c1a7d8692c437b0f9e4e6256a166d5b63d",
+      "archive_payload_matches_binary": true,
+      "vulnerability_scan": "No vulnerabilities found.",
+      "dependencies": {
+        "golang.org/x/net": "v0.60.0",
+        "golang.org/x/text": "v0.42.0",
+        "golang.org/x/image": "v0.45.0",
+        "github.com/yuin/goldmark": "v1.7.17"
+      }
+    },
+    {
+      "platform": "darwin/arm64",
+      "binary": "dist/basework_darwin_arm64_v8.0/basework",
+      "go_version": "go1.26.10",
+      "vcs_modified": true,
+      "binary_sha256": "71e354ad33c2161ac9089ee2482c0c73b37e3c35e5e03f70a55654cd8a900474",
+      "archive": "dist/basework_Darwin_arm64.tar.gz",
+      "archive_sha256": "b0d3f7c597f9e7a0801b6303b6985bc1457794a302d46bf4ef2f4303300760b3",
+      "archive_payload_matches_binary": true,
+      "vulnerability_scan": "No vulnerabilities found.",
+      "dependencies": {
+        "golang.org/x/net": "v0.60.0",
+        "golang.org/x/text": "v0.42.0",
+        "golang.org/x/image": "v0.45.0",
+        "github.com/yuin/goldmark": "v1.7.17"
+      }
+    },
+    {
+      "platform": "windows/amd64",
+      "binary": "dist/basework_windows_amd64_v1/basework.exe",
+      "go_version": "go1.26.10",
+      "vcs_modified": true,
+      "binary_sha256": "4931e9b99e367a59a875ff135b5d094b7274cd17cda216c72c54aff60d0a401f",
+      "archive": "dist/basework_Windows_x86_64.zip",
+      "archive_sha256": "331462d090e14e7175c718e27a4ed15c83e38bfe13c1fbeed7b91babfe9dd18e",
+      "archive_payload_matches_binary": true,
+      "vulnerability_scan": "No vulnerabilities found.",
+      "dependencies": {
+        "golang.org/x/net": "v0.60.0",
+        "golang.org/x/text": "v0.42.0",
+        "golang.org/x/image": "v0.45.0",
+        "github.com/yuin/goldmark": "v1.7.17"
+      }
+    }
+  ],
+  "local_executables": {
+    "paths": [
+      "basework",
+      "bin/basework"
+    ],
+    "go_version": "go1.26.10",
+    "sha256": "71e354ad33c2161ac9089ee2482c0c73b37e3c35e5e03f70a55654cd8a900474",
+    "native_version_init_config_smoke_exit": 0
+  },
+  "oci_archive_sha256": "f4c7af231d79bb20f92b740a8c240cba50ad0ed643ae3f16771489389b06cebd",
+  "docker_images": [
+    {
+      "image": "basework:sec002-20261023-amd64",
+      "image_id": "sha256:81ef1423cbcbaf7a63e3dc6aba319ca5e91107d695c08f3ccd1889647eb6fdff",
+      "platform": "linux/amd64",
+      "go_version": "go1.26.10",
+      "extracted_binary_sha256": "1541b85511530b29acf9605cd9adc04678f18c80446b35ec3c4ba4b0e71c556e",
+      "extracted_binary_vulnerability_scan": "No vulnerabilities found.",
+      "version_smoke_exit": 0,
+      "facts_readonly_smoke_exit": 0,
+      "execution": "QEMU amd64 on arm64 host"
+    },
+    {
+      "image": "basework:sec002-20261023-arm64",
+      "image_id": "sha256:7a7edc274f3a839ea93b828a6c679d83b99029ebed347708ad028e7162f0ff7e",
+      "platform": "linux/arm64",
+      "go_version": "go1.26.10",
+      "extracted_binary_sha256": "94f6533cae33de0d7b9009a0c55134731da81dd786ed662403ad059488162df3",
+      "extracted_binary_vulnerability_scan": "No vulnerabilities found.",
+      "version_smoke_exit": 0,
+      "facts_readonly_smoke_exit": 0,
+      "execution": "native arm64"
+    }
+  ],
+  "checks": [
+    {
+      "name": "default tests",
+      "exit_code": 0,
+      "log_sha256": "e223dd5cd931df4a14cb1d84896873599b5359a0ae854917b27170b6bd5bde5c"
+    },
+    {
+      "name": "sqlite,memory tests",
+      "exit_code": 0,
+      "log_sha256": "85d078b1f21b33fe7e7dd0989879d3cf5e6f0f676439f7fb5693a13a67f00bab"
+    },
+    {
+      "name": "race and short load",
+      "exit_code": 0,
+      "log_sha256": "02076092686a1f7d41e45ddd871c6e5972346fe69b724d228379173769f66238"
+    },
+    {
+      "name": "vet",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "source gate",
+      "exit_code": 0,
+      "log_sha256": "a4f0680c05883a5c4932ca491c7ef8dea5df8eca5c1b69923f44160f6a177f7d"
+    },
+    {
+      "name": "five platform build and binary gates",
+      "exit_code": 0,
+      "log_sha256": "39e4aa9aa6376558096fee42f48abde9c5862f49aa6dc886c8528ef438d8015a"
+    },
+    {
+      "name": "TUI scenarios 1-8",
+      "exit_code": 0,
+      "log_sha256": "49fb77a5a0beb0610ba0ce3c2f47192d38f4c2afa823b927d344daba9517e159"
+    },
+    {
+      "name": "OPT-001 PTY init",
+      "exit_code": 0,
+      "log_sha256": "f39a6fb811ba50361f987009c632ab9ddd92436c4acc07ffb4aa81f1bf950c86"
+    },
+    {
+      "name": "gate regression and architecture",
+      "exit_code": 0,
+      "log_sha256": "f4dd9fe190e143adde0771542a692e7f5b4442fb7a2245360221f8e448baf188"
+    },
+    {
+      "name": "generated docs",
+      "exit_code": 0,
+      "log_sha256": "0b8fb0b1c3a27265ba4b609c976641bd5971c05ae15fe015ccf1bf31d2364e38"
+    }
+  ],
+  "boundaries": [
+    "Local source and artifacts only; no new release tag, push or remote CI run.",
+    "Cross-built Windows and macOS amd64 artifacts were scanned, not run on their target hosts.",
+    "Docker amd64 smoke used QEMU on the arm64 host.",
+    "No real Provider requests; PTY fixtures use a deterministic local Provider."
+  ],
+  "resolved_failures": [
+    "BuildKit download EOF and Alpine x86_64 APK TLS download failure; retry succeeded without disabling TLS verification.",
+    "OPT-001 isolated HOME selected old PATH SDK; fixture now resolves the project SDK before isolation.",
+    "OPT-001 PTY environment merge reintroduced a host key; known credentials are overridden with empty values."
+  ],
+  "product_source_hash_algorithm": {
+    "algorithm": "sha256",
+    "files": [
+      "go.mod",
+      "go.sum",
+      "cmd/**/*.go",
+      "internal/**/*.go",
+      "pkg/**/*.go"
+    ],
+    "sort": "Python pathlib.Path ordering by path components (sorted Paths with a common repository prefix)",
+    "record": "UTF-8 relative path + NUL + raw file bytes + NUL"
+  }
+}

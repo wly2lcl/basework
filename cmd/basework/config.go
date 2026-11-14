@@ -184,6 +184,8 @@ func apiKeySource(cfg *config.Config, providerType string) string {
 // 读取顺序同构（含 opencode 的多级回落）。新增 provider 时两处一起改。
 func apiKeyEnvVars(providerType string) []string {
 	switch providerType {
+	case "agnes-responses":
+		return []string{"AGNES_API_KEY"}
 	case "openai", "openai-compat":
 		return []string{"OPENAI_API_KEY"}
 	case "anthropic":

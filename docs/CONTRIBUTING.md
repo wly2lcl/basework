@@ -4,9 +4,11 @@
 
 ## 开发与验证
 
-Go 1.26+；`make build` 构建终端产品，使用 `sqlite memory` 两个可选 tag。不存在 `tui` 或 `otel` 的可选构建承诺。默认无 tag 的核心也必须保持可构建。
+Go **1.26.10 或更新的安全修订版**；最低版本由 `go.mod` 约束。`make build` 构建终端产品，使用 `sqlite memory` 两个可选 tag。不存在 `tui` 或 `otel` 的可选构建承诺。默认无 tag 的核心也必须保持可构建。
 
 验证标准见 [validation](development/validation.md)；状态记录与证据使用 [模板](development/evidence/TEMPLATE.md)。代码改动后运行 `make gen`，文档或任务更新后运行 `make check-docs`。
+
+修改 Go 工具链或依赖时运行 `make check-vuln`，分别检查默认与 `sqlite memory` 源码；发布前还需扫描本轮重新构建的二进制。记录实际 Go 版本、扫描器版本、漏洞库更新时间和扫描范围，旧结果不能证明后来披露的漏洞已修复。具体规则见[安全策略](SECURITY.md)与 [SEC-002](development/evidence/SEC-002.md)。
 
 ## 代码和兼容要求
 
