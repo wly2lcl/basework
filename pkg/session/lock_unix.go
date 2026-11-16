@@ -29,6 +29,7 @@ func (l *FileLock) Lock(timeout time.Duration) error {
 	l.file = file
 
 	deadline := time.Now().Add(timeout)
+	var backoff lockBackoff
 	for {
 		err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if err == nil {
@@ -42,7 +43,7 @@ func (l *FileLock) Lock(timeout time.Duration) error {
 		}
 
 		// 等待后重试
-		time.Sleep(100 * time.Millisecond)
+		backoff.wait()
 	}
 }
 

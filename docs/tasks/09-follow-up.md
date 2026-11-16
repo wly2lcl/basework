@@ -264,3 +264,55 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 **验证**：既有 OPT-002 命令按相同规模执行，加入 SQLite 对照；`go test -race -tags "sqlite memory" ./pkg/session ./pkg/agent -count=1`。交付记录保存到 [OPT-003](../development/evidence/OPT-003.md)。
 
 **范围外**：CLI 后端切换、远程会话服务、分页 UI、并发编辑不是此任务；先完成 P1 门禁修复。
+
+<a id="sec-003"></a>
+
+## SEC-003：Go 工具链与依赖安全修补（第二轮）
+
+**前置任务**：QA-001。优先级 P1；修复 2026-11-14 CI run `43558316429` Quality 门禁命中的两个新披露漏洞：GO-2026-6859（stdlib `net/http` MaxBytesReader header 竞态，修复于 Go 1.26.11）与 GO-2026-6860（`golang.org/x/net/html` 解析 O(n²) 放大，修复于 v0.62.0）。SEC-002 的通过结论只覆盖当时已披露的漏洞。
+
+**先读 / 主要修改范围**：`go.mod`、`go.sum`、当前安装/开发/安全文档中的最低工具链声明；结果保存到 [SEC-003 证据](../development/evidence/SEC-003.md)。
+
+**小步骤**：
+
+1. 核对 Go 漏洞库确认受影响符号与修复版本，记录当前版本与告警原文；不把静态调用候选写成已复现利用。
+2. `go.mod` 最低 Go 升至 1.26.11，`x/net` 升至 v0.62.0，`go mod tidy` 后核对间接依赖变化与最终模块图。
+3. 本地重跑 `make check-vuln`（默认与 `sqlite memory` 源码）确认无 finding；回归默认/完整 tags 全量测试、相关 race、vet、架构、文档与生成物检查。
+4. 更新当前最低工具链声明文档与 CHANGELOG/STATUS；推送后由远端 CI 补五平台运行结论。
+
+**验收条件**：
+
+- [x] `go.mod` 工具链与受影响依赖达到修复版本，间接依赖升级已核对。
+- [x] 本地 `make check-vuln` 默认与完整 tags 源码扫描均无已知漏洞 finding。
+- [ ] 默认/完整 tags 全量测试、相关 race、vet、架构、文档与生成物检查通过，且推送后远端 CI Quality 与五平台测试全绿。
+- [x] 当前文档最低版本声明、CHANGELOG、STATUS 与本证据一致；历史 SEC-002 记录保留不改写。
+
+**验证与证据**：见 [SEC-003](../development/evidence/SEC-003.md)。
+
+**范围外**：不重写业务功能；正式 Release 二进制与镜像重建、产物级扫描按发布路径另行执行，不因源码扫描通过宣称旧产物已修复；不擅自创建 tag 或推送镜像。
+
+<a id="load-003"></a>
+
+## LOAD-003：JSONL 跨进程锁公平性修复
+
+**前置任务**：LOAD-002。优先级 P1；修复 2026-11-14 CI run `43558316429` Windows runner 上 `tests/load` `TestJSONLAppendHelper` 的锁超时失败（8 个并发追加进程中 3 个在 5s 内始终抢不到会话追加锁，最终序列不连续 len=764）。
+
+**先读 / 主要修改范围**：`pkg/session/lock_unix.go`、`pkg/session/lock_windows.go`、新增 `pkg/session/lock_backoff.go`、`pkg/session/jsonl.go` 的锁使用路径（只读不改）、`tests/load/load_test.go`（只读不改）。
+
+**根因**：两平台锁轮询均为固定 100ms 睡眠。持锁进程释放后立即发起下一次追加并再次抢锁，等待者仍在睡眠，形成护航效应；Windows 文件操作慢（runner 带 Defender），持锁窗口长，等待者连续 50 次轮询全部落空直至 5s 超时。这是公平性缺陷，不是锁互斥或数据损坏。
+
+**小步骤**：
+
+1. 从 CI 失败日志确认失败形态为锁超时而非序号错乱或写入损坏。
+2. 把固定 100ms 轮询改为 1ms 起步、指数递增封顶 50ms 的随机抖动退避，两平台共用同一退避实现；不改变锁互斥、超时上限与文件布局。
+3. 本地重复运行 JSONL 多进程负载子测试与 session 全量测试、race，Windows amd64 交叉编译；推送后由 Windows runner 补运行结论。
+
+**验收条件**：
+
+- [x] 根因有 CI 日志与代码路径支撑，修复只改轮询节奏，不改锁语义与数据格式。
+- [x] 本地 `TestProjectLoad/jsonl-multiprocess-and-tail-recovery` 重复 ≥10 次全部通过，session 包默认/race 测试通过，Windows amd64 交叉编译通过。
+- [ ] 推送后远端 CI Windows runner `tests/load` 通过，五平台测试全绿。
+
+**验证与证据**：见 [LOAD-003](../development/evidence/LOAD-003.md)。
+
+**范围外**：不改 `refreshIfChanged` 的全量回读策略、5s 锁超时上限与 JSONL 格式；不动 SQLite 后端。

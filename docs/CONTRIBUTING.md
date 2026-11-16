@@ -4,7 +4,7 @@
 
 ## 开发与验证
 
-Go **1.26.10 或更新的安全修订版**；最低版本由 `go.mod` 约束。`make build` 构建终端产品，使用 `sqlite memory` 两个可选 tag。不存在 `tui` 或 `otel` 的可选构建承诺。默认无 tag 的核心也必须保持可构建。
+Go **1.26.11 或更新的安全修订版**；最低版本由 `go.mod` 约束。`make build` 构建终端产品，使用 `sqlite memory` 两个可选 tag。不存在 `tui` 或 `otel` 的可选构建承诺。默认无 tag 的核心也必须保持可构建。
 
 验证标准见 [validation](development/validation.md)；状态记录与证据使用 [模板](development/evidence/TEMPLATE.md)。代码改动后运行 `make gen`，文档或任务更新后运行 `make check-docs`。
 

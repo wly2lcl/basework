@@ -1,5 +1,9 @@
 # 当前实现状态
 
+## 2026-11-16 CI 修复（待远端验证）
+
+最新推送 `ed269c2` 的 CI run `43558316429` 失败于两处：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859（stdlib `net/http`，修复于 Go 1.26.11）与 GO-2026-6860（`x/net/html`，修复于 v0.62.0）；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。本轮 [SEC-003](development/evidence/SEC-003.md) 已升级工具链与依赖并通过本地双 tags 源码扫描，[LOAD-003](development/evidence/LOAD-003.md) 已把跨进程锁轮询改为抖动指数退避并在本地重复负载回归通过。两项状态为待验证，解除条件是推送后远端 CI 全绿；本轮未重建正式产物或镜像。
+
 ## 2026-10-23 安全更新
 
 本轮 [SEC-002](development/evidence/SEC-002.md) 已完成本地验收：源码和实际工具链升级为 Go 1.26.10，依赖更新为 `x/net v0.60.0`、`x/text v0.42.0`、`x/image v0.45.0` 与 `goldmark v1.7.17`；`x/text` 的选择同时满足 `x/net` 的模块要求。默认/完整源码、五平台新构建二进制与双架构镜像内提取二进制的真实漏洞扫描均无告警，旧 Go 1.26.0 二进制被同一门禁拒绝。默认/完整测试、相关 race、项目短负载、PTY 1–8、OPT-001、vet、架构、文档与生成物检查，以及双架构 Docker 构建/运行均通过；构建输入和产物哈希保存在[脱敏 JSON](development/evidence/SEC-002-security-2026-10-23.json)，任务状态以 [TASKS](TASKS.md) 为准。

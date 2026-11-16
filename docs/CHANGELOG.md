@@ -13,6 +13,12 @@
 
 ## [Unreleased]
 
+### CI 修复：安全修补第二轮与 JSONL 锁公平性（2026-11-16）
+
+- 修复 `ed269c2` CI run `43558316429` 的两处失败。安全侧：最低工具链升至 Go 1.26.11（GO-2026-6859，stdlib `net/http`），`x/net` 升至 v0.62.0（GO-2026-6860，`x/net/html`），间接依赖 `x/sync v0.24.0`、`x/sys v0.49.0`、`x/text v0.43.0` 随之升级；本地默认/完整 tags 源码漏洞扫描无 finding，见 [SEC-003](development/evidence/SEC-003.md)。
+- 稳定性侧：`pkg/session` 跨进程文件锁的固定 100ms 轮询改为 1ms 起步、指数递增封顶 50ms 的随机抖动退避（两平台共用 `lock_backoff.go`），修复 Windows runner 上多进程追加时等待者被持锁者连续抢先、直至 5s 超时的饥饿问题；锁互斥语义、超时上限与文件格式不变，见 [LOAD-003](development/evidence/LOAD-003.md)。
+- 两项均为未发布候选；远端 CI 运行结论待推送后补充，历史 Release 与镜像不自动获得修复。
+
 ### 静态检查清零与依赖白名单补齐（2026-11-14）
 
 - 修复 `make lint` 的既有告警：删除未使用的字段/函数/类型、补齐未检查的返回值、修正无效赋值与

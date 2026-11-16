@@ -41,6 +41,7 @@ func (l *FileLock) Lock(timeout time.Duration) error {
 	l.file = file
 
 	deadline := time.Now().Add(timeout)
+	var backoff lockBackoff
 	for {
 		// Windows LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
 		// LOCKFILE_EXCLUSIVE_LOCK = 0x00000002
@@ -68,7 +69,7 @@ func (l *FileLock) Lock(timeout time.Duration) error {
 		}
 
 		// 等待后重试
-		time.Sleep(100 * time.Millisecond)
+		backoff.wait()
 	}
 }
 

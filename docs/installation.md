@@ -2,7 +2,7 @@
 
 ## 验证范围
 
-源码安装要求 Go **1.26.10 或更新的安全修订版**。2026-10-23 安全复核发现旧 Go 1.26.0 本地产物含已知漏洞，当前安全升级、扫描结果和未验证范围见 [SEC-002](development/evidence/SEC-002.md)。历史 Release 和 `latest` 镜像只有在对应版本重建并有扫描证据后，才可视为包含这次修复；拉取旧 tag 或仅升级本机 Go 不会修复旧产物。
+源码安装要求 Go **1.26.11 或更新的安全修订版**。2026-10-23 安全复核发现旧 Go 1.26.0 本地产物含已知漏洞，2026-11-14 CI 又命中新披露的 GO-2026-6859/GO-2026-6860，第二轮升级与扫描见 [SEC-003](development/evidence/SEC-003.md)；首轮记录见 [SEC-002](development/evidence/SEC-002.md)。历史 Release 和 `latest` 镜像只有在对应版本重建并有扫描证据后，才可视为包含这次修复；拉取旧 tag 或仅升级本机 Go 不会修复旧产物。
 
 打包配置覆盖 Linux amd64/arm64、macOS amd64/arm64 和 Windows amd64（Windows arm64 按配置明确排除）。当前候选的五平台发布归档 Smoke、Docker Smoke 和迁移/未来版本拒绝检查已有 CI 记录；本机实际安装能力仍取决于所运行的平台。下载时核对 tag、架构与校验和，完整边界见 [当前状态](STATUS.md) 与 [SHIP-002 证据](development/evidence/SHIP-002.md)。
 

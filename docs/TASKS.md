@@ -13,6 +13,10 @@
 
 “完成任务数/总数”只表示任务数量，不表示工作量百分比、代码质量或发布时间。阶段没有额外人工进度表，避免两份状态漂移。
 
+## 2026-11-16 CI 修复
+
+最新推送 `ed269c2` 的 CI run `43558316429` 暴露两处失败：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859 / GO-2026-6860；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。新增 [SEC-003](tasks/09-follow-up.md#sec-003) 与 [LOAD-003](tasks/09-follow-up.md#load-003) 修复，本地验收已过，状态为待验证，解除条件是推送后远端 CI 全绿。既有 44 项完成任务不重开。
+
 ## 2026-10-23 安全更新
 
 **SEC-002 / P1 已完成本地验收**：升级 Go 安全工具链与受影响依赖，加入源码/产物漏洞扫描并通过回归；源码、五平台产物和双架构镜像内二进制扫描无已知漏洞告警。此前 37/37 完成只描述旧任务验收，不能覆盖后来披露的 Go 或依赖漏洞。具体范围、哈希和未发布边界见 [SEC-002](development/evidence/SEC-002.md)。本条记录本地验收结果，提交、推送和远端 CI 状态以 Git 与对应 workflow 为准，正式发行版另行发布；下方 2026-09 的执行顺序与候选段落保留为历史记录。
@@ -71,6 +75,8 @@
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
+| SEC-003 | M9 | [Go 工具链与依赖安全修补（第二轮）](tasks/09-follow-up.md#sec-003) | 待验证 | QA-001 | Qoder AI 会话 / 2026-11-16 本地修复 | [记录](development/evidence/SEC-003.md) |
+| LOAD-003 | M9 | [JSONL 跨进程锁公平性修复](tasks/09-follow-up.md#load-003) | 待验证 | LOAD-002 | Qoder AI 会话 / 2026-11-16 本地修复 | [记录](development/evidence/LOAD-003.md) |
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |
