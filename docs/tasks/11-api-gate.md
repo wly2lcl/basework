@@ -115,8 +115,8 @@ M10 完成后，`pkg` 已承载核心、扩展与实验三层公共 API（分层
 
 - [x] 五平台产物与双架构镜像均有构建信息、哈希与无告警扫描结果。
 - [x] 真实 Provider 协议矩阵在当前候选通过，证据绑定候选 commit。（SHIP-001 口径 OpenAI Chat + Anthropic 各 3/3；Responses 渠道 8×400 作为外部边界记录，见证据）
-- [ ] tag、CHANGELOG、release.md 候选记录三链路一致；发布动作均有用户指令记录。
-- [ ] 干净安装验证通过；历史产物边界如实标注。
+- [x] tag、CHANGELOG、release.md 候选记录三链路一致；发布动作均有用户指令记录。（tag v0.2.0=d907dde ↔ CHANGELOG [0.2.0] - 2026-11-16 ↔ release.md 候选记录；用户 2026-11-16 授权完整发布）
+- [x] 干净安装验证通过；历史产物边界如实标注。（Releases 归档隔离 HOME 冒烟链、Go install @v0.2.0、GHCR 双架构镜像运行均通过；Responses 渠道边界与历史产物口径见 API-004 证据）
 
 **范围外**：不打 `v1.0.0`；1.0 评估（含实验包毕业标准）另立任务。
 

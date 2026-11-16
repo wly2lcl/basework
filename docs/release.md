@@ -32,11 +32,13 @@ GoReleaser 构建统一启用 `sqlite memory` build tags，与 CI、Makefile 和
 
 ### v0.2.0（2026-11-16 发布）
 
-- 候选 commit：`98eeab8`（可执行代码候选）；证据/文档头随发布提交；实际构建 Go 1.26.11；tags `sqlite memory`。
-- 扫描器：govulncheck v1.8.0，官方漏洞库 https://vuln.go.dev（2026-11-16 在线查询）；源码双 tags 与五平台二进制扫描均无告警。
-- 门禁：CI run [43829471517](https://github.com/wly2lcl/basework/actions/runs/43829471517) 13/13 全绿（含 API 兼容门禁）；`make check-api` 相对 `v0.1.6` 稳定层零不兼容。
+- 候选 commit：`98eeab8`（可执行代码候选）；tag `v0.2.0` 指向发布提交 `d907dde`（仅证据/文档对齐）；实际构建 Go 1.26.11；tags `sqlite memory`。
+- 扫描器：govulncheck v1.8.0，官方漏洞库 https://vuln.go.dev（2026-11-16 在线查询）；源码双 tags 与五平台二进制扫描均无告警；发布后下载的正式 Darwin_arm64 二进制复扫亦无告警。
+- 门禁：CI run [43829471517](https://github.com/wly2lcl/basework/actions/runs/43829471517) 13/13 全绿（含 API 兼容门禁）；`make check-api` 相对 `v0.1.6` 稳定层零不兼容；发布提交 CI run [43843500594](https://github.com/wly2lcl/basework/actions/runs/43843500594) 13/13 全绿。
 - 真实 Provider：SHIP-001 口径 OpenAI Chat + Anthropic（`agnes-3.0-flash`）各连续 3 次通过并绑定候选；Responses 渠道 8×400 为外部边界，本版本不宣称已验证 Responses。
-- 归档哈希、镜像哈希与完整证据见 [API-004](development/evidence/API-004.md)。
+- 正式发布：Release run [43843505146](https://github.com/wly2lcl/basework/actions/runs/43843505146) 成功；GitHub Release 含五平台归档与 `basework_0.2.0_checksums.txt`；GHCR `ghcr.io/wly2lcl/basework:v0.2.0` 与 `latest` 同 digest（linux/amd64 `sha256:7f011179…`、linux/arm64 `sha256:ab57d47d…`）。
+- 发布后验证：Releases 归档隔离 HOME 冒烟链（version/config explain/init/v1 迁移源哈希不变/v99 拒绝）、`go install -tags 'sqlite memory' …@v0.2.0`、GHCR 双架构只读运行冒烟均通过。
+- 官方归档哈希、镜像 digest 与完整证据见 [API-004](development/evidence/API-004.md)。
 - 发布授权：用户 2026-11-16 明确指令“按两协议口径发布 + 授权完整发布”（tag、GitHub Release、GHCR 双架构镜像）。
 
 ## 正式发布

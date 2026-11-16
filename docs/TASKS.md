@@ -17,6 +17,8 @@
 
 M10 收口且 CI 全绿后，按路线图进入 API 兼容门禁方向。版本策略经用户确认：**先 v0.2.0，再评估 1.0**。默认从 API-001 开始（设计前置，产出 ADR 0009）；API-002 与 API-003 可在评估后并行推进，但一次只领取一个任务；API-004 的 tag/Release/镜像动作须用户明确指令。分层执行策略、工具选型与风险见 [API 兼容门禁计划](tasks/11-api-gate.md)。
 
+M11 四项任务均已完成：apidiff 门禁在 CI 生效，版本欠账清理完毕；经用户 2026-11-16 授权，`v0.2.0` 已发布（Release run `43843505146`）并完成三条安装渠道的发布后验证，见 [API-004](development/evidence/API-004.md)。1.0 评估另立任务。
+
 ## 2026-11-16 CI 修复
 
 最新推送 `ed269c2` 的 CI run `43558316429` 暴露两处失败：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859 / GO-2026-6860；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。新增 [SEC-003](tasks/09-follow-up.md#sec-003) 与 [LOAD-003](tasks/09-follow-up.md#load-003) 修复。既有 44 项完成任务不重开。
@@ -86,7 +88,7 @@ M10 收口且 CI 全绿后，按路线图进入 API 兼容门禁方向。版本�
 | API-001 | M11 | [API 兼容门禁评估与基线契约](tasks/11-api-gate.md#api-001) | 完成 | BASE-001 | Qoder AI 会话 / 2026-11-16 评估与 ADR 0009 | [记录](development/evidence/API-001.md) |
 | API-002 | M11 | [apidiff CI 门禁接线](tasks/11-api-gate.md#api-002) | 完成 | API-001 | Qoder AI 会话 / 2026-11-16 CI run 43829471517 全绿 | [记录](development/evidence/API-002.md) |
 | API-003 | M11 | [tag 与 CHANGELOG 版本欠账清理](tasks/11-api-gate.md#api-003) | 完成 | API-001 | Qoder AI 会话 / 2026-11-16 映射核对 | [记录](development/evidence/API-003.md) |
-| API-004 | M11 | [v0.2.0 候选验收与发布](tasks/11-api-gate.md#api-004) | 进行中 | API-002, API-003 | Qoder AI 会话 / 2026-11-16 候选 98eeab8 验收中 | [记录](development/evidence/API-004.md) |
+| API-004 | M11 | [v0.2.0 候选验收与发布](tasks/11-api-gate.md#api-004) | 完成 | API-002, API-003 | Qoder AI 会话 / 2026-11-16 v0.2.0 已发布并验证（Release run 43843505146） | [记录](development/evidence/API-004.md) |
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |

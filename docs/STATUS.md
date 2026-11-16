@@ -1,8 +1,8 @@
 # 当前实现状态
 
-## 2026-11-16 M11 API 兼容门禁（进行中）
+## 2026-11-16 M11 API 兼容门禁与 v0.2.0 发布（已收口）
 
-版本策略经用户确认：**先 v0.2.0，再评估 1.0**。[API-001](development/evidence/API-001.md)（评估与 [ADR 0009](adr/0009-apidiff-api-compatibility-gate.md)）、[API-002](development/evidence/API-002.md)（apidiff CI 门禁，run `43829471517` 13/13 全绿）、[API-003](development/evidence/API-003.md)（CHANGELOG 版本欠账清理）已完成；当前 HEAD 相对 `v0.1.6` 稳定层零不兼容。[API-004](development/evidence/API-004.md) v0.2.0 候选验收：候选 `98eeab8` 的五平台归档与双架构镜像重建完成，产物/镜像内二进制扫描全部无告警，哈希齐备；Release Dry Run（run `43832098771`）通过；SHIP-001 口径真实 Provider 矩阵（OpenAI Chat + Anthropic，`agnes-3.0-flash`）各连续 3 次通过并绑定候选。Responses 渠道 8 次尝试全部 400（适配器自 v0.1.6 零变更、参数与 RESP-001 一致），作为外部边界如实记录，不宣称当前候选已验证 Responses。tag/Release/镜像推送未执行，须用户明确指令。任务状态以 [TASKS](TASKS.md) 为准。
+版本策略经用户确认：**先 v0.2.0，再评估 1.0**。[API-001](development/evidence/API-001.md)（评估与 [ADR 0009](adr/0009-apidiff-api-compatibility-gate.md)）、[API-002](development/evidence/API-002.md)（apidiff CI 门禁，run `43829471517` 13/13 全绿）、[API-003](development/evidence/API-003.md)（CHANGELOG 版本欠账清理）、[API-004](development/evidence/API-004.md)（v0.2.0 候选验收与发布）均已完成；稳定层相对 `v0.1.6` 零不兼容。候选 `98eeab8` 的五平台归档与双架构镜像重建、产物/镜像内二进制无告警扫描、Release Dry Run（run `43832098771`）、SHIP-001 口径真实 Provider 矩阵（OpenAI Chat + Anthropic，`agnes-3.0-flash`）各连续 3 次通过均绑定候选。Responses 渠道 8 次尝试全部 400（适配器自 v0.1.6 零变更、参数与 RESP-001 一致），作为外部边界如实记录，发布说明不宣称已验证 Responses。经用户 2026-11-16 明确授权，tag `v0.2.0`（发布提交 `d907dde`）已创建，Release run `43843505146` 成功发布五平台归档与 GHCR `v0.2.0`/`latest` 双架构镜像；发布后三条安装渠道（Releases 归档隔离 HOME 冒烟链、`go install @v0.2.0`、GHCR 镜像双架构运行）均验证通过，官方归档哈希与镜像 digest 见 API-004 证据；`d907dde` 候选 CI run `43843500594` 13/13 全绿。任务状态以 [TASKS](TASKS.md) 为准。
 
 ## 2026-11-16 CI 修复（已收口）
 
