@@ -13,6 +13,10 @@
 
 “完成任务数/总数”只表示任务数量，不表示工作量百分比、代码质量或发布时间。阶段没有额外人工进度表，避免两份状态漂移。
 
+## 2026-11-16 新增 M11：API 兼容门禁与 v0.2.0 发布
+
+M10 收口且 CI 全绿后，按路线图进入 API 兼容门禁方向。版本策略经用户确认：**先 v0.2.0，再评估 1.0**。默认从 API-001 开始（设计前置，产出 ADR 0009）；API-002 与 API-003 可在评估后并行推进，但一次只领取一个任务；API-004 的 tag/Release/镜像动作须用户明确指令。分层执行策略、工具选型与风险见 [API 兼容门禁计划](tasks/11-api-gate.md)。
+
 ## 2026-11-16 CI 修复
 
 最新推送 `ed269c2` 的 CI run `43558316429` 暴露两处失败：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859 / GO-2026-6860；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。新增 [SEC-003](tasks/09-follow-up.md#sec-003) 与 [LOAD-003](tasks/09-follow-up.md#load-003) 修复。既有 44 项完成任务不重开。
@@ -79,6 +83,10 @@
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
 | SEC-003 | M9 | [Go 工具链与依赖安全修补（第二轮）](tasks/09-follow-up.md#sec-003) | 完成 | QA-001 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/SEC-003.md) |
 | LOAD-003 | M9 | [JSONL 跨进程锁公平性修复](tasks/09-follow-up.md#load-003) | 完成 | LOAD-002 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/LOAD-003.md) |
+| API-001 | M11 | [API 兼容门禁评估与基线契约](tasks/11-api-gate.md#api-001) | 待办 | BASE-001 | — | — |
+| API-002 | M11 | [apidiff CI 门禁接线](tasks/11-api-gate.md#api-002) | 待办 | API-001 | — | — |
+| API-003 | M11 | [tag 与 CHANGELOG 版本欠账清理](tasks/11-api-gate.md#api-003) | 待办 | API-001 | — | — |
+| API-004 | M11 | [v0.2.0 候选验收与发布](tasks/11-api-gate.md#api-004) | 待办 | API-002, API-003 | — | — |
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |

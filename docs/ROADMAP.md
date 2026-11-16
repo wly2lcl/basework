@@ -40,6 +40,8 @@
 
 2026-11-13 新增 M10 可复用能力上移：把 `internal/jobs`、`internal/edits`、`internal/permission`、`internal/observability` 提升为 `pkg` 公共实现，保持 CLI/TUI 行为不变，并用仓库外 module 示例证明仅靠公共 API 可用。执行顺序、包边界、风险与验收见 [可复用能力上移计划](tasks/10-reuse.md)。该方向完成后才评估 1.0 发布与 API 兼容门禁。
 
+2026-11-16 M10 收口后新增 M11 API 兼容门禁与 v0.2.0 发布：把 apidiff 接入 CI 强制 `pkg` 稳定层的 SemVer 承诺，补齐 tag ↔ CHANGELOG 历史欠账，并在门禁生效后发布 v0.2.0。版本策略经用户确认为「先 v0.2.0，再评估 1.0」；任务分解、分层执行策略与风险见 [API 兼容门禁计划](tasks/11-api-gate.md)。
+
 ## 后续候选方向与进入条件
 
 | 方向 | 进入条件 | 暂缓理由 |
