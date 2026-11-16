@@ -1,8 +1,8 @@
 # 当前实现状态
 
-## 2026-11-16 CI 修复（待远端验证）
+## 2026-11-16 CI 修复（已收口）
 
-最新推送 `ed269c2` 的 CI run `43558316429` 失败于两处：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859（stdlib `net/http`，修复于 Go 1.26.11）与 GO-2026-6860（`x/net/html`，修复于 v0.62.0）；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。本轮 [SEC-003](development/evidence/SEC-003.md) 已升级工具链与依赖并通过本地双 tags 源码扫描，[LOAD-003](development/evidence/LOAD-003.md) 已把跨进程锁轮询改为抖动指数退避并在本地重复负载回归通过。两项状态为待验证，解除条件是推送后远端 CI 全绿；本轮未重建正式产物或镜像。
+最新推送 `ed269c2` 的 CI run `43558316429` 失败于两处：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859（stdlib `net/http`，修复于 Go 1.26.11）与 GO-2026-6860（`x/net/html`，修复于 v0.62.0）；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。本轮 [SEC-003](development/evidence/SEC-003.md) 已升级工具链与依赖并通过本地双 tags 源码扫描，[LOAD-003](development/evidence/LOAD-003.md) 已把跨进程锁轮询改为抖动指数退避并在本地重复负载回归通过。修复提交 `7f2bf60` 的 run `43819173337` 确认两处修复生效，并暴露 M10 遗留的 CI race 死路径（`internal/jobs`/`internal/edits`），已在 `b2dd041` 清理。最终 run `43820106813` 13/13 job 全绿，SEC-003 / LOAD-003 状态为完成；本轮未重建正式产物或镜像。
 
 ## 2026-10-23 安全更新
 

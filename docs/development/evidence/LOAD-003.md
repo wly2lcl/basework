@@ -21,14 +21,15 @@
 | 多进程负载重复 | `go test ./tests/load -run 'TestProjectLoad/jsonl-multiprocess-and-tail-recovery' -count=10 -v` | 10/10 PASS，单次 0.17–0.30s | 修复前同机该子测试为秒级；Windows 运行结论待 CI |
 | race 定向 | `HOME=$(mktemp -d) go test -race -tags 'sqlite memory' ./pkg/session ./tests/load ./internal/runtime ./cmd/basework -count=1 -p 1` | 全部 ok（session 2.701s、load 4.734s） | |
 | 默认/完整 tags 全量 | 与 SEC-003 同一轮回归 | 均全部通过（exit 0） | 见 SEC-003 证据 |
-| 远端 Windows runner（第一轮） | 推送 `7f2bf60` 触发 run `43819173337` | Test (windows-latest) 通过（2m31s），`tests/load` 不再锁超时 | Windows 运行结论已获远端确认；整条 CI 尚差 race 死路径清理后的全绿 |
+| 远端 Windows runner（第一轮） | 推送 `7f2bf60` 触发 run `43819173337` | Test (windows-latest) 通过（2m31s），`tests/load` 不再锁超时 | Windows 运行结论已获远端确认 |
+| 远端 CI（最终） | 推送 `b2dd041` 触发 run `43820106813` | 13/13 job 全绿，Test (windows-latest) 1m53s 通过 | 候选绑定 `b2dd041` |
 
 ## 剩余与交接
 
-- 本机为 darwin/arm64，无法本地复现 Windows runner 的慢文件操作环境；修复正确性由锁语义不变 + 本地重复负载 + 退避公平性推理支撑，最终运行结论以推送后 CI `Test (windows-latest)` 为准。
+- 本机为 darwin/arm64，无法本地复现 Windows runner 的慢文件操作环境；Windows 运行结论已由 run `43819173337` 与 `43820106813` 的 `Test (windows-latest)` 连续两轮通过确认。
 - 未改动 `refreshIfChanged` 的全量回读与 5s 超时上限；若 CI 仍超时，下一步候选是锁内增量尾部回读（需另立任务，不在本卡内扩大范围）。
 
 ## 结论
 
-- 根因有 CI 日志与代码路径支撑，修复最小且不改锁语义；本地验收项通过。
-- 建议状态：待验证（解除条件：推送后远端 CI Windows runner `tests/load` 通过、五平台测试全绿）。
+- 任务卡全部验收项满足：根因有日志支撑、修复不改锁语义、本地重复负载与 race 通过、远端 Windows runner 与五平台测试全绿。
+- 状态：完成。

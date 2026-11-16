@@ -284,7 +284,7 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 - [x] `go.mod` 工具链与受影响依赖达到修复版本，间接依赖升级已核对。
 - [x] 本地 `make check-vuln` 默认与完整 tags 源码扫描均无已知漏洞 finding。
-- [ ] 默认/完整 tags 全量测试、相关 race、vet、架构、文档与生成物检查通过，且推送后远端 CI Quality 与五平台测试全绿。
+- [x] 默认/完整 tags 全量测试、相关 race、vet、架构、文档与生成物检查通过，且推送后远端 CI Quality 与五平台测试全绿。
 - [x] 当前文档最低版本声明、CHANGELOG、STATUS 与本证据一致；历史 SEC-002 记录保留不改写。
 
 **验证与证据**：见 [SEC-003](../development/evidence/SEC-003.md)。
@@ -311,7 +311,7 @@ Chat Completions 或 Anthropic Messages 的结果冒充 Responses 支持。
 
 - [x] 根因有 CI 日志与代码路径支撑，修复只改轮询节奏，不改锁语义与数据格式。
 - [x] 本地 `TestProjectLoad/jsonl-multiprocess-and-tail-recovery` 重复 ≥10 次全部通过，session 包默认/race 测试通过，Windows amd64 交叉编译通过。
-- [ ] 推送后远端 CI Windows runner `tests/load` 通过，五平台测试全绿。
+- [x] 推送后远端 CI Windows runner `tests/load` 通过，五平台测试全绿。
 
 **验证与证据**：见 [LOAD-003](../development/evidence/LOAD-003.md)。
 

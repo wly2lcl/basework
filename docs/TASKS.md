@@ -15,9 +15,9 @@
 
 ## 2026-11-16 CI 修复
 
-最新推送 `ed269c2` 的 CI run `43558316429` 暴露两处失败：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859 / GO-2026-6860；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。新增 [SEC-003](tasks/09-follow-up.md#sec-003) 与 [LOAD-003](tasks/09-follow-up.md#load-003) 修复，本地验收已过，状态为待验证，解除条件是推送后远端 CI 全绿。既有 44 项完成任务不重开。
+最新推送 `ed269c2` 的 CI run `43558316429` 暴露两处失败：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859 / GO-2026-6860；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。新增 [SEC-003](tasks/09-follow-up.md#sec-003) 与 [LOAD-003](tasks/09-follow-up.md#load-003) 修复。既有 44 项完成任务不重开。
 
-修复提交 `7f2bf60` 的 CI run `43819173337` 确认上述两处已修复（漏洞门禁与 Windows runner 均通过），但暴露 M10 上移遗留：Quality race 步骤仍引用已删除的 `./internal/jobs`、`./internal/edits`（`./pkg/...` 已覆盖上移后的包）。该步骤此前因漏洞门禁先失败而从未执行到。已从 `.github/workflows/build.yml` 移除两个死路径，本地以同一命令复跑 21 个包全部通过。
+修复提交 `7f2bf60` 的 CI run `43819173337` 确认上述两处已修复（漏洞门禁与 Windows runner 均通过），但暴露 M10 上移遗留：Quality race 步骤仍引用已删除的 `./internal/jobs`、`./internal/edits`（`./pkg/...` 已覆盖上移后的包）。该步骤此前因漏洞门禁先失败而从未执行到。已从 `.github/workflows/build.yml` 移除两个死路径，本地以同一命令复跑 21 个包全部通过。最终提交 `b2dd041` 的 CI run `43820106813` 全绿（Quality、五平台测试、五平台发布归档 Smoke、Docker Smoke、Release Dry Run 共 13 个 job），SEC-003 / LOAD-003 验收解除，状态转完成。本轮未重建正式 Release 产物或镜像。
 
 ## 2026-10-23 安全更新
 
@@ -77,8 +77,8 @@
 | OPT-001 | M9 | [非交互初始化](tasks/09-follow-up.md#opt-001) | 完成 | CFG-002 | Codex | [记录](development/evidence/OPT-001.md) |
 | OPT-002 | M9 | [长会话与长任务性能基线](tasks/09-follow-up.md#opt-002) | 完成 | BASE-001 | Codex | [记录](development/evidence/OPT-002.md) |
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
-| SEC-003 | M9 | [Go 工具链与依赖安全修补（第二轮）](tasks/09-follow-up.md#sec-003) | 待验证 | QA-001 | Qoder AI 会话 / 2026-11-16 本地修复 | [记录](development/evidence/SEC-003.md) |
-| LOAD-003 | M9 | [JSONL 跨进程锁公平性修复](tasks/09-follow-up.md#load-003) | 待验证 | LOAD-002 | Qoder AI 会话 / 2026-11-16 本地修复 | [记录](development/evidence/LOAD-003.md) |
+| SEC-003 | M9 | [Go 工具链与依赖安全修补（第二轮）](tasks/09-follow-up.md#sec-003) | 完成 | QA-001 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/SEC-003.md) |
+| LOAD-003 | M9 | [JSONL 跨进程锁公平性修复](tasks/09-follow-up.md#load-003) | 完成 | LOAD-002 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/LOAD-003.md) |
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |
 | REUSE-003 | M10 | [编辑计划与提交包上移](tasks/10-reuse.md#reuse-003) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-003.md) |
