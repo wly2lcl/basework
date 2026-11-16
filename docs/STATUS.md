@@ -1,5 +1,9 @@
 # 当前实现状态
 
+## 2026-11-16 M11 API 兼容门禁（进行中）
+
+版本策略经用户确认：**先 v0.2.0，再评估 1.0**。[API-001](development/evidence/API-001.md)（评估与 [ADR 0009](adr/0009-apidiff-api-compatibility-gate.md)）、[API-002](development/evidence/API-002.md)（apidiff CI 门禁，run `43829471517` 13/13 全绿）、[API-003](development/evidence/API-003.md)（CHANGELOG 版本欠账清理）已完成；当前 HEAD 相对 `v0.1.6` 稳定层零不兼容。[API-004](development/evidence/API-004.md) v0.2.0 候选验收：候选 `98eeab8` 的五平台归档与双架构镜像重建完成，产物/镜像内二进制扫描全部无告警，哈希齐备；Release Dry Run（run `43832098771`）通过；SHIP-001 口径真实 Provider 矩阵（OpenAI Chat + Anthropic，`agnes-3.0-flash`）各连续 3 次通过并绑定候选。Responses 渠道 8 次尝试全部 400（适配器自 v0.1.6 零变更、参数与 RESP-001 一致），作为外部边界如实记录，不宣称当前候选已验证 Responses。tag/Release/镜像推送未执行，须用户明确指令。任务状态以 [TASKS](TASKS.md) 为准。
+
 ## 2026-11-16 CI 修复（已收口）
 
 最新推送 `ed269c2` 的 CI run `43558316429` 失败于两处：Quality 漏洞门禁命中 SEC-002 之后新披露的 GO-2026-6859（stdlib `net/http`，修复于 Go 1.26.11）与 GO-2026-6860（`x/net/html`，修复于 v0.62.0）；Windows runner `tests/load` 的 JSONL 多进程追加锁超时。本轮 [SEC-003](development/evidence/SEC-003.md) 已升级工具链与依赖并通过本地双 tags 源码扫描，[LOAD-003](development/evidence/LOAD-003.md) 已把跨进程锁轮询改为抖动指数退避并在本地重复负载回归通过。修复提交 `7f2bf60` 的 run `43819173337` 确认两处修复生效，并暴露 M10 遗留的 CI race 死路径（`internal/jobs`/`internal/edits`），已在 `b2dd041` 清理。最终 run `43820106813` 13/13 job 全绿，SEC-003 / LOAD-003 状态为完成；本轮未重建正式产物或镜像。

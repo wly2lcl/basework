@@ -7,11 +7,17 @@ fixture_root="$(mktemp -d "${TMPDIR:-/tmp}/basework-vuln-test.XXXXXX")"
 trap 'rm -rf "$fixture_root"' EXIT
 mkdir -p "$fixture_root/bin" "$fixture_root/path with spaces"
 export BASEWORK_VULN_TEST_LOG="$fixture_root/calls"
+export BASEWORK_VULN_TEST_ENVLOG="$fixture_root/envqueries"
 export BASEWORK_VULN_TEST_STATUS=0
 export PATH="$fixture_root/bin:$PATH"
 cat > "$fixture_root/bin/go" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "${1:-}" == env && "${2:-}" == GOPROXY && $# == 2 ]]; then
+  printf '%s\n' "${GOPROXY-}" >> "$BASEWORK_VULN_TEST_ENVLOG"
+  printf '%s\n' "${GOPROXY-}"
+  exit 0
+fi
 if [[ -n "${GOOS:-}" || -n "${GOARCH:-}" || -n "${GOVERSION:-}" ]]; then
   echo '扫描器错误继承了交叉编译环境或虚假的工具链版本。' >&2
   exit 98
@@ -20,6 +26,7 @@ if [[ -n "${GOFLAGS:-}" || "${GOENV:-}" != off || "${GOWORK:-}" != off ]]; then
   echo '扫描器错误继承了外部 Go 配置。' >&2
   exit 97
 fi
+printf 'GOPROXY=%s\n' "${GOPROXY-}" >> "$BASEWORK_VULN_TEST_ENVLOG"
 printf '%s\n' "$#" "$@" >> "$BASEWORK_VULN_TEST_LOG"
 if [[ -n "${BASEWORK_VULN_TEST_FAIL_ON:-}" ]]; then
   for argument in "$@"; do
@@ -64,12 +71,22 @@ golang.org/x/vuln/cmd/govulncheck@v1.8.0
 EOF
 cmp "$fixture_root/expected" "$BASEWORK_VULN_TEST_LOG"
 
+# 调用方配置的 GOPROXY 必须传给扫描器：GOENV=off 会丢弃 env 文件里的代理，
+# 而 Go 1.26 的 go run pkg@version 即使缓存完整也要联网查 deprecation。
+: > "$BASEWORK_VULN_TEST_ENVLOG"
+GOPROXY='https://goproxy.example,direct' bash "$script_root/check-vuln.sh" > "$fixture_root/output" 2>&1
+printf 'https://goproxy.example,direct\nGOPROXY=https://goproxy.example,direct\nGOPROXY=https://goproxy.example,direct\n' > "$fixture_root/expected-env"
+cmp "$fixture_root/expected-env" "$BASEWORK_VULN_TEST_ENVLOG"
+
 # 带空格路径保持单个参数；交叉构建环境不能影响宿主扫描器。
 : > "$BASEWORK_VULN_TEST_LOG"
+: > "$BASEWORK_VULN_TEST_ENVLOG"
 GOOS=linux GOARCH=arm64 GOVERSION=go99.0 GOFLAGS='-exec=/usr/bin/true -tags=unexpected' GOVULNDB=file:///empty \
   bash "$script_root/check-vuln.sh" binary "$artifact" > "$fixture_root/output" 2>&1
 printf '6\nrun\ngolang.org/x/vuln/cmd/govulncheck@v1.8.0\n-db=https://vuln.go.dev\n-mode=binary\n--\n%s\n' "$artifact" > "$fixture_root/expected"
 cmp "$fixture_root/expected" "$BASEWORK_VULN_TEST_LOG"
+printf '\nGOPROXY=\n' > "$fixture_root/expected-env"
+cmp "$fixture_root/expected-env" "$BASEWORK_VULN_TEST_ENVLOG"
 
 # 多产物均需扫描；以减号开头的文件名只能作为文件，不能注入扫描参数。
 : > "$BASEWORK_VULN_TEST_LOG"

@@ -28,6 +28,16 @@ GoReleaser 构建统一启用 `sqlite memory` build tags，与 CI、Makefile 和
 - [ ] `git tag` ↔ CHANGELOG 条目 ↔ 候选记录三者版本号与内容一致。
 - [ ] 产物级漏洞扫描与五平台/Docker Smoke 证据绑定当前候选。
 
+## 候选版本记录
+
+### v0.2.0（候选，验收进行中，未打 tag）
+
+- 候选 commit：`98eeab8`（main）；实际构建 Go 1.26.11；tags `sqlite memory`。
+- 扫描器：govulncheck v1.8.0，官方漏洞库 https://vuln.go.dev（2026-11-16 在线查询）；源码双 tags 与五平台二进制扫描均无告警。
+- 门禁：CI run [43829471517](https://github.com/wly2lcl/basework/actions/runs/43829471517) 13/13 全绿（含 API 兼容门禁）；`make check-api` 相对 `v0.1.6` 稳定层零不兼容。
+- 归档哈希与镜像、真实 Provider 矩阵、Dry Run 证据见 [API-004](development/evidence/API-004.md)；CHANGELOG `[0.2.0]` 条目已归档 Unreleased，日期待 tag 创建时对齐。
+- tag、GitHub Release、镜像推送均未执行，须用户明确指令。
+
 ## 正式发布
 
 推荐使用 GitHub Actions 的 `Release` workflow 手动发布：

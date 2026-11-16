@@ -9,12 +9,17 @@ if (( $# > 0 )); then
   shift
 fi
 
+# GOENV=off 会连同用户 env 文件里的 GOPROXY 一起丢弃；Go 1.26 的
+# `go run pkg@version` 即使缓存完整也会查询模块 deprecation 信息，
+# 必须显式保留调用方配置的代理，否则默认 proxy.golang.org 在部分网络不可达。
+caller_goproxy="$(go env GOPROXY)"
+
 scan() (
   # 交叉构建的 post hook 也必须在宿主机上运行扫描器。
   unset GOOS GOARCH GOVERSION
   # 不继承可跳过执行的 -exec、改变源码范围的 -tags 或外部 workspace；
   # 固定官方漏洞库，禁止 GOVULNDB 把检查替换为本地空库。
-  GOFLAGS='' GOENV=off GOWORK=off go run "$scanner" -db=https://vuln.go.dev "$@"
+  GOFLAGS='' GOENV=off GOWORK=off GOPROXY="$caller_goproxy" go run "$scanner" -db=https://vuln.go.dev "$@"
 )
 
 case "$mode" in
