@@ -21,7 +21,7 @@
 | 多进程负载重复 | `go test ./tests/load -run 'TestProjectLoad/jsonl-multiprocess-and-tail-recovery' -count=10 -v` | 10/10 PASS，单次 0.17–0.30s | 修复前同机该子测试为秒级；Windows 运行结论待 CI |
 | race 定向 | `HOME=$(mktemp -d) go test -race -tags 'sqlite memory' ./pkg/session ./tests/load ./internal/runtime ./cmd/basework -count=1 -p 1` | 全部 ok（session 2.701s、load 4.734s） | |
 | 默认/完整 tags 全量 | 与 SEC-003 同一轮回归 | 均全部通过（exit 0） | 见 SEC-003 证据 |
-| 远端 Windows runner | 推送后触发 CI | 未运行 | 需用户授权推送 |
+| 远端 Windows runner（第一轮） | 推送 `7f2bf60` 触发 run `43819173337` | Test (windows-latest) 通过（2m31s），`tests/load` 不再锁超时 | Windows 运行结论已获远端确认；整条 CI 尚差 race 死路径清理后的全绿 |
 
 ## 剩余与交接
 

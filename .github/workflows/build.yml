@@ -67,7 +67,7 @@ jobs:
           git diff --exit-code docs/DEPGRAPH.md docs/STATS.md
 
       - name: Run race tests
-        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./internal/jobs ./internal/edits ./tests/load
+        run: go test -tags "sqlite memory" -race -count=1 ./pkg/... ./internal/permission ./internal/tui ./cmd/basework ./internal/runtime ./tests/load
 
       # 至少保留一个真实入口烟测：脚本会从当前 checkout 构建二进制，
       # 在临时 HOME、临时 fixtures 和本地回环假服务中跑完整修复流程。
