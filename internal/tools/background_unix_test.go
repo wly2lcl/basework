@@ -22,17 +22,23 @@ func grandchildPIDAlive(pid int) bool {
 }
 
 // grandchildPIDFromFile 读取命令写出的孙进程 pid。
+// `echo $! > file` 的重定向先创建空文件再写入内容，文件出现不等于内容就绪，
+// 必须轮询到可解析的数字，否则慢 runner 上会读到空串（macos-15-intel 实际暴露）。
 func grandchildPIDFromFile(t *testing.T, path string) int {
 	t.Helper()
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("读取 pid 文件失败: %v", err)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		b, err := os.ReadFile(path)
+		if err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+				return pid
+			}
+		}
+		if !time.Now().Before(deadline) {
+			t.Fatalf("等待 pid 文件内容超时: %s（最后内容 %q，读取错误 %v）", path, b, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
-	if err != nil {
-		t.Fatalf("pid 文件内容不是数字: %q", string(b))
-	}
-	return pid
 }
 
 // waitForFileToAppear 等待文件出现。
