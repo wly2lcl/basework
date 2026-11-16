@@ -1,4 +1,4 @@
-.PHONY: build test lint clean tidy vet check-arch check-docs check-vuln test-vuln-script stats deps gen coverage progress docker-candidate
+.PHONY: build test lint clean tidy vet check-arch check-docs check-vuln test-vuln-script check-api test-api-script stats deps gen coverage progress docker-candidate
 
 # 默认构建
 build:
@@ -47,6 +47,14 @@ check-vuln:
 # 检查扫描失败、错误输入与路径边界，不请求网络。
 test-vuln-script:
 	bash ./scripts/check-vuln_test.sh
+
+# API 兼容门禁（ADR 0009）：稳定层 pkg 相对最近发布 tag 不得有不兼容变更。
+check-api:
+	bash ./scripts/check-api.sh
+
+# 用临时 git 仓库验证门禁的放行/拦截/警告/基线缺失协议。
+test-api-script:
+	bash ./scripts/check-api_test.sh
 
 # 生成代码统计（写入 docs/STATS.md）
 # 刻意不带 -cover：`go test -cover` 对含并发的包不可复现（同一代码会抖动 ±0.5%），

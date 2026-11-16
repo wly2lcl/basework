@@ -20,6 +20,8 @@
 
 文档整理：`make check-docs`、`make progress`、`git diff --check`。检查器改动时验证成功路径和故意损坏的布局/依赖/链接/证据都会被正确处理。
 
+修改 `pkg` 导出 API 时运行 `make check-api`（ADR 0009）：以最近发布 tag 为基线，默认与 `sqlite,memory` 两遍检查稳定层导出面，不兼容变更即失败；实验四包仅报告，破坏性调整按 ADR 0008 走 ADR + CHANGELOG。`make test-api-script` 用临时 git 仓库验证门禁放行/拦截协议，不能代替真实对比。基线 tag 缺失或工具错误显式失败，不得静默跳过。
+
 工具链或依赖更新：使用 Go 1.26.11 或更新安全修订版，执行 `make check-vuln` 扫描默认与 `sqlite memory` 源码（含测试）；记录扫描器和漏洞库时间。重新构建的正式产物还要执行 `bash scripts/check-vuln.sh binary <明确产物路径> ...`。`make test-vuln-script` 只验证扫描脚本的失败传递与参数，不能代替真实扫描。数据库访问失败不能当无漏洞通过，模块/包级候选与函数级静态调用候选分别记录；当前一轮证据见 [SEC-003](evidence/SEC-003.md)，首轮见 [SEC-002](evidence/SEC-002.md)。
 
 业务代码：先运行任务卡指定包，再跑默认与完整 tag 模式；涉及生命周期、事件与共享状态时覆盖所有改动包的 race。临时复现转正式测试后，先确认原基线会失败，再修复。

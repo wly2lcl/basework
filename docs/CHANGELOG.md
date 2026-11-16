@@ -5,10 +5,17 @@
 
 > **版本口径说明（重要）**
 >
-> 版本标签以 **Git tag** 为准，实际发布还需核对 Release 和产物。2026-09-14 本地核对已有
-> `v0.1.0` 至 `v0.1.4`；下方 `0.3.0` / `0.4.0` / `0.5.0` 等条目
-> 是开发期的内部编号，**尚未对应到任何 git tag**，其 release 链接暂不可达。
-> 后续发布请以 tag 为准，并补齐两条链路：`git tag` ↔ 本文件条目 ↔
+> 版本标签以 **Git tag** 为准，实际发布还需核对 Release 和产物。
+> 2026-11-16（API-003）核对后的完整映射：
+>
+> | 编号 | 结论 | git 证据 |
+> |---|---|---|
+> | 开发期内部编号 0.1.0–0.5.0（2026-07-03 至 07-06） | 未单独发布；全部内容随首个 tag `v0.1.0` 交付 | 仓库首个提交 2026-07-02；`v0.1.0`（2026-07-07，`b879259`）树已含各阶段全部包；打 tag 时本文件尚不存在 |
+> | `v0.1.1`–`v0.1.4`（2026-07-08） | 修复发布，无独立 CHANGELOG 条目（当时未维护本文件） | tag 时间线见 `git tag` |
+> | `v0.1.5` / `v0.1.6`（2026-09-18） | 已发布；内容记录在 Unreleased 的 2026-09 日期小节，下次发布时随 Unreleased 一并归档为正式条目 | tag `9f197d3` 等 |
+>
+> 内部编号条目已改为非版本标题并移除不可达 release 链接，避免与未来正式
+> `0.2.0` 等条目冲突。后续发布必须补齐三链路：`git tag` ↔ 本文件条目 ↔
 > [发布流程](release.md) 中的候选版本记录。
 
 ## [Unreleased]
@@ -379,7 +386,7 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
 - **远程 Agent** — 分布式 Agent 通信与协作
 - **多语言支持** — Agent 回复语言自适应切换
 
-## [0.5.0] - 2026-07-06
+## 开发期内部编号 0.5.0 - 2026-07-06（未单独发布，内容随 v0.1.0 交付）
 
 ### Phase 29-30: TUI 增强 + 模板系统 + 多模态 + 插件生态
 
@@ -414,9 +421,8 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
 - `docs/guides/theme.md` — 主题配置指南
 - `docs/guides/templates.md` — 模板系统指南
 
-[0.5.0]: https://github.com/wly2lcl/basework/releases/tag/v0.5.0
 
-## [0.4.0] - 2026-07-06
+## 开发期内部编号 0.4.0 - 2026-07-06（未单独发布，内容随 v0.1.0 交付）
 
 ### 安全加固 + 性能基线（Phase 28）
 
@@ -482,9 +488,8 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
 - `docs/guides/security.md` — 安全配置指南（权限持久化、敏感路径保护、审计日志）
 - `docs/guides/profiling.md` — 性能分析指南（pprof、benchmark 套件）
 
-[0.4.0]: https://github.com/wly2lcl/basework/releases/tag/v0.4.0
 
-## [0.3.0] - 2026-07-06
+## 开发期内部编号 0.3.0 - 2026-07-06（未单独发布，内容随 v0.1.0 交付）
 
 ### 新增
 
@@ -530,7 +535,7 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
 - `docs/installation.md` — 完整安装指南（Homebrew/Docker/go install/二进制）
 - `docs/docker.md` — Docker 使用指南
 
-## [0.2.0] - 2026-07-04
+## 开发期内部编号 0.2.0 - 2026-07-04（未单独发布，内容随 v0.1.0 交付）
 
 ### 新增
 
@@ -569,9 +574,8 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
   - `mcp_prompts_integration_test.go` — 提示获取 + Context 取消（7 个测试）
   - `mcp_resilience_integration_test.go` — 自动重连 + 变量展开（10 个测试）
 
-[0.2.0]: https://github.com/wly2lcl/basework/releases/tag/v0.2.0
 
-## [0.1.0] - 2025-07-03
+## 开发期内部编号 0.1.0 - 2026-07-03（未单独发布，内容随 v0.1.0 交付；原日期 2025 为笔误，仓库首个提交为 2026-07-02）
 
 ### 新增
 
@@ -626,4 +630,3 @@ M2–M8 首次推送后 CI 矩阵（ubuntu / windows / macos）实际运行，Ub
 - **3 份开发者指南** (`docs/guides/`) — Embedder 指南、配置指南、扩展指南
 - **新增依赖**: cobra v1.10.2, modernc.org/sqlite
 
-[0.1.0]: https://github.com/wly2lcl/basework/releases/tag/v0.1.0

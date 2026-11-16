@@ -120,7 +120,7 @@ llm + tool ← mcp
 | 层级 | 包 | 兼容性承诺 |
 |------|----|-----------|
 | 核心 API | `pkg/llm/`, `pkg/tool/`, `pkg/session/`, `pkg/agent/` | **SemVer 严格兼容**：不删除/修改导出类型签名 |
-| 扩展 API | `pkg/provider/`, `pkg/hook/`, `pkg/mcp/`, `pkg/lsp/` | **SemVer 次版本兼容**：可新增，不可删除 |
+| 扩展 API | `pkg/provider/`, `pkg/hook/`, `pkg/mcp/`, `pkg/lsp/`, `pkg/config/`, `pkg/skill/`, `pkg/memory/` | **SemVer 次版本兼容**：可新增，不可删除（config/skill/memory 归层见 [ADR 0009](adr/0009-apidiff-api-compatibility-gate.md)） |
 | 实验 API（0.x） | `pkg/jobs/`, `pkg/edits/`, `pkg/permission/`, `pkg/observability/` | **不承诺 SemVer**：1.0 前允许破坏性调整，但必须走 ADR 并在 `CHANGELOG.md` 写明迁移方式；稳定后归入扩展 API（只增不删） |
 | 内部实现 | `internal/*` | **无兼容性承诺**：随时可重构；`internal/permission`、`internal/observability` 只保留 `pkg/agent` 适配器 |
 

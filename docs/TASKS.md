@@ -83,9 +83,9 @@ M10 收口且 CI 全绿后，按路线图进入 API 兼容门禁方向。版本�
 | OPT-003 | M9 | [降低长会话追加开销](tasks/09-follow-up.md#opt-003) | 完成 | OPT-002 | Codex | [记录](development/evidence/OPT-003.md) |
 | SEC-003 | M9 | [Go 工具链与依赖安全修补（第二轮）](tasks/09-follow-up.md#sec-003) | 完成 | QA-001 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/SEC-003.md) |
 | LOAD-003 | M9 | [JSONL 跨进程锁公平性修复](tasks/09-follow-up.md#load-003) | 完成 | LOAD-002 | Qoder AI 会话 / 2026-11-16 本地修复与远端 CI 全绿 | [记录](development/evidence/LOAD-003.md) |
-| API-001 | M11 | [API 兼容门禁评估与基线契约](tasks/11-api-gate.md#api-001) | 待办 | BASE-001 | — | — |
-| API-002 | M11 | [apidiff CI 门禁接线](tasks/11-api-gate.md#api-002) | 待办 | API-001 | — | — |
-| API-003 | M11 | [tag 与 CHANGELOG 版本欠账清理](tasks/11-api-gate.md#api-003) | 待办 | API-001 | — | — |
+| API-001 | M11 | [API 兼容门禁评估与基线契约](tasks/11-api-gate.md#api-001) | 完成 | BASE-001 | Qoder AI 会话 / 2026-11-16 评估与 ADR 0009 | [记录](development/evidence/API-001.md) |
+| API-002 | M11 | [apidiff CI 门禁接线](tasks/11-api-gate.md#api-002) | 待验证 | API-001 | Qoder AI 会话 / 2026-11-16 本地接线 | [记录](development/evidence/API-002.md) |
+| API-003 | M11 | [tag 与 CHANGELOG 版本欠账清理](tasks/11-api-gate.md#api-003) | 完成 | API-001 | Qoder AI 会话 / 2026-11-16 映射核对 | [记录](development/evidence/API-003.md) |
 | API-004 | M11 | [v0.2.0 候选验收与发布](tasks/11-api-gate.md#api-004) | 待办 | API-002, API-003 | — | — |
 | REUSE-001 | M10 | [公共能力上移评估与 API 契约](tasks/10-reuse.md#reuse-001) | 完成 | BASE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-001.md) |
 | REUSE-002 | M10 | [后台任务包上移](tasks/10-reuse.md#reuse-002) | 完成 | REUSE-001 | 舟（WorkBuddy AI 会话） | [记录](development/evidence/REUSE-002.md) |

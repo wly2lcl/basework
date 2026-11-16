@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          # API 兼容门禁需要发布 tag 与基线 worktree，浅克隆不带 tags。
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -34,6 +37,13 @@ jobs:
       - name: Check source vulnerabilities
         timeout-minutes: 15
         run: make check-vuln
+
+      - name: Test API gate failure handling
+        run: make test-api-script
+
+      - name: Check API compatibility
+        timeout-minutes: 10
+        run: make check-api
 
       - name: Check formatting
         run: test -z "$(gofmt -l $(find . -path './.git' -prune -o -path './.opencode' -prune -o -name '*.go' -print))"

@@ -4,9 +4,9 @@
 
 ## 当前发布门槛
 
-2026-10-23 的 [SEC-002 安全升级](development/evidence/SEC-002.md) 已完成本地源码、五平台产物、双架构镜像二进制扫描与回归；本轮尚未提交、推送、验证新远端 CI 或创建正式发行版，状态以 [TASKS](TASKS.md) 为准。此前 QA-001、SHIP-001/002/003 的完成记录保留，但不能代替后来披露漏洞的修复与重新扫描。
+安全基线当前为 [SEC-003](development/evidence/SEC-003.md)（Go 1.26.11、`x/net v0.62.0`，CI run `43820106813` 全绿）；首轮 [SEC-002](development/evidence/SEC-002.md) 记录保留。正式 Release 产物与镜像仍须按本流程用当前工具链重建并做产物级扫描，源码扫描通过不代表旧产物已修复。此前 QA-001、SHIP-001/002/003 的完成记录保留，但不能代替后来披露漏洞的修复与重新扫描。
 
-构建至少使用 Go **1.26.11 或更新的安全修订版**；默认/完整 tags 源码和本轮实际二进制均须通过漏洞扫描。修改 `go.mod`、升级开发机 Go 或通过旧 CI，都不会更新已经发布的二进制与镜像。新发布应记录候选 commit、实际 Go 版本、扫描器、漏洞库时间、tags 与产物哈希；历史 tag 不重写。
+构建至少使用 Go **1.26.11 或更新的安全修订版**；默认/完整 tags 源码和本轮实际二进制均须通过漏洞扫描。发布候选还须通过 `make check-api`（[ADR 0009](adr/0009-apidiff-api-compatibility-gate.md)）：稳定层 `pkg` 相对上一发布 tag 不得有未走迁移流程的不兼容变更；tag ↔ CHANGELOG 条目 ↔ 候选记录三链路一致后才可打 tag。修改 `go.mod`、升级开发机 Go 或通过旧 CI，都不会更新已经发布的二进制与镜像。新发布应记录候选 commit、实际 Go 版本、扫描器、漏洞库时间、tags 与产物哈希；历史 tag 不重写。
 
 ## 发布产物
 
@@ -17,6 +17,16 @@
 - GHCR Docker 镜像：`ghcr.io/wly2lcl/basework:<version>`，稳定版额外更新 `ghcr.io/wly2lcl/basework:latest`
 
 GoReleaser 构建统一启用 `sqlite memory` build tags，与 CI、Makefile 和文档命令保持一致。
+
+## 发布前检查项（三链路）
+
+打 tag 前逐项核对（API-003 固化）：
+
+- [ ] `make check-api` 通过：稳定层相对上一 tag 无未走迁移流程的不兼容变更。
+- [ ] CHANGELOG 已为本版本建立正式 `[x.y.z]` 条目（Unreleased 归档），不再使用开发期内部编号。
+- [ ] 本文件候选记录写明候选 commit、实际 Go 版本、扫描器与漏洞库时间、tags、产物哈希。
+- [ ] `git tag` ↔ CHANGELOG 条目 ↔ 候选记录三者版本号与内容一致。
+- [ ] 产物级漏洞扫描与五平台/Docker Smoke 证据绑定当前候选。
 
 ## 正式发布
 
